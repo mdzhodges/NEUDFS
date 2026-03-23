@@ -7,11 +7,18 @@ option go_package = "./proto";
 service Server {
     rpc ChangeDirectory (ChangeDirectoryRequest) returns (ChangeDirectoryResponse) {}
     rpc ListDirectory (ListDirectoryRequest) returns (ListDirectoryResponse) {}
+    rpc Rename (RenameRequest) returns (RenameResponse){}
+    rpc MakeDirectory (MakeDirectoryRequest) returns (MakeDirectoryResponse) {}
+    rpc Upload (stream UploadRequest) returns (UploadResponse) {}
+    rpc Download (DownloadRequest) returns (stream DownloadResponse){}
+    rpc Move (MoveRequest) returns (MoveResponse) {}
+    rpc Delete (DeleteRequest) returns (DeleteResponse){}
 }
 
 message ChangeDirectoryRequest {
     string folder = 1;
 }
+
 message ChangeDirectoryResponse {
     string message = 1;
 }
@@ -19,6 +26,55 @@ message ChangeDirectoryResponse {
 message ListDirectoryRequest {
 
 }
+
 message ListDirectoryResponse {
     repeated string entries = 1;
+}
+
+message RenameRequest {
+    string entry = 1;
+    string name = 2;
+}
+
+message RenameResponse {
+    string message = 1;
+}
+
+message MakeDirectoryRequest {
+    string name = 1;
+}
+
+message MakeDirectoryResponse {
+    string message = 1;
+}
+
+message UploadRequest {
+    string name = 1;
+    bytes data = 2;
+}
+message UploadResponse {
+    string message = 1;
+}
+
+message DownloadRequest {
+    string name = 1;
+}
+message DownloadResponse {
+    bytes data = 1;
+}
+message MoveRequest {
+    string name = 1;
+    string location = 2;
+}
+
+message MoveResponse {
+    string message = 1;
+}
+
+message DeleteRequest{
+    string path = 1;
+}
+
+message DeleteResponse{
+    string message = 1;
 }
