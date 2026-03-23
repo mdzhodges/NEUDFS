@@ -14,13 +14,17 @@ func logger(format string, a ...any) {
 
 type server struct {
 	proto.UnimplementedServerServer
-	currentDirectory string
-	mu               sync.Mutex
+	currentDirectory map[string]string
+	mu               sync.RWMutex
 }
 
 func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryRequest) (*proto.ChangeDirectoryResponse, error) {
-	//we implement logic here
-	return nil, nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	email := ctx.Value("email").(string)
+	s.currentDirectory[email] = in.Folder
+	msg := fmt.Sprintf("Changing Current Directory to %q\n", in.Folder)
+	return &proto.ChangeDirectoryResponse{Message: msg}, nil
 }
 
 func main() {
