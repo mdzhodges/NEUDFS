@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package main;
+
+option go_package = "./proto";
+
+service Server {
+    rpc ChangeDirectory (ChangeDirectoryRequest) returns (ChangeDirectoryResponse) {}
+    rpc ListDirectory (ListDirectoryRequest) returns (ListDirectoryResponse) {}
+}
+
+message ChangeDirectoryRequest {
+    string folder = 1;
+}
+message ChangeDirectoryResponse {
+    string message = 1;
+}
+
+message ListDirectoryRequest {
+
+}
+message ListDirectoryResponse {
+    repeated string entries = 1;
+}
