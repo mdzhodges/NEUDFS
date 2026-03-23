@@ -5,6 +5,14 @@ terraform {
       version = "~> 5.0"
     }
   }
+
+  backend "s3" {
+    bucket         = "neudfs-tf-state"
+    key            = "neudfs/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "neudfs-tf-lock"
+    encrypt        = true
+  }
 }
 
 provider "aws" {
