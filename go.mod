@@ -1,3 +1,3 @@
-module star-vpn
+module NEUDFS
 
 go 1.24.4

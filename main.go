@@ -4,29 +4,34 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"star-vpn/commands"
+	"NEUDFS/commands"
 	"strings"
 )
 
 func main() {
-	//Register Commands
+	// Register Commands
 	cmds := commands.RegisterCommands()
-	//Init Scanner
+
+	fmt.Println("Available commands:")
+	for cmd := range cmds.Commands {
+		fmt.Println(cmd)
+	}
+
+	// Init Scanner
 	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		//Grab arguments
+	for fmt.Print("Enter command: "); scanner.Scan(); fmt.Print("Enter command: ") {
+		// Grab arguments
 		args := strings.Fields(scanner.Text())
 		if len(args) == 0 {
 			continue
 		}
-		//Find Command
-		cmd, ok := cmds[args[0]]
+		// Find Command
+		cmd, ok := cmds.Commands[args[0]]
 		if !ok {
 			fmt.Printf("Invalid command entry %s\n", args[0])
 			continue
 		}
-		//Execute Command
+		// Execute Command
 		cmd(args[1:])
-
 	}
 }
