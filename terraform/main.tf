@@ -12,6 +12,8 @@ provider "aws" {
   region = var.aws_region
 }
 
+data "aws_caller_identity" "current" {}
+
 # Default VPC and subnets for ECS
 data "aws_vpc" "default" {
   default = true
@@ -48,7 +50,7 @@ module "ecs" {
   environment = var.environment
   aws_region  = var.aws_region
 
-  lab_role_arn = var.lab_role_arn
+  lab_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/LabRole"
 
   ecr_repository_url = module.ecr.repository_url
 

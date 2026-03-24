@@ -21,8 +21,3 @@ variable "ecr_repository_name" {
   description = "Name of the ECR repository"
   default     = "neudfs"
 }
-
-variable "lab_role_arn" {
-  type        = string
-  description = "ARN of the LabRole from AWS Academy"
-}
