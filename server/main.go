@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"grpc-server/proto"
 	"log"
+	"net"
 	"os"
 	"strings"
 	"sync"
@@ -14,7 +16,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"google.golang.org/grpc"
 )
+
+var port = flag.Int("port", 50051, "the port to serve on")
 
 // This will log to our metrics in Cloudwatch
 func logger(format string, a ...any) {
@@ -88,14 +93,42 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 		logger("Unable to marshal user data", err)
 		return nil, err
 	}
+	parts := strings.Split(cd, "/")
+	className := parts[0]
+	var res []string
+	for folder := range foundUser.Classrooms[className].Folders {
+		if strings.HasPrefix(foundUser.Classrooms[className].Folders[folder], cd) {
+			match := strings.TrimPrefix(foundUser.Classrooms[className].Folders[folder], cd)
+			if !strings.Contains(match, "/") && match != "" {
+				res = append(res, match)
+			}
+		}
+	}
+	return &proto.ListDirectoryResponse{Entries: res}, err
 }
 
 func main() {
+	//Grab Port Number
+	flag.Parse()
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
 	region := os.Getenv("AWS_REGION")
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
 	if err != nil {
 		log.Fatalf("Critical error: Could not connect to AWS: %v", err)
 	}
 	dbClient := dynamodb.NewFromConfig(cfg)
+
+	//Init Server Object and gRPC server
 	s := NewServer(dbClient)
+	g := grpc.NewServer()
+
+	//Register server object into gRPC server
+	proto.RegisterServerServer(g, s)
+	//Listen on TCP Port 5001
+	if err := g.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
+	}
 }
