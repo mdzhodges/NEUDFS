@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -27,6 +28,7 @@ var (
 	port               = flag.Int("port", 50051, "the port to serve on")
 	errMissingMetadata = status.Errorf(codes.InvalidArgument, "missing metadata")
 	errInvalidPath     = status.Errorf(codes.InvalidArgument, "invalid folder path")
+	errDB              = status.Errorf(codes.Internal, "internal db server error")
 )
 
 // This will log to our metrics in Cloudwatch
@@ -34,6 +36,16 @@ func logger(format string, a ...any) {
 	fmt.Printf("LOG:\t"+format+"\n", a...)
 }
 
+type Metadata struct {
+	PK           string    `dynamodbav:"pk"`
+	SK           string    `dynamodbav:"sk"`
+	Name         string    `dynamodbav:"name"`
+	Owner        string    `dynamodbav:"owner"`
+	LastModified time.Time `dynamodbav:"last_modified"`
+	Type         string    `dynamodbav:"type"`
+	FullPath     string    `dynamodbav:"full_path"`
+	S3Url        string    `dynamodbav:"s3_url"`
+}
 type Class struct {
 	Role    string   `dynamodbav:"role"`
 	Folders []string `dynamodbav:"folders"`
@@ -93,13 +105,29 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 	cd := s.currentDirectory[email]
 	parts := strings.Split(cd, "/")
 	className := parts[0]
+	pathWithinClass := strings.TrimPrefix(cd, className+"/")
+	results, err := s.DB.Query(context.TODO(), &dynamodb.QueryInput{
+		TableName:              aws.String("classroom_metadata"),
+		KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :prefix)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: className},
+			"sk": &types.AttributeValueMemberS{Value: pathWithinClass},
+		},
+	})
 	var res []string
-	for folder := range user.Classrooms[className].Folders {
-		if strings.HasPrefix(user.Classrooms[className].Folders[folder], cd) {
-			match := strings.TrimPrefix(user.Classrooms[className].Folders[folder], cd)
-			if !strings.Contains(match, "/") && match != "" {
-				res = append(res, match)
-			}
+	var entries []Metadata
+	if err != nil {
+		logger("Unable to query DB", err)
+		return nil, errDB
+	}
+	if len(results.Items) != 0 {
+		err = attributevalue.UnmarshalListOfMaps(results.Items, &entries)
+		if err != nil {
+			logger("Unable to marshal user data", err)
+			return nil, err
+		}
+		for _, entry := range entries {
+			res = append(res, entry.Name)
 		}
 	}
 	return &proto.ListDirectoryResponse{Entries: res}, nil
