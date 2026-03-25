@@ -51,11 +51,13 @@ type Class struct {
 	Role    string   `dynamodbav:"role"`
 	Folders []string `dynamodbav:"folders"`
 }
-
+type Classroom struct {
+	Classes map[string]Class `dynamodbav:"classes"`
+}
 type User struct {
-	Email      string           `dynamodbav:"email"`
-	Role       string           `dynamodbav:"role"`
-	Classrooms map[string]Class `dynamodbav:"classrooms"`
+	Email    string               `dynamodbav:"email"`
+	Role     string               `dynamodbav:"role"`
+	Colleges map[string]Classroom `dynamodbav:"colleges"`
 }
 type server struct {
 	proto.UnimplementedServerServer
@@ -105,45 +107,61 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 	return &proto.ChangeDirectoryResponse{Message: msg}, nil
 }
 
+func GetDepth(cd string) int {
+	depth := len(strings.Split(cd, "/"))
+	return depth
+}
+
 // List entries in the user's current directory
 func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryRequest) (*proto.ListDirectoryResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
 	user := ctx.Value("User").(User)
 	email := user.Email
+
 	var res []string
 	cd := s.currentDirectory[email]
-	if cd == "" {
-		for className := range user.Classrooms {
-			res = append(res, className+"/")
+
+	depth := GetDepth(cd)
+	var parts []string
+	var className string
+	//If student is in folder area of Khoury or some other college
+	if depth == 0 {
+		for collegeName := range user.Colleges {
+			res = append(res, collegeName+"/")
 		}
 		return &proto.ListDirectoryResponse{Entries: res}, nil
 	}
-	parts := strings.Split(cd, "/")
-	className := parts[0]
-	pathWithinClass := strings.TrimPrefix(cd, className+"/")
+	if depth == 1 {
+		parts = strings.Split(cd, "/")
+		className = parts[1]
+		//if student is inside khour or another college folder and see their classes
+		for cn := range user.Colleges[className].Classes {
+			res = append(res, cn+"/")
+		}
+		return &proto.ListDirectoryResponse{Entries: res}, nil
+	}
+	parts = strings.Split(cd, "/")
+	className = parts[1]
+	set := make(map[string]bool)
+	for _, folder := range user.Colleges[parts[0]].Classes[className].Folders {
+		folderParts := strings.Split(folder, "/")
+		if len(folderParts) >= depth {
+			folderName := folderParts[depth]
+			set[folderName] = true
+		}
+	}
+	//WIP
 	var results *dynamodb.QueryOutput
 	var err error
-	if pathWithinClass == "" {
-		results, err = s.DB.Query(context.TODO(), &dynamodb.QueryInput{
-			TableName:              aws.String("classroom_metadata"),
-			KeyConditionExpression: aws.String("pk = :pk"),
-			ExpressionAttributeValues: map[string]types.AttributeValue{
-				":pk": &types.AttributeValueMemberS{Value: className},
-			},
-		})
-	} else {
-		results, err = s.DB.Query(context.TODO(), &dynamodb.QueryInput{
-			TableName:              aws.String("classroom_metadata"),
-			KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :prefix)"),
-			FilterExpression:       aws.String("owner = :owner"),
-			ExpressionAttributeValues: map[string]types.AttributeValue{
-				":pk":     &types.AttributeValueMemberS{Value: className},
-				":prefix": &types.AttributeValueMemberS{Value: pathWithinClass},
-				":owner":  &types.AttributeValueMemberS{Value: user.Email},
-			},
-		})
-	}
+	results, err = s.DB.Query(context.TODO(), &dynamodb.QueryInput{
+		TableName:              aws.String("classroom_metadata"),
+		KeyConditionExpression: aws.String("pk = :pk"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk": &types.AttributeValueMemberS{Value: className},
+		},
+	})
 	var entries []Metadata
 	if err != nil {
 		logger("Unable to query DB", err)
