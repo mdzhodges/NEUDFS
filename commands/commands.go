@@ -1,15 +1,27 @@
 package commands
 
 import (
+	"context"
 	"fmt"
+	// "grpc-server/proto" // add once the proto is set up
 )
 
 // All commands share the same signature: they receive a slice of args
 type CommandMap struct {
-	Commands map[string]func(args []string)
+	Commands map[string]CommandFunc
 }
 
-func change_dir(args []string) {
+// CommandContext holds the dependencies for a command
+type CommandContext struct {
+	Client      interface{} // change to proto.ServerClient
+	Ctx         context.Context
+	CurrentPath *string // Pointer so all commands share and update the same string
+}
+
+// Every command now knows about the server and the path
+type CommandFunc func(cmdCtx CommandContext, args []string)
+
+func change_dir(cmdCtx CommandContext, args []string) {
 	if len(args) < 1 {
 		fmt.Println("Usage: cd <directory>")
 		return
@@ -17,11 +29,11 @@ func change_dir(args []string) {
 	fmt.Printf("change_dir to %s\n", args[0])
 }
 
-func list_dir(args []string) {
+func list_dir(cmdCtx CommandContext, args []string) {
 	fmt.Println("list_dir")
 }
 
-func rename_file(args []string) {
+func rename_file(cmdCtx CommandContext, args []string) {
 	if len(args) < 2 {
 		fmt.Println("Usage: rename <old_name> <new_name>")
 		return
@@ -29,7 +41,7 @@ func rename_file(args []string) {
 	fmt.Printf("rename %s to %s\n", args[0], args[1])
 }
 
-func rename_dir(args []string) {
+func rename_dir(cmdCtx CommandContext, args []string) {
 	if len(args) < 2 {
 		fmt.Println("Usage: renamedir <old_name> <new_name>")
 		return
@@ -37,7 +49,7 @@ func rename_dir(args []string) {
 	fmt.Printf("rename dir %s to %s\n", args[0], args[1])
 }
 
-func upload(args []string) {
+func upload(cmdCtx CommandContext, args []string) {
 	if len(args) < 1 {
 		fmt.Println("Usage: upload <file>")
 		return
@@ -45,7 +57,7 @@ func upload(args []string) {
 	fmt.Printf("upload %s\n", args[0])
 }
 
-func download(args []string) {
+func download(cmdCtx CommandContext, args []string) {
 	if len(args) < 1 {
 		fmt.Println("Usage: download <file>")
 		return
@@ -53,7 +65,7 @@ func download(args []string) {
 	fmt.Printf("download %s\n", args[0])
 }
 
-func move(args []string) {
+func move(cmdCtx CommandContext, args []string) {
 	if len(args) < 2 {
 		fmt.Println("Usage: move <source> <destination>")
 		return
@@ -61,7 +73,7 @@ func move(args []string) {
 	fmt.Printf("move %s to %s\n", args[0], args[1])
 }
 
-func delete_file_folder(args []string) {
+func delete_file_folder(cmdCtx CommandContext, args []string) {
 	if len(args) < 1 {
 		fmt.Println("Usage: delete <file_or_folder>")
 		return
@@ -69,7 +81,7 @@ func delete_file_folder(args []string) {
 	fmt.Printf("delete %s\n", args[0])
 }
 
-func create(args []string) {
+func create(cmdCtx CommandContext, args []string) {
 	if len(args) < 1 {
 		fmt.Println("Usage: mkdir <directory>")
 		return
@@ -79,7 +91,7 @@ func create(args []string) {
 
 func RegisterCommands() CommandMap {
 	return CommandMap{
-		Commands: map[string]func(args []string){
+		Commands: map[string]CommandFunc{
 			"cd":       change_dir,
 			"ls":       list_dir,
 			"rename":   rename_file,
@@ -93,7 +105,7 @@ func RegisterCommands() CommandMap {
 	}
 }
 
-func help(args []string) {
+func help(cmdCtx CommandContext, args []string) {
 	fmt.Println("Available commands:")
 	for cmd := range RegisterCommands().Commands {
 		fmt.Println("  " + cmd)

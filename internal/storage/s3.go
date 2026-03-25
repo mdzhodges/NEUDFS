@@ -18,7 +18,7 @@ type S3Store struct {
 
 // helper function to set up our S3Store
 func NewS3Store(ctx context.Context, nameOfBucket string) (*S3Store, error) {
-	
+
 	// Load the AWS settings like credentials and region
 	awsConfig, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
@@ -40,7 +40,7 @@ func NewS3Store(ctx context.Context, nameOfBucket string) (*S3Store, error) {
 
 // takes data and puts it into the specific folder structure we planned
 func (s *S3Store) UploadFile(ctx context.Context, classID string, studentID string, fileName string, fileData []byte) error {
-	
+
 	// Create the path string: Khoury/class/CS6650/jordan.g/project.zip
 	s3Path := fmt.Sprintf("Khoury/class/%s/%s/%s", classID, studentID, fileName)
 
