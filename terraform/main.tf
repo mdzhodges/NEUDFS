@@ -32,6 +32,11 @@ module "dynamodb" {
   environment = var.environment
 }
 
+module "s3_storage" {
+  source      = "./modules/s3_storage"
+  environment = var.environment
+}
+
 module "ecr" {
   source          = "./modules/ecr"
   repository_name = var.ecr_repository_name

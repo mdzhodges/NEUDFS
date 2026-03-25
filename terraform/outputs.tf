@@ -21,3 +21,11 @@ output "ecr_repository_url" {
 output "log_group_name" {
   value = module.logging.log_group_name
 }
+
+output "s3_bucket_id" {
+  value = module.s3_storage.bucket_id
+}
+
+output "s3_bucket_arn" {
+  value = module.s3_storage.bucket_arn
+}
