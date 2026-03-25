@@ -24,7 +24,7 @@ func (c *CommandMap) change_dir(args []string) {
 	md := metadata.New(map[string]string{"email": c.UserEmail})
 	ctx := metadata.NewOutgoingContext(context.Background(), md)
 	//create gRPC request
-	in := proto.ChangeDirectoryRequest{Folder: args[1]}
+	in := proto.ChangeDirectoryRequest{Folder: args[0]}
 	//request gRPC server for Changing Directory
 	message, err := c.Client.ChangeDirectory(ctx, &in)
 	if err != nil {
@@ -36,13 +36,12 @@ func (c *CommandMap) change_dir(args []string) {
 }
 
 func (c *CommandMap) list_dir(args []string) {
-	fmt.Println("list_dir")
 	md := metadata.New(map[string]string{"email": c.UserEmail})
 	ctx := metadata.NewOutgoingContext(context.Background(), md)
 	in := proto.ListDirectoryRequest{}
 	message, err := c.Client.ListDirectory(ctx, &in)
 	if err != nil {
-		fmt.Errorf(err.Error())
+		fmt.Printf(err.Error())
 		fmt.Printf("Please try again")
 		return
 	}
@@ -107,8 +106,11 @@ func (c *CommandMap) create(args []string) {
 	fmt.Printf("create %s\n", args[0])
 }
 
-func RegisterCommands(client proto.ServerClient, email string) CommandMap {
-	var cm CommandMap
+func RegisterCommands(client proto.ServerClient, email string) *CommandMap {
+	cm := &CommandMap{
+		Client:    client,
+		UserEmail: email,
+	}
 	cm.Commands = map[string]func(args []string){
 		"cd":       cm.change_dir,
 		"ls":       cm.list_dir,
@@ -120,8 +122,6 @@ func RegisterCommands(client proto.ServerClient, email string) CommandMap {
 		"delete":   cm.delete_file_folder,
 		"--help":   cm.help,
 	}
-	cm.Client = client
-	cm.UserEmail = email
 	return cm
 }
 

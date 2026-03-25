@@ -15,6 +15,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -76,6 +77,14 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 	user := ctx.Value("User").(User)
 	email := user.Email
 	cd := s.currentDirectory[email]
+	if cd == "" {
+		if _, ok := user.Classrooms[in.Folder]; ok {
+			s.currentDirectory[email] = in.Folder + "/"
+			msg := fmt.Sprintf("Changing Current Directory to %q\n", in.Folder+"/")
+			return &proto.ChangeDirectoryResponse{Message: msg}, nil
+		}
+		return nil, errInvalidPath
+	}
 	parts := strings.Split(cd, "/")
 	className := parts[0]
 	var msg string
@@ -102,19 +111,39 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 	defer s.mu.RUnlock()
 	user := ctx.Value("User").(User)
 	email := user.Email
+	var res []string
 	cd := s.currentDirectory[email]
+	if cd == "" {
+		for className := range user.Classrooms {
+			res = append(res, className+"/")
+		}
+		return &proto.ListDirectoryResponse{Entries: res}, nil
+	}
 	parts := strings.Split(cd, "/")
 	className := parts[0]
 	pathWithinClass := strings.TrimPrefix(cd, className+"/")
-	results, err := s.DB.Query(context.TODO(), &dynamodb.QueryInput{
-		TableName:              aws.String("classroom_metadata"),
-		KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :prefix)"),
-		ExpressionAttributeValues: map[string]types.AttributeValue{
-			"pk": &types.AttributeValueMemberS{Value: className},
-			"sk": &types.AttributeValueMemberS{Value: pathWithinClass},
-		},
-	})
-	var res []string
+	var results *dynamodb.QueryOutput
+	var err error
+	if pathWithinClass == "" {
+		results, err = s.DB.Query(context.TODO(), &dynamodb.QueryInput{
+			TableName:              aws.String("classroom_metadata"),
+			KeyConditionExpression: aws.String("pk = :pk"),
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				":pk": &types.AttributeValueMemberS{Value: className},
+			},
+		})
+	} else {
+		results, err = s.DB.Query(context.TODO(), &dynamodb.QueryInput{
+			TableName:              aws.String("classroom_metadata"),
+			KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :prefix)"),
+			FilterExpression:       aws.String("owner = :owner"),
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				":pk":     &types.AttributeValueMemberS{Value: className},
+				":prefix": &types.AttributeValueMemberS{Value: pathWithinClass},
+				":owner":  &types.AttributeValueMemberS{Value: user.Email},
+			},
+		})
+	}
 	var entries []Metadata
 	if err != nil {
 		logger("Unable to query DB", err)
@@ -190,14 +219,24 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	region := os.Getenv("AWS_REGION")
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("us-east-1"))
 	if err != nil {
 		log.Fatalf("Critical error: Could not connect to AWS: %v", err)
 	}
 	//sets up dynamodb
+	endpoint := os.Getenv("DYNAMODB_ENDPOINT")
 	dbClient := dynamodb.NewFromConfig(cfg)
-
+	if endpoint != "" {
+		cfg, err = config.LoadDefaultConfig(context.TODO(),
+			config.WithRegion("us-east-1"),
+			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("fake", "fake", "fake")),
+		)
+		dbClient = dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
+			o.BaseEndpoint = aws.String(endpoint)
+		})
+	} else {
+		dbClient = dynamodb.NewFromConfig(cfg)
+	}
 	//Init Server Object and gRPC server
 	s := NewServer(dbClient)
 	//add interceptor ie middleware to validate user
