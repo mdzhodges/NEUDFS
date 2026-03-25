@@ -1,14 +1,18 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"grpc-server/proto"
+
+	"google.golang.org/grpc/metadata"
 )
 
 // All commands share the same signature: they receive a slice of args
 type CommandMap struct {
-	Commands map[string]func(args []string)
-	Client   proto.ServerClient
+	Commands  map[string]func(args []string)
+	Client    proto.ServerClient
+	UserEmail string
 }
 
 func (c *CommandMap) change_dir(args []string) {
@@ -16,11 +20,35 @@ func (c *CommandMap) change_dir(args []string) {
 		fmt.Println("Usage: cd <directory>")
 		return
 	}
-	fmt.Printf("change_dir to %s\n", args[0])
+	//append user email to metadata context
+	md := metadata.New(map[string]string{"email": c.UserEmail})
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
+	//create gRPC request
+	in := proto.ChangeDirectoryRequest{Folder: args[1]}
+	//request gRPC server for Changing Directory
+	message, err := c.Client.ChangeDirectory(ctx, &in)
+	if err != nil {
+		fmt.Errorf(err.Error())
+		fmt.Printf("Please try again")
+		return
+	}
+	fmt.Printf(message.Message)
 }
 
 func (c *CommandMap) list_dir(args []string) {
 	fmt.Println("list_dir")
+	md := metadata.New(map[string]string{"email": c.UserEmail})
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
+	in := proto.ListDirectoryRequest{}
+	message, err := c.Client.ListDirectory(ctx, &in)
+	if err != nil {
+		fmt.Errorf(err.Error())
+		fmt.Printf("Please try again")
+		return
+	}
+	for i := range message.Entries {
+		fmt.Printf(message.Entries[i])
+	}
 }
 
 func (c *CommandMap) rename_file(args []string) {
@@ -79,7 +107,7 @@ func (c *CommandMap) create(args []string) {
 	fmt.Printf("create %s\n", args[0])
 }
 
-func RegisterCommands(client proto.ServerClient) CommandMap {
+func RegisterCommands(client proto.ServerClient, email string) CommandMap {
 	var cm CommandMap
 	cm.Commands = map[string]func(args []string){
 		"cd":       cm.change_dir,
@@ -93,6 +121,7 @@ func RegisterCommands(client proto.ServerClient) CommandMap {
 		"--help":   cm.help,
 	}
 	cm.Client = client
+	cm.UserEmail = email
 	return cm
 }
 

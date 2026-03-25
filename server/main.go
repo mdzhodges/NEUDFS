@@ -127,7 +127,18 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 			return nil, err
 		}
 		for _, entry := range entries {
-			res = append(res, entry.Name)
+			remaining := strings.TrimPrefix(entry.SK, pathWithinClass)
+			remaining = strings.TrimSuffix(remaining, "/")
+			if remaining == "" {
+				continue
+			}
+			if !strings.Contains(remaining, "/") {
+				if entry.Type == "folder" {
+					res = append(res, entry.Name+"/")
+				} else {
+					res = append(res, entry.Name)
+				}
+			}
 		}
 	}
 	return &proto.ListDirectoryResponse{Entries: res}, nil
