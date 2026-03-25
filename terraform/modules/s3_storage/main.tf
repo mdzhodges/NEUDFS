@@ -1,5 +1,6 @@
 resource "aws_s3_bucket" "neudfs_bucket" {
   bucket = "neudfs-storage-${var.environment}"
+  force_destroy = true
   
   tags = {
     Name        = "NEUDFS Storage"
