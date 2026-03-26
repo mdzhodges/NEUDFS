@@ -8,7 +8,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -76,34 +75,15 @@ func NewServer(db *dynamodb.Client) *server {
 func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryRequest) (*proto.ChangeDirectoryResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	var msg string
 	user := ctx.Value("User").(User)
 	email := user.Email
 	cd := s.currentDirectory[email]
-	if cd == "" {
-		if _, ok := user.Classrooms[in.Folder]; ok {
-			s.currentDirectory[email] = in.Folder + "/"
-			msg := fmt.Sprintf("Changing Current Directory to %q\n", in.Folder+"/")
-			return &proto.ChangeDirectoryResponse{Message: msg}, nil
-		}
-		return nil, errInvalidPath
-	}
-	parts := strings.Split(cd, "/")
-	className := parts[0]
-	var msg string
-	if in.Folder == ".." {
-		trimmed := strings.TrimSuffix(cd, "/")
-		parentDir := trimmed[:strings.LastIndex(trimmed, "/")+1]
-		s.currentDirectory[email] = parentDir
-		msg = fmt.Sprintf("Changing Current Directory to %q\n", parentDir)
-	} else {
-		newCD := cd + in.Folder
-		if slices.Contains(user.Classrooms[className].Folders, newCD) {
-			msg = fmt.Sprintf("Changing Current Directory to %q\n", newCD)
-			s.currentDirectory[email] = newCD
-		} else {
-			return nil, errInvalidPath
-		}
-	}
+
+	path := strings.Split(cd, "/")
+	college := path[0]
+	class := path[1]
+
 	return &proto.ChangeDirectoryResponse{Message: msg}, nil
 }
 
@@ -146,20 +126,30 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 	className = parts[1]
 	set := make(map[string]bool)
 	for _, folder := range user.Colleges[parts[0]].Classes[className].Folders {
+		if !strings.HasPrefix(folder, cd+"/") {
+			continue
+		}
 		folderParts := strings.Split(folder, "/")
-		if len(folderParts) >= depth {
-			folderName := folderParts[depth]
-			set[folderName] = true
+		if len(folderParts) > depth {
+			childName := folderParts[depth]
+			set[childName] = true
 		}
 	}
 	//WIP
+	pathWithinClass := strings.Join(parts[2:], "/")
 	var results *dynamodb.QueryOutput
 	var err error
 	results, err = s.DB.Query(context.TODO(), &dynamodb.QueryInput{
 		TableName:              aws.String("classroom_metadata"),
-		KeyConditionExpression: aws.String("pk = :pk"),
+		KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :prefix)"),
+		FilterExpression:       aws.String("#t = :type"),
+		ExpressionAttributeNames: map[string]string{
+			"#t": "type",
+		},
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":pk": &types.AttributeValueMemberS{Value: className},
+			":pk":     &types.AttributeValueMemberS{Value: parts[1]},
+			":prefix": &types.AttributeValueMemberS{Value: pathWithinClass},
+			":type":   &types.AttributeValueMemberS{Value: "file"},
 		},
 	})
 	var entries []Metadata
@@ -175,18 +165,13 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 		}
 		for _, entry := range entries {
 			remaining := strings.TrimPrefix(entry.SK, pathWithinClass)
-			remaining = strings.TrimSuffix(remaining, "/")
-			if remaining == "" {
-				continue
-			}
-			if !strings.Contains(remaining, "/") {
-				if entry.Type == "folder" {
-					res = append(res, entry.Name+"/")
-				} else {
-					res = append(res, entry.Name)
-				}
+			if remaining != "" && !strings.Contains(remaining, "/") {
+				res = append(res, entry.Name)
 			}
 		}
+	}
+	for k, _ := range set {
+		res = append(res, k)
 	}
 	return &proto.ListDirectoryResponse{Entries: res}, nil
 }

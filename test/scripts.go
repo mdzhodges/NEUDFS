@@ -165,17 +165,17 @@ func seedData(client *dynamodb.Client) {
 	// Seed classroom metadata (folders and files)
 	entries := []Metadata{
 		// Alice's folders
-		{PK: "CS101", SK: "alice/", Name: "alice", Owner: "alice@school.edu", LastModified: now, Type: "folder", FullPath: "CS101/alice/"},
-		{PK: "CS101", SK: "alice/homework/", Name: "homework", Owner: "alice@school.edu", LastModified: now, Type: "folder", FullPath: "CS101/alice/homework/"},
-		{PK: "CS101", SK: "alice/notes/", Name: "notes", Owner: "alice@school.edu", LastModified: now, Type: "folder", FullPath: "CS101/alice/notes/"},
+		{PK: "CS101", SK: "alice/", Name: "alice", Owner: "alice@school.edu", LastModified: now, Type: "folder", FullPath: "Khoury/CS101/alice/"},
+		{PK: "CS101", SK: "alice/homework/", Name: "homework", Owner: "alice@school.edu", LastModified: now, Type: "folder", FullPath: "Khoury/CS101/alice/homework/"},
+		{PK: "CS101", SK: "alice/notes/", Name: "notes", Owner: "alice@school.edu", LastModified: now, Type: "folder", FullPath: "Khoury/CS101/alice/notes/"},
 		// Alice's files
-		{PK: "CS101", SK: "alice/homework/assignment1.pdf", Name: "assignment1.pdf", Owner: "alice@school.edu", LastModified: now, Type: "file", FullPath: "CS101/alice/homework/assignment1.pdf", S3Url: "s3://neudfs/CS101/alice/homework/assignment1.pdf"},
-		{PK: "CS101", SK: "alice/notes/chapter1.txt", Name: "chapter1.txt", Owner: "alice@school.edu", LastModified: now, Type: "file", FullPath: "CS101/alice/notes/chapter1.txt", S3Url: "s3://neudfs/CS101/alice/notes/chapter1.txt"},
+		{PK: "CS101", SK: "alice/homework/assignment1.pdf", Name: "assignment1.pdf", Owner: "alice@school.edu", LastModified: now, Type: "file", FullPath: "Khoury/CS101/alice/homework/assignment1.pdf", S3Url: "s3://neudfs/CS101/alice/homework/assignment1.pdf"},
+		{PK: "CS101", SK: "alice/notes/chapter1.txt", Name: "chapter1.txt", Owner: "alice@school.edu", LastModified: now, Type: "file", FullPath: "Khoury/CS101/alice/notes/chapter1.txt", S3Url: "s3://neudfs/CS101/alice/notes/chapter1.txt"},
 		// Bob's folders
-		{PK: "CS101", SK: "bob/", Name: "bob", Owner: "bob@school.edu", LastModified: now, Type: "folder", FullPath: "CS101/bob/"},
-		{PK: "CS101", SK: "bob/homework/", Name: "homework", Owner: "bob@school.edu", LastModified: now, Type: "folder", FullPath: "CS101/bob/homework/"},
+		{PK: "CS101", SK: "bob/", Name: "bob", Owner: "bob@school.edu", LastModified: now, Type: "folder", FullPath: "Khoury/CS101/bob/"},
+		{PK: "CS101", SK: "bob/homework/", Name: "homework", Owner: "bob@school.edu", LastModified: now, Type: "folder", FullPath: "Khoury/CS101/bob/homework/"},
 		// Bob's file
-		{PK: "CS101", SK: "bob/homework/assignment1.pdf", Name: "assignment1.pdf", Owner: "bob@school.edu", LastModified: now, Type: "file", FullPath: "CS101/bob/homework/assignment1.pdf", S3Url: "s3://neudfs/CS101/bob/homework/assignment1.pdf"},
+		{PK: "CS101", SK: "bob/homework/assignment1.pdf", Name: "assignment1.pdf", Owner: "bob@school.edu", LastModified: now, Type: "file", FullPath: "Khoury/CS101/bob/homework/assignment1.pdf", S3Url: "s3://neudfs/CS101/bob/homework/assignment1.pdf"},
 	}
 
 	for _, entry := range entries {
