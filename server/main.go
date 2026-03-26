@@ -315,6 +315,8 @@ func (s *server) CurrentDirectory(ctx context.Context, in *proto.CurrentDirector
 	user := ctx.Value("User").(User)
 	email := user.Email
 	cd := s.currentDirectory[email]
+	cd = "/" + cd
+	
 	return &proto.CurrentDirectoryResponse{Directory: cd}, nil
 }
 

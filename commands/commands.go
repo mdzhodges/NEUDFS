@@ -89,6 +89,7 @@ func RegisterCommands() CommandMap {
 			"move":     move,
 			"delete":   delete_file_folder,
 			"--help":   help,
+			
 		},
 	}
 }
