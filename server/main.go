@@ -281,6 +281,9 @@ func unaryInterceptor(db *dynamodb.Client) grpc.UnaryServerInterceptor {
 			return nil, errMissingMetadata
 		}
 		emails := md["email"]
+		if len(emails) == 0 {
+			return nil, status.Error(codes.Unauthenticated, "no email provided in metadata")
+		}
 		email := emails[0]
 		result, err := db.GetItem(context.TODO(), &dynamodb.GetItemInput{
 			TableName: aws.String("user"),
