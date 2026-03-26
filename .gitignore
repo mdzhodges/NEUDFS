@@ -1,0 +1,20 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+.terraform.lock.hcl
+
+# Go
+bin/
+out/
+test-results/
+
+# OS Specific
+.DS_Store
+Thumbs.db
+
+# Logs and sensitive info
+*.log
+.env
+terraform.*

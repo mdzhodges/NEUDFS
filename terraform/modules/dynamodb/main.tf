@@ -27,6 +27,16 @@ resource "aws_dynamodb_table" "filedata" {
     type = "S"
   }
 
+  attribute {
+    name = "owner"
+    type = "S"
+  }
+
+  attribute {
+    name = "last_modified"
+    type = "S"
+  }
+
   #for querying user ids across classrooms
   global_secondary_index {
     name            = "owner-index"
