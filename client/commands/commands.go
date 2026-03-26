@@ -110,16 +110,15 @@ func (c *CommandMap) create(args []string) {
 func (c *CommandMap) pwd(args []string) {
 	md := metadata.New(map[string]string{"email": c.UserEmail})
 	ctx := metadata.NewOutgoingContext(context.Background(), md)
-	in := proto.{}
-	message, err := c.Client.ListDirectory(ctx, &in)
+	in := proto.CurrentDirectoryRequest{}
+	message, err := c.Client.CurrentDirectory(ctx, &in)
 	if err != nil {
 		fmt.Println(err.Error())
 		fmt.Println("Please try again")
 		return
 	}
-	for i := range message.Entries {
-		fmt.Println(message.Entries[i])
-	}
+	
+	fmt.Println(message.Directory)
 }
 
 func RegisterCommands(client proto.ServerClient, email string) *CommandMap {
