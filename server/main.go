@@ -80,6 +80,20 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 	user := ctx.Value("User").(User)
 	email := user.Email
 	cd := s.currentDirectory[email]
+	if in.Folder == ".." {
+		if cd == "" {
+			return &proto.ChangeDirectoryResponse{Message: "Already at root"}, nil
+		}
+		trimmed := strings.TrimSuffix(cd, "/")
+		lastSlash := strings.LastIndex(trimmed, "/")
+		if lastSlash == -1 {
+			s.currentDirectory[email] = ""
+		} else {
+			s.currentDirectory[email] = trimmed[:lastSlash+1]
+		}
+		msg := fmt.Sprintf("Changed directory to %s", s.currentDirectory[email])
+		return &proto.ChangeDirectoryResponse{Message: msg}, nil
+	}
 	if cd == "" {
 		//If at root, user can only cd into their colleges
 		if _, ok := user.Colleges[in.Folder]; ok {
@@ -113,8 +127,11 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 }
 
 func GetDepth(cd string) int {
-	depth := len(strings.Split(cd, "/"))
-	return depth
+	if cd == "" {
+		return 0
+	}
+	trimmed := strings.TrimSuffix(cd, "/")
+	return len(strings.Split(trimmed, "/"))
 }
 
 // List entries in the user's current directory
@@ -129,6 +146,7 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 	cd := s.currentDirectory[email]
 
 	depth := GetDepth(cd)
+	fmt.Printf("cd=%q depth=%d colleges=%v\n", cd, depth, user.Colleges)
 	var parts []string
 	var className string
 	//If student is in folder area of Khoury or some other college
@@ -140,7 +158,7 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 	}
 	if depth == 1 {
 		parts = strings.Split(cd, "/")
-		className = parts[1]
+		className = parts[0]
 		//if student is inside khour or another college folder and see their classes
 		for cn := range user.Colleges[className].Classes {
 			res = append(res, cn+"/")
