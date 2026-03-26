@@ -30,3 +30,13 @@ New terminal $\rarr$ in client:
     AWS_ACCESS_KEY_ID "fake"
     AWS_SECRET_ACCESS_KEY "fake"
     AWS_SESSION_TOKEN "fake"
+
+TO GET THE SHARED ACCOUNT
+
+<https://signin.aws.amazon.com/switchrole?roleName=The_Boys&account=190803021874>
+
+Then navigate to the cloud shell and enter this command
+
+curl -s -H "Authorization: $AWS_CONTAINER_AUTHORIZATION_TOKEN" $AWS_CONTAINER_CREDENTIALS_FULL_URI | jq -r '"set -gx AWS_ACCESS_KEY_ID \(.AccessKeyId)\nset -gx AWS_SECRET_ACCESS_KEY \(.SecretAccessKey)\nset -gx AWS_SESSION_TOKEN \(.Token)"'
+
+Then copy the commands into aws config locally
