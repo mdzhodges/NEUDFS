@@ -5,17 +5,24 @@ To run GRPC server locally
 
 Inside test folder
 
-  docker run -p 8000:8000 amazon/dynamodb-local
+    docker run -p 8000:8000 amazon/dynamodb-local
   
 Then in another terminal (still in test folder)
 
-  go run scripts.go
+    go run scripts.go
   
-In server folder set `DYNAMO_DB_ENDPOINT` to `http://localhost:8000`
+In server folder set `DYNAMODB_ENDPOINT` to `http://localhost:8000`
 Then in server folder, 
 
-  go run main.go
+    go run main.go
 
 New terminal $\rarr$ in client:
 
-  go run main.go
+    go run main.go
+  
+  
+# Dont forget to set credentials!
+
+    set -x AWS_ACCESS_KEY_ID "fake"
+    set -x AWS_SECRET_ACCESS_KEY "fake"
+    set -x AWS_SESSION_TOKEN "fake"

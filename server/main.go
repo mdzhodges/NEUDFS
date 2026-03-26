@@ -320,24 +320,6 @@ func (s *server) CurrentDirectory(ctx context.Context, in *proto.CurrentDirector
 	return &proto.CurrentDirectoryResponse{Directory: cd}, nil
 }
 
-func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryRequest) (*proto.ChangeDirectoryResponse, error) {
-	user := ctx.Value("User").(User)
-	email := user.Email
-	cd := s.currentDirectory[email]
-	newFolder := in.Name
-	if newFolder == "" {
-		return nil, errName
-	}
-	depth := GetDepth(cd)
-	if depth == 0 || depth == 1 {
-		if user.Role == "student" || user.Role == "professor" {
-			return nil, errDB
-		}
-	} else {
-
-	}
-	return nil, nil
-}
 
 func main() {
 	//Grab Port Number
