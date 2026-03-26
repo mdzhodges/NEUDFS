@@ -17,7 +17,9 @@ Then in another terminal (still in test folder)
     go run scripts.go
   
 In server folder set `DYNAMODB_ENDPOINT` to `http://localhost:8000`
-Then in server folder,
+export DYNAMODB_ENDPOINT="http://localhost:8000"
+
+Then in server folder, 
 
     go run main.go
 
@@ -25,18 +27,24 @@ New terminal $\rarr$ in client:
 
     go run main.go
   
-# Dont forget to set credentials
+  
+# Dont forget to set credentials!
 
-    AWS_ACCESS_KEY_ID "fake"
-    AWS_SECRET_ACCESS_KEY "fake"
-    AWS_SESSION_TOKEN "fake"
+    set -x AWS_ACCESS_KEY_ID "fake"
+    set -x AWS_SECRET_ACCESS_KEY "fake"
+    set -x AWS_SESSION_TOKEN "fake"
 
-TO GET THE SHARED ACCOUNT
+    ---
 
-<https://signin.aws.amazon.com/switchrole?roleName=The_Boys&account=190803021874>
+    Bash Commands
 
-Then navigate to the cloud shell and enter this command
+    export AWS_ACCESS_KEY_ID="fake"
+    export AWS_SECRET_ACCESS_KEY="fake"
+    export AWS_SESSION_TOKEN="fake"
 
-curl -s -H "Authorization: $AWS_CONTAINER_AUTHORIZATION_TOKEN" $AWS_CONTAINER_CREDENTIALS_FULL_URI | jq -r '"set -gx AWS_ACCESS_KEY_ID \(.AccessKeyId)\nset -gx AWS_SECRET_ACCESS_KEY \(.SecretAccessKey)\nset -gx AWS_SESSION_TOKEN \(.Token)"'
 
-Then copy the commands into aws config locally
+# Running the test
+In test directory:
+    K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=dashboard_report.html k6 run neudfs_test.js
+    open dashboard_report.html
+    open neudfs_report.html
