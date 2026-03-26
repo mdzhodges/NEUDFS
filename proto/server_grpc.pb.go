@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v7.34.1
-// source: server/proto/server.proto
+// source: proto/server.proto
 
 package proto
 
@@ -19,14 +19,15 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Server_ChangeDirectory_FullMethodName = "/main.Server/ChangeDirectory"
-	Server_ListDirectory_FullMethodName   = "/main.Server/ListDirectory"
-	Server_Rename_FullMethodName          = "/main.Server/Rename"
-	Server_MakeDirectory_FullMethodName   = "/main.Server/MakeDirectory"
-	Server_Upload_FullMethodName          = "/main.Server/Upload"
-	Server_Download_FullMethodName        = "/main.Server/Download"
-	Server_Move_FullMethodName            = "/main.Server/Move"
-	Server_Delete_FullMethodName          = "/main.Server/Delete"
+	Server_ChangeDirectory_FullMethodName  = "/main.Server/ChangeDirectory"
+	Server_ListDirectory_FullMethodName    = "/main.Server/ListDirectory"
+	Server_CurrentDirectory_FullMethodName = "/main.Server/CurrentDirectory"
+	Server_Rename_FullMethodName           = "/main.Server/Rename"
+	Server_MakeDirectory_FullMethodName    = "/main.Server/MakeDirectory"
+	Server_Upload_FullMethodName           = "/main.Server/Upload"
+	Server_Download_FullMethodName         = "/main.Server/Download"
+	Server_Move_FullMethodName             = "/main.Server/Move"
+	Server_Delete_FullMethodName           = "/main.Server/Delete"
 )
 
 // ServerClient is the client API for Server service.
@@ -35,6 +36,7 @@ const (
 type ServerClient interface {
 	ChangeDirectory(ctx context.Context, in *ChangeDirectoryRequest, opts ...grpc.CallOption) (*ChangeDirectoryResponse, error)
 	ListDirectory(ctx context.Context, in *ListDirectoryRequest, opts ...grpc.CallOption) (*ListDirectoryResponse, error)
+	CurrentDirectory(ctx context.Context, in *CurrentDirectoryRequest, opts ...grpc.CallOption) (*CurrentDirectoryResponse, error)
 	Rename(ctx context.Context, in *RenameRequest, opts ...grpc.CallOption) (*RenameResponse, error)
 	MakeDirectory(ctx context.Context, in *MakeDirectoryRequest, opts ...grpc.CallOption) (*MakeDirectoryResponse, error)
 	Upload(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadRequest, UploadResponse], error)
@@ -65,6 +67,16 @@ func (c *serverClient) ListDirectory(ctx context.Context, in *ListDirectoryReque
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListDirectoryResponse)
 	err := c.cc.Invoke(ctx, Server_ListDirectory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serverClient) CurrentDirectory(ctx context.Context, in *CurrentDirectoryRequest, opts ...grpc.CallOption) (*CurrentDirectoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CurrentDirectoryResponse)
+	err := c.cc.Invoke(ctx, Server_CurrentDirectory_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -149,6 +161,7 @@ func (c *serverClient) Delete(ctx context.Context, in *DeleteRequest, opts ...gr
 type ServerServer interface {
 	ChangeDirectory(context.Context, *ChangeDirectoryRequest) (*ChangeDirectoryResponse, error)
 	ListDirectory(context.Context, *ListDirectoryRequest) (*ListDirectoryResponse, error)
+	CurrentDirectory(context.Context, *CurrentDirectoryRequest) (*CurrentDirectoryResponse, error)
 	Rename(context.Context, *RenameRequest) (*RenameResponse, error)
 	MakeDirectory(context.Context, *MakeDirectoryRequest) (*MakeDirectoryResponse, error)
 	Upload(grpc.ClientStreamingServer[UploadRequest, UploadResponse]) error
@@ -170,6 +183,9 @@ func (UnimplementedServerServer) ChangeDirectory(context.Context, *ChangeDirecto
 }
 func (UnimplementedServerServer) ListDirectory(context.Context, *ListDirectoryRequest) (*ListDirectoryResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListDirectory not implemented")
+}
+func (UnimplementedServerServer) CurrentDirectory(context.Context, *CurrentDirectoryRequest) (*CurrentDirectoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CurrentDirectory not implemented")
 }
 func (UnimplementedServerServer) Rename(context.Context, *RenameRequest) (*RenameResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Rename not implemented")
@@ -242,6 +258,24 @@ func _Server_ListDirectory_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ServerServer).ListDirectory(ctx, req.(*ListDirectoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Server_CurrentDirectory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CurrentDirectoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServerServer).CurrentDirectory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Server_CurrentDirectory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServerServer).CurrentDirectory(ctx, req.(*CurrentDirectoryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -352,6 +386,10 @@ var Server_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Server_ListDirectory_Handler,
 		},
 		{
+			MethodName: "CurrentDirectory",
+			Handler:    _Server_CurrentDirectory_Handler,
+		},
+		{
 			MethodName: "Rename",
 			Handler:    _Server_Rename_Handler,
 		},
@@ -380,5 +418,5 @@ var Server_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "server/proto/server.proto",
+	Metadata: "proto/server.proto",
 }
