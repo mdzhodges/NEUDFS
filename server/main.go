@@ -76,54 +76,60 @@ func NewServer(db *dynamodb.Client) *server {
 func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryRequest) (*proto.ChangeDirectoryResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var msg string
 	user := ctx.Value("User").(User)
 	email := user.Email
 	cd := s.currentDirectory[email]
-	if in.Folder == ".." {
-		if cd == "" {
-			return &proto.ChangeDirectoryResponse{Message: "Already at root"}, nil
-		}
-		trimmed := strings.TrimSuffix(cd, "/")
-		lastSlash := strings.LastIndex(trimmed, "/")
-		if lastSlash == -1 {
-			s.currentDirectory[email] = ""
-		} else {
-			s.currentDirectory[email] = trimmed[:lastSlash+1]
-		}
-		msg := fmt.Sprintf("Changed directory to %s", s.currentDirectory[email])
-		return &proto.ChangeDirectoryResponse{Message: msg}, nil
-	}
+
+	// Depth 0: Entering a College
 	if cd == "" {
-		//If at root, user can only cd into their colleges
 		if _, ok := user.Colleges[in.Folder]; ok {
 			s.currentDirectory[email] = in.Folder + "/"
-			msg := fmt.Sprintf("Changed directory to %s", s.currentDirectory[email])
-			return &proto.ChangeDirectoryResponse{Message: msg}, nil
+			return &proto.ChangeDirectoryResponse{Message: fmt.Sprintf("Changed directory to %q\n", in.Folder+"/")}, nil
 		}
 		return nil, errInvalidPath
 	}
-	depth := GetDepth(cd)
-	path := strings.Split(cd, "/")
-	college := path[0]
-	if depth == 1 {
-		if _, ok := user.Colleges[college].Classes[in.Folder]; ok {
-			s.currentDirectory[email] = cd + in.Folder + "/"
-			msg := fmt.Sprintf("Changed directory to %s", s.currentDirectory[email])
-			return &proto.ChangeDirectoryResponse{Message: msg}, nil
-		}
-		return nil, errInvalidPath
-	}
-	class := path[1]
-	newPath := cd + in.Folder
-	if slices.Contains(user.Colleges[college].Classes[class].Folders, newPath) {
-		s.currentDirectory[email] = newPath + "/"
-		msg := fmt.Sprintf("Changed directory to %s", s.currentDirectory[email])
-		return &proto.ChangeDirectoryResponse{Message: msg}, nil
 
+	parts := strings.Split(cd, "/")
+	collegeName := parts[0]
+	var msg string
+
+	// Handle going up a directory
+	if in.Folder == ".." {
+		trimmed := strings.TrimSuffix(cd, "/")
+		parentDir := trimmed[:strings.LastIndex(trimmed, "/")+1]
+		s.currentDirectory[email] = parentDir
+		msg = fmt.Sprintf("Changed directory to %q\n", parentDir)
+		return &proto.ChangeDirectoryResponse{Message: msg}, nil
 	}
-	msg = fmt.Sprintf("Incorrect or inaccessible path given")
-	return &proto.ChangeDirectoryResponse{Message: msg}, errInvalidPath
+
+	depth := GetDepth(cd)
+	
+	// Depth 1: Entering a Class (e.g. Khoury -> CS101)
+	if depth == 1 {
+		if _, ok := user.Colleges[collegeName].Classes[in.Folder]; ok {
+			newCD := cd + in.Folder + "/"
+			s.currentDirectory[email] = newCD
+			return &proto.ChangeDirectoryResponse{Message: fmt.Sprintf("Changed directory to %q\n", newCD)}, nil
+		}
+		return nil, errInvalidPath
+	}
+
+	// Depth >= 2: Entering a Subfolder (e.g. CS101 -> bob)
+	className := parts[1]
+	newCD := cd + in.Folder + "/"
+	
+	// Calculate the relative path expected by the DB (e.g., "Khoury/CS101/bob/" -> "bob")
+	relPath := strings.TrimPrefix(newCD, collegeName+"/"+className+"/")
+	relPath = strings.TrimSuffix(relPath, "/")
+
+	if slices.Contains(user.Colleges[collegeName].Classes[className].Folders, relPath) {
+		s.currentDirectory[email] = newCD
+		msg = fmt.Sprintf("Changed directory to %q\n", newCD)
+	} else {
+		return nil, errInvalidPath
+	}
+	
+	return &proto.ChangeDirectoryResponse{Message: msg}, nil
 }
 
 func GetDepth(cd string) int {
@@ -134,88 +140,126 @@ func GetDepth(cd string) int {
 	return len(strings.Split(trimmed, "/"))
 }
 
-// List entries in the user's current directory
+// list
 func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryRequest) (*proto.ListDirectoryResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	user := ctx.Value("User").(User)
 	email := user.Email
-
 	var res []string
 	cd := s.currentDirectory[email]
-
 	depth := GetDepth(cd)
-	fmt.Printf("cd=%q depth=%d colleges=%v\n", cd, depth, user.Colleges)
-	var parts []string
-	var className string
-	//If student is in folder area of Khoury or some other college
-	if depth == 0 {
+
+	// Depth 0: Show Colleges
+	if depth == 0 || cd == "" {
 		for collegeName := range user.Colleges {
 			res = append(res, collegeName+"/")
 		}
 		return &proto.ListDirectoryResponse{Entries: res}, nil
 	}
+
+	parts := strings.Split(cd, "/")
+	collegeName := parts[0]
+
+	// Depth 1: Show Classes in College
 	if depth == 1 {
-		parts = strings.Split(cd, "/")
-		className = parts[0]
-		//if student is inside khour or another college folder and see their classes
-		for cn := range user.Colleges[className].Classes {
+		for cn := range user.Colleges[collegeName].Classes {
 			res = append(res, cn+"/")
 		}
 		return &proto.ListDirectoryResponse{Entries: res}, nil
 	}
-	parts = strings.Split(cd, "/")
-	className = parts[1]
+
+	// Depth >= 2: Show Files/Folders in Class
+	className := parts[1]
 	set := make(map[string]bool)
-	for _, folder := range user.Colleges[parts[0]].Classes[className].Folders {
-		if !strings.HasPrefix(folder, cd+"/") {
+	pathWithinClass := strings.TrimPrefix(cd, collegeName+"/"+className+"/")
+	allowedFolders := user.Colleges[collegeName].Classes[className].Folders
+
+	// 1. Gather Folders from the User Profile
+	for _, folder := range allowedFolders {
+		folderPath := folder + "/"
+		if !strings.HasPrefix(folderPath, pathWithinClass) {
 			continue
 		}
-		folderParts := strings.Split(folder, "/")
-		if len(folderParts) > depth {
-			childName := folderParts[depth]
-			set[childName] = true
+		remaining := strings.TrimPrefix(folderPath, pathWithinClass)
+		if remaining == "" { continue }
+		
+		childParts := strings.Split(strings.TrimSuffix(remaining, "/"), "/")
+		if len(childParts) > 0 && childParts[0] != "" {
+			set[childParts[0]+"/"] = true
 		}
 	}
-	//WIP
-	pathWithinClass := strings.Join(parts[2:], "/")
-	var results *dynamodb.QueryOutput
-	var err error
-	results, err = s.DB.Query(context.TODO(), &dynamodb.QueryInput{
-		TableName:              aws.String("classroom_metadata"),
-		KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :prefix)"),
-		FilterExpression:       aws.String("#t = :type"),
-		ExpressionAttributeNames: map[string]string{
-			"#t": "type",
-		},
-		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":pk":     &types.AttributeValueMemberS{Value: parts[1]},
-			":prefix": &types.AttributeValueMemberS{Value: pathWithinClass},
-			":type":   &types.AttributeValueMemberS{Value: "file"},
-		},
+
+	// 2. Gather Files/Folders from DynamoDB
+	keyCondition := "pk = :pk"
+	exprValues := map[string]types.AttributeValue{
+		":pk": &types.AttributeValueMemberS{Value: className},
+	}
+
+	if pathWithinClass != "" {
+		keyCondition = "pk = :pk AND begins_with(sk, :prefix)"
+		exprValues[":prefix"] = &types.AttributeValueMemberS{Value: pathWithinClass}
+	}
+
+	results, err := s.DB.Query(context.TODO(), &dynamodb.QueryInput{
+		TableName:                 aws.String("classroom_metadata"),
+		KeyConditionExpression:    aws.String(keyCondition),
+		ExpressionAttributeValues: exprValues,
 	})
-	var entries []Metadata
+
 	if err != nil {
 		logger("Unable to query DB", err)
 		return nil, errDB
 	}
+
+	var entries []Metadata
 	if len(results.Items) != 0 {
-		err = attributevalue.UnmarshalListOfMaps(results.Items, &entries)
-		if err != nil {
-			logger("Unable to marshal user data", err)
-			return nil, err
-		}
+		attributevalue.UnmarshalListOfMaps(results.Items, &entries)
 		for _, entry := range entries {
+			if !strings.HasPrefix(entry.SK, pathWithinClass) {
+				continue
+			}
+			
+			// --- ACCESS CONTROL CHECK ---
+			isAllowed := false
+			for _, allowed := range allowedFolders {
+				allowedPath := allowed
+				if !strings.HasSuffix(allowedPath, "/") {
+					allowedPath += "/"
+				}
+				// Allow if entry is inside allowed folder OR allowed folder is inside entry
+				if strings.HasPrefix(entry.SK, allowedPath) || strings.HasPrefix(allowedPath, entry.SK) {
+					isAllowed = true
+					break
+				}
+			}
+			
+			// Skip this entry if the user doesn't have permission and isn't a teacher
+			if !isAllowed && user.Role != "teacher" {
+				continue
+			}
+			// --- END ACCESS CONTROL CHECK ---
+
 			remaining := strings.TrimPrefix(entry.SK, pathWithinClass)
-			if remaining != "" && !strings.Contains(remaining, "/") {
-				res = append(res, entry.Name)
+			if remaining == "" { continue }
+			
+			childParts := strings.Split(remaining, "/")
+			if len(childParts) == 1 { 
+				// It's a file
+				set[childParts[0]] = true
+			} else if len(childParts) > 1 { 
+				// It's a directory
+				set[childParts[0]+"/"] = true
 			}
 		}
 	}
-	for k, _ := range set {
+
+	// Convert set back to slice
+	for k := range set {
 		res = append(res, k)
 	}
+
 	return &proto.ListDirectoryResponse{Entries: res}, nil
 }
 
