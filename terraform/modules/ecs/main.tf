@@ -80,6 +80,12 @@ resource "aws_ecs_service" "app" {
     assign_public_ip = true
   }
 
+  load_balancer {
+    target_group_arn = var.target_group_arn
+    container_name   = var.app_name
+    container_port   = var.container_port
+  }
+
   tags = {
     Name        = "${var.app_name}-service"
     Environment = var.environment

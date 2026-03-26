@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
-	"NEUDFS/commands"
-	"NEUDFS/internal/storage"
+	"grpc-server/commands"
+	"grpc-server/internal/storage"
 )
 
 // testS3Connection is a helper function to make sure we can talk to AWS

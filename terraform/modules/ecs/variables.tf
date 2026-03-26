@@ -76,3 +76,8 @@ variable "metadata_table_name" {
   type        = string
   description = "DynamoDB metadata table name"
 }
+
+variable "target_group_arn" {
+  type        = string
+  description = "ARN of the NLB target group to register ECS tasks with"
+}

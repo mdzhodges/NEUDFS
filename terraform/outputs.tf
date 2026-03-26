@@ -29,3 +29,8 @@ output "s3_bucket_id" {
 output "s3_bucket_arn" {
   value = module.s3_storage.bucket_arn
 }
+
+output "server_address" {
+  value       = "${module.nlb.dns_name}:8080"
+  description = "gRPC server address — use this in the client"
+}

@@ -48,6 +48,15 @@ module "logging" {
   service_name = var.service_name
 }
 
+module "nlb" {
+  source = "./modules/nlb"
+
+  app_name       = var.service_name
+  environment    = var.environment
+  vpc_id         = data.aws_vpc.default.id
+  subnet_ids     = data.aws_subnets.default.ids
+}
+
 module "ecs" {
   source = "./modules/ecs"
 
@@ -65,4 +74,6 @@ module "ecs" {
   log_group_name      = module.logging.log_group_name
   user_table_name     = module.dynamodb.user_table_name
   metadata_table_name = module.dynamodb.metadata_table_name
+
+  target_group_arn = module.nlb.target_group_arn
 }
