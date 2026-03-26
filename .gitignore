@@ -17,4 +17,4 @@ Thumbs.db
 # Logs and sensitive info
 *.log
 .env
-terraform.tfvars
+terraform.*
