@@ -30,6 +30,7 @@ var (
 	errMissingMetadata = status.Errorf(codes.InvalidArgument, "missing metadata")
 	errInvalidPath     = status.Errorf(codes.InvalidArgument, "invalid folder path")
 	errDB              = status.Errorf(codes.Internal, "internal db server error")
+	errName            = status.Errorf(codes.InvalidArgument, "invalid folder name for mkdir")
 )
 
 // This will log to our metrics in Cloudwatch
@@ -78,6 +79,10 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 	defer s.mu.Unlock()
 	user := ctx.Value("User").(User)
 	email := user.Email
+	if in.Folder == "" {
+		s.currentDirectory[email] = ""
+		return &proto.ChangeDirectoryResponse{Message: fmt.Sprintf("Changed directory to root")}, nil
+	}
 	cd := s.currentDirectory[email]
 
 	// Depth 0: Entering a College
@@ -103,7 +108,7 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 	}
 
 	depth := GetDepth(cd)
-	
+
 	// Depth 1: Entering a Class (e.g. Khoury -> CS101)
 	if depth == 1 {
 		if _, ok := user.Colleges[collegeName].Classes[in.Folder]; ok {
@@ -117,7 +122,7 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 	// Depth >= 2: Entering a Subfolder (e.g. CS101 -> bob)
 	className := parts[1]
 	newCD := cd + in.Folder + "/"
-	
+
 	// Calculate the relative path expected by the DB (e.g., "Khoury/CS101/bob/" -> "bob")
 	relPath := strings.TrimPrefix(newCD, collegeName+"/"+className+"/")
 	relPath = strings.TrimSuffix(relPath, "/")
@@ -128,7 +133,7 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 	} else {
 		return nil, errInvalidPath
 	}
-	
+
 	return &proto.ChangeDirectoryResponse{Message: msg}, nil
 }
 
@@ -183,8 +188,10 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 			continue
 		}
 		remaining := strings.TrimPrefix(folderPath, pathWithinClass)
-		if remaining == "" { continue }
-		
+		if remaining == "" {
+			continue
+		}
+
 		childParts := strings.Split(strings.TrimSuffix(remaining, "/"), "/")
 		if len(childParts) > 0 && childParts[0] != "" {
 			set[childParts[0]+"/"] = true
@@ -220,7 +227,7 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 			if !strings.HasPrefix(entry.SK, pathWithinClass) {
 				continue
 			}
-			
+
 			// --- ACCESS CONTROL CHECK ---
 			isAllowed := false
 			for _, allowed := range allowedFolders {
@@ -234,7 +241,7 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 					break
 				}
 			}
-			
+
 			// Skip this entry if the user doesn't have permission and isn't a teacher
 			if !isAllowed && user.Role != "teacher" {
 				continue
@@ -242,13 +249,15 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 			// --- END ACCESS CONTROL CHECK ---
 
 			remaining := strings.TrimPrefix(entry.SK, pathWithinClass)
-			if remaining == "" { continue }
-			
+			if remaining == "" {
+				continue
+			}
+
 			childParts := strings.Split(remaining, "/")
-			if len(childParts) == 1 { 
+			if len(childParts) == 1 {
 				// It's a file
 				set[childParts[0]] = true
-			} else if len(childParts) > 1 { 
+			} else if len(childParts) > 1 {
 				// It's a directory
 				set[childParts[0]+"/"] = true
 			}
@@ -302,12 +311,30 @@ func unaryInterceptor(db *dynamodb.Client) grpc.UnaryServerInterceptor {
 	}
 }
 
-
 func (s *server) CurrentDirectory(ctx context.Context, in *proto.CurrentDirectoryRequest) (*proto.CurrentDirectoryResponse, error) {
 	user := ctx.Value("User").(User)
 	email := user.Email
 	cd := s.currentDirectory[email]
 	return &proto.CurrentDirectoryResponse{Directory: cd}, nil
+}
+
+func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryRequest) (*proto.ChangeDirectoryResponse, error) {
+	user := ctx.Value("User").(User)
+	email := user.Email
+	cd := s.currentDirectory[email]
+	newFolder := in.Name
+	if newFolder == "" {
+		return nil, errName
+	}
+	depth := GetDepth(cd)
+	if depth == 0 || depth == 1 {
+		if user.Role == "student" || user.Role == "professor" {
+			return nil, errDB
+		}
+	} else {
+
+	}
+	return nil, nil
 }
 
 func main() {
