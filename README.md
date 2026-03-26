@@ -1,9 +1,6 @@
 # NEU-DFS
 CS6650 Final Project
 
-
-
-
 To run GRPC server locally
 
 Inside test folder
