@@ -29,10 +29,10 @@ func (c *CommandMap) change_dir(args []string) {
 	message, err := c.Client.ChangeDirectory(ctx, &in)
 	if err != nil {
 		fmt.Errorf(err.Error())
-		fmt.Printf("Please try again")
+		fmt.Println("Please try again")
 		return
 	}
-	fmt.Printf(message.Message)
+	fmt.Println(message.Message)
 }
 
 func (c *CommandMap) list_dir(args []string) {
@@ -41,12 +41,12 @@ func (c *CommandMap) list_dir(args []string) {
 	in := proto.ListDirectoryRequest{}
 	message, err := c.Client.ListDirectory(ctx, &in)
 	if err != nil {
-		fmt.Printf(err.Error())
-		fmt.Printf("Please try again")
+		fmt.Println(err.Error())
+		fmt.Println("Please try again")
 		return
 	}
 	for i := range message.Entries {
-		fmt.Printf(message.Entries[i])
+		fmt.Println(message.Entries[i])
 	}
 }
 
@@ -106,6 +106,22 @@ func (c *CommandMap) create(args []string) {
 	fmt.Printf("create %s\n", args[0])
 }
 
+
+func (c *CommandMap) pwd(args []string) {
+	md := metadata.New(map[string]string{"email": c.UserEmail})
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
+	in := proto.{}
+	message, err := c.Client.ListDirectory(ctx, &in)
+	if err != nil {
+		fmt.Println(err.Error())
+		fmt.Println("Please try again")
+		return
+	}
+	for i := range message.Entries {
+		fmt.Println(message.Entries[i])
+	}
+}
+
 func RegisterCommands(client proto.ServerClient, email string) *CommandMap {
 	cm := &CommandMap{
 		Client:    client,
@@ -121,6 +137,7 @@ func RegisterCommands(client proto.ServerClient, email string) *CommandMap {
 		"move":     cm.move,
 		"delete":   cm.delete_file_folder,
 		"--help":   cm.help,
+		"pwd":      cm.pwd,
 	}
 	return cm
 }

@@ -302,6 +302,14 @@ func unaryInterceptor(db *dynamodb.Client) grpc.UnaryServerInterceptor {
 	}
 }
 
+
+func (s *server) CurrentDirectory(ctx context.Context, in *proto.CurrentDirectoryRequest) (*proto.CurrentDirectoryResponse, error) {
+	user := ctx.Value("User").(User)
+	email := user.Email
+	cd := s.currentDirectory[email]
+	return &proto.CurrentDirectoryResponse{Directory: cd}, nil
+}
+
 func main() {
 	//Grab Port Number
 	flag.Parse()

@@ -81,7 +81,7 @@ func main() {
 		fmt.Println(cmd)
 	}
 
-	for fmt.Print("Enter command: "); scanner.Scan(); fmt.Print("Enter command: ") {
+	for fmt.Print("$: "); scanner.Scan(); fmt.Print("$: ") {
 		// Grab arguments
 		args := strings.Fields(scanner.Text())
 		if len(args) == 0 {
