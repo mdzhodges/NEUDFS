@@ -31,6 +31,7 @@ var (
 	errInvalidPath     = status.Errorf(codes.InvalidArgument, "invalid folder path")
 	errDB              = status.Errorf(codes.Internal, "internal db server error")
 	errName            = status.Errorf(codes.InvalidArgument, "invalid folder name for mkdir")
+	errMkdir           = status.Errorf(codes.Internal, "Unable to create a folder here")
 )
 
 // This will log to our metrics in Cloudwatch
@@ -316,7 +317,7 @@ func (s *server) CurrentDirectory(ctx context.Context, in *proto.CurrentDirector
 	email := user.Email
 	cd := s.currentDirectory[email]
 	cd = "/" + cd
-	
+
 	return &proto.CurrentDirectoryResponse{Directory: cd}, nil
 }
 
@@ -331,7 +332,7 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 	depth := GetDepth(cd)
 	if depth == 0 || depth == 1 {
 		if user.Role == "student" || user.Role == "professor" {
-			return nil, errDB
+			return nil, errMkdir
 		}
 	} else {
 
