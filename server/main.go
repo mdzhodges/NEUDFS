@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -79,12 +80,36 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 	user := ctx.Value("User").(User)
 	email := user.Email
 	cd := s.currentDirectory[email]
-
+	if cd == "" {
+		//If at root, user can only cd into their colleges
+		if _, ok := user.Colleges[in.Folder]; ok {
+			s.currentDirectory[email] = in.Folder + "/"
+			msg := fmt.Sprintf("Changed directory to %s", s.currentDirectory[email])
+			return &proto.ChangeDirectoryResponse{Message: msg}, nil
+		}
+		return nil, errInvalidPath
+	}
+	depth := GetDepth(cd)
 	path := strings.Split(cd, "/")
 	college := path[0]
+	if depth == 1 {
+		if _, ok := user.Colleges[college].Classes[in.Folder]; ok {
+			s.currentDirectory[email] = cd + in.Folder + "/"
+			msg := fmt.Sprintf("Changed directory to %s", s.currentDirectory[email])
+			return &proto.ChangeDirectoryResponse{Message: msg}, nil
+		}
+		return nil, errInvalidPath
+	}
 	class := path[1]
+	newPath := cd + in.Folder
+	if slices.Contains(user.Colleges[college].Classes[class].Folders, newPath) {
+		s.currentDirectory[email] = newPath + "/"
+		msg := fmt.Sprintf("Changed directory to %s", s.currentDirectory[email])
+		return &proto.ChangeDirectoryResponse{Message: msg}, nil
 
-	return &proto.ChangeDirectoryResponse{Message: msg}, nil
+	}
+	msg = fmt.Sprintf("Incorrect or inaccessible path given")
+	return &proto.ChangeDirectoryResponse{Message: msg}, errInvalidPath
 }
 
 func GetDepth(cd string) int {
