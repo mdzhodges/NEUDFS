@@ -19,10 +19,14 @@ type Class struct {
 	Folders []string `dynamodbav:"folders"`
 }
 
+type Classroom struct {
+	Classes map[string]Class `dynamodbav:"classes"`
+}
+
 type User struct {
-	Email      string           `dynamodbav:"email"`
-	Role       string           `dynamodbav:"role"`
-	Classrooms map[string]Class `dynamodbav:"classrooms"`
+	Email    string               `dynamodbav:"email"`
+	Role     string               `dynamodbav:"role"`
+	Colleges map[string]Classroom `dynamodbav:"colleges"`
 }
 
 type Metadata struct {
@@ -54,7 +58,6 @@ func main() {
 }
 
 func createTables(client *dynamodb.Client) {
-	// Create user table
 	_, err := client.CreateTable(context.TODO(), &dynamodb.CreateTableInput{
 		TableName: aws.String("user"),
 		AttributeDefinitions: []types.AttributeDefinition{
@@ -71,7 +74,6 @@ func createTables(client *dynamodb.Client) {
 		fmt.Println("User table created")
 	}
 
-	// Create classroom_metadata table
 	_, err = client.CreateTable(context.TODO(), &dynamodb.CreateTableInput{
 		TableName: aws.String("classroom_metadata"),
 		AttributeDefinitions: []types.AttributeDefinition{
@@ -104,42 +106,52 @@ func createTables(client *dynamodb.Client) {
 		fmt.Println("Metadata table created")
 	}
 
-	// Wait for tables to be ready
 	time.Sleep(2 * time.Second)
 }
 
 func seedData(client *dynamodb.Client) {
 	now := time.Now().Format(time.RFC3339)
 
-	// Seed users
 	users := []User{
 		{
 			Email: "alice@school.edu",
 			Role:  "student",
-			Classrooms: map[string]Class{
-				"CS101": {
-					Role:    "student",
-					Folders: []string{"alice", "alice/homework", "alice/notes"},
+			Colleges: map[string]Classroom{
+				"Khoury": {
+					Classes: map[string]Class{
+						"CS101": {
+							Role:    "student",
+							Folders: []string{"alice", "alice/homework", "alice/notes"},
+						},
+					},
 				},
 			},
 		},
 		{
 			Email: "bob@school.edu",
 			Role:  "student",
-			Classrooms: map[string]Class{
-				"CS101": {
-					Role:    "student",
-					Folders: []string{"bob", "bob/homework"},
+			Colleges: map[string]Classroom{
+				"Khoury": {
+					Classes: map[string]Class{
+						"CS101": {
+							Role:    "student",
+							Folders: []string{"bob", "bob/homework"},
+						},
+					},
 				},
 			},
 		},
 		{
 			Email: "professor@school.edu",
 			Role:  "teacher",
-			Classrooms: map[string]Class{
-				"CS101": {
-					Role:    "teacher",
-					Folders: []string{},
+			Colleges: map[string]Classroom{
+				"Khoury": {
+					Classes: map[string]Class{
+						"CS101": {
+							Role:    "teacher",
+							Folders: []string{},
+						},
+					},
 				},
 			},
 		},
@@ -162,7 +174,6 @@ func seedData(client *dynamodb.Client) {
 		}
 	}
 
-	// Seed classroom metadata (folders and files)
 	entries := []Metadata{
 		// Alice's folders
 		{PK: "CS101", SK: "alice/", Name: "alice", Owner: "alice@school.edu", LastModified: now, Type: "folder", FullPath: "Khoury/CS101/alice/"},
