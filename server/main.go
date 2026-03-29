@@ -32,6 +32,7 @@ var (
 	errDB              = status.Errorf(codes.Internal, "internal db server error")
 	errName            = status.Errorf(codes.InvalidArgument, "invalid folder name for mkdir")
 	errMkdir           = status.Errorf(codes.Internal, "Unable to create a folder here")
+	errAlreadyExists   = status.Errorf(codes.Internal, "Folder already exists")
 )
 
 // This will log to our metrics in Cloudwatch
@@ -39,6 +40,12 @@ func logger(format string, a ...any) {
 	fmt.Printf("LOG:\t"+format+"\n", a...)
 }
 
+type ClassInfo struct {
+	PK            string   `dynamodbav:"pk"`
+	SK            string   `dynamodbav:"sk"`
+	SharedFolders []string `dynamodbav:"shared_folders"`
+	Students      []string `dynamodbav:"students"`
+}
 type Metadata struct {
 	PK           string    `dynamodbav:"pk"`
 	SK           string    `dynamodbav:"sk"`
@@ -50,8 +57,9 @@ type Metadata struct {
 	S3Url        string    `dynamodbav:"s3_url"`
 }
 type Class struct {
-	Role    string   `dynamodbav:"role"`
-	Folders []string `dynamodbav:"folders"`
+	Role          string   `dynamodbav:"role"`
+	Folders       []string `dynamodbav:"folders"`
+	SharedFolders []string `dynamodbav:"shared_folders"`
 }
 type Classroom struct {
 	Classes map[string]Class `dynamodbav:"classes"`
@@ -123,6 +131,25 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 	// Depth >= 2: Entering a Subfolder (e.g. CS101 -> bob)
 	className := parts[1]
 	newCD := cd + in.Folder + "/"
+	result, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
+		TableName: aws.String("classroom_metadata"),
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: className},
+			"sk": &types.AttributeValueMemberS{Value: "class_info"},
+		},
+	})
+	if err != nil {
+		logger("Cannot query db for shared folders", err)
+		return nil, errDB
+	}
+	var classInfo ClassInfo
+	if result.Item != nil {
+		err = attributevalue.UnmarshalMap(result.Item, &classInfo)
+		if err != nil {
+			logger("Unable to unmarshal class info", err)
+			return nil, errDB
+		}
+	}
 
 	// Calculate the relative path expected by the DB (e.g., "Khoury/CS101/bob/" -> "bob")
 	relPath := strings.TrimPrefix(newCD, collegeName+"/"+className+"/")
@@ -131,6 +158,10 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 	if slices.Contains(user.Colleges[collegeName].Classes[className].Folders, relPath) {
 		s.currentDirectory[email] = newCD
 		msg = fmt.Sprintf("Changed directory to %q\n", newCD)
+	} else if slices.Contains(classInfo.SharedFolders, relPath) {
+		s.currentDirectory[email] = newCD
+		msg = fmt.Sprintf("Changed directory to %q\n", newCD)
+		return &proto.ChangeDirectoryResponse{Message: msg}, nil
 	} else {
 		return nil, errInvalidPath
 	}
@@ -179,10 +210,30 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 
 	// Depth >= 2: Show Files/Folders in Class
 	className := parts[1]
+	result, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
+		TableName: aws.String("classroom_metadata"),
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: className},
+			"sk": &types.AttributeValueMemberS{Value: "class_info"},
+		},
+	})
+	if err != nil {
+		logger("Cannot query db for shared folders", err)
+		return nil, errDB
+	}
+	var classInfo ClassInfo
+	if result.Item != nil {
+		err = attributevalue.UnmarshalMap(result.Item, &classInfo)
+		if err != nil {
+			logger("Unable to unmarshal class info", err)
+			return nil, errDB
+		}
+	}
 	set := make(map[string]bool)
 	pathWithinClass := strings.TrimPrefix(cd, collegeName+"/"+className+"/")
 	allowedFolders := user.Colleges[collegeName].Classes[className].Folders
-
+	sharedFolders := classInfo.SharedFolders
+	allowedFolders = append(allowedFolders, sharedFolders...)
 	// 1. Gather Folders from the User Profile
 	for _, folder := range allowedFolders {
 		folderPath := folder + "/"
@@ -329,7 +380,9 @@ Check it doesn't already exist in the user's folders
 Add it to the user's Folders list in the user table
 Add a metadata entry to classroom_metadata
 */
-func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryRequest) (*proto.ChangeDirectoryResponse, error) {
+//DISCLAIMER, THIS IS SLOP I HAVE BEEN WORKING ON PIECING DB CALLS TOGETHER, WILL ADD
+//parsePath, getClassInfo, updateStudentFolders, updateSharedFolders and such to parse out logic cause this sucks
+func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryRequest) (*proto.MakeDirectoryResponse, error) {
 	user := ctx.Value("User").(User)
 	email := user.Email
 	cd := s.currentDirectory[email]
@@ -347,10 +400,226 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 			return nil, errMkdir
 		}
 		//allow TA or professor to create folders here
+		pathParts := strings.Split(cd, "/")
+		collegeName := pathParts[0]
+		className := pathParts[1]
+		pathWithinClass := strings.TrimPrefix(cd, collegeName+"/"+className+"/")
+		newFolder := in.Name
+		newFolderPath := pathWithinClass + newFolder
+		result, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
+			TableName: aws.String("classroom_metadata"),
+			Key: map[string]types.AttributeValue{
+				"pk": &types.AttributeValueMemberS{Value: className},
+				"sk": &types.AttributeValueMemberS{Value: "class_info"},
+			},
+		})
+		if err != nil {
+			logger("Cannot query db for shared folders", err)
+			return nil, errDB
+		}
+		var classInfo ClassInfo
+		if result.Item != nil {
+			err = attributevalue.UnmarshalMap(result.Item, &classInfo)
+		}
+		for _, f := range classInfo.SharedFolders {
+			if f == newFolderPath {
+				return nil, errAlreadyExists
+			}
+		}
+		_, err = s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+			TableName: aws.String("classroom_metadata"),
+			Key: map[string]types.AttributeValue{
+				"pk": &types.AttributeValueMemberS{Value: className},
+				"sk": &types.AttributeValueMemberS{Value: "class_info"},
+			},
+			UpdateExpression: aws.String("SET shared_folders = list_append(if_not_exists(shared_folders, :empty), :folder)"),
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				":folder": &types.AttributeValueMemberL{Value: []types.AttributeValue{
+					&types.AttributeValueMemberS{Value: newFolderPath},
+				}},
+				":empty": &types.AttributeValueMemberL{Value: []types.AttributeValue{}},
+			},
+		})
+		if err != nil {
+			logger("Unable to update shared folders", err)
+			return nil, errDB
+		}
+
 	} else {
-		//allow student,TA, professor to create folders here
+		pathParts := strings.Split(cd, "/")
+		collegeName := pathParts[0]
+		className := pathParts[1]
+		pathWithinClass := strings.TrimPrefix(cd, collegeName+"/"+className+"/")
+		newFolder := in.Name
+		newFolderPath := pathWithinClass + newFolder
+		//if student is trying to build a folder path that doesn't start with their name, reject the request
+		if user.Role == "student" {
+			studentFolder := email[:strings.Index(email, "@")]
+			if !strings.HasPrefix(pathWithinClass, studentFolder+"/") && pathWithinClass != studentFolder {
+				return nil, errMkdir
+			}
+			if slices.Contains(user.Colleges[collegeName].Classes[className].Folders, newFolderPath) {
+				return nil, errAlreadyExists
+			} else {
+				_, err := s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+					TableName: aws.String("user"),
+					Key: map[string]types.AttributeValue{
+						"email": &types.AttributeValueMemberS{Value: email},
+					},
+					UpdateExpression: aws.String("SET colleges.#col.classes.#cls.folders = list_append(colleges.#col.classes.#cls.folders, :folder)"),
+					ExpressionAttributeNames: map[string]string{
+						"#col": collegeName,
+						"#cls": className,
+					},
+					ExpressionAttributeValues: map[string]types.AttributeValue{
+						":folder": &types.AttributeValueMemberL{Value: []types.AttributeValue{
+							&types.AttributeValueMemberS{Value: newFolderPath},
+						}},
+					},
+				})
+				if err != nil {
+					logger("Unable to update user folders", err)
+					return nil, errDB
+				}
+				item, _ := attributevalue.MarshalMap(Metadata{
+					PK:       className,
+					SK:       newFolderPath + "/",
+					Name:     newFolder,
+					Owner:    email,
+					Type:     "folder",
+					FullPath: cd + newFolder + "/",
+				})
+				_, err = s.DB.PutItem(context.TODO(), &dynamodb.PutItemInput{
+					TableName: aws.String("classroom_metadata"),
+					Item:      item,
+				})
+				if err != nil {
+					logger("Unable to create folder metadata", err)
+					return nil, errDB
+				}
+			}
+		} else {
+			pathParts := strings.Split(cd, "/")
+			collegeName := pathParts[0]
+			className := pathParts[1]
+			pathWithinClass := strings.TrimPrefix(cd, collegeName+"/"+className+"/")
+			newFolder := in.Name
+			newFolderPath := pathWithinClass + newFolder
+			var classInfo ClassInfo
+
+			//get classroom info
+			result, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
+				TableName: aws.String("classroom_metadata"),
+				Key: map[string]types.AttributeValue{
+					"pk": &types.AttributeValueMemberS{Value: className},
+					"sk": &types.AttributeValueMemberS{Value: "class_info"},
+				},
+			})
+			if err != nil {
+				logger("Cannot query db for shared folders", err)
+				return nil, errDB
+			}
+			if result.Item != nil {
+				err = attributevalue.UnmarshalMap(result.Item, &classInfo)
+			}
+			//check if ta or professor inside student folder
+			studentName := strings.Split(pathWithinClass, "/")[0]
+			isStudentFolder := false
+			for _, studentEmail := range classInfo.Students {
+				if studentEmail[:strings.Index(studentEmail, "@")] == studentName {
+					isStudentFolder = true
+					result, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
+						TableName: aws.String("user"),
+						Key: map[string]types.AttributeValue{
+							"email": &types.AttributeValueMemberS{Value: studentEmail},
+						},
+					})
+					if err != nil {
+						logger("Database error", err)
+						return nil, errDB
+					}
+					if result.Item == nil {
+						logger("User not found", err)
+						return nil, errDB
+					}
+					var foundUser User
+					err = attributevalue.UnmarshalMap(result.Item, &foundUser)
+					if err != nil {
+						logger("Unable to marshal user data", err)
+						return nil, errDB
+					}
+					if slices.Contains(foundUser.Colleges[collegeName].Classes[className].Folders, newFolderPath) {
+						return nil, errAlreadyExists
+					}
+					_, err = s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+						TableName: aws.String("user"),
+						Key: map[string]types.AttributeValue{
+							"email": &types.AttributeValueMemberS{Value: studentEmail},
+						},
+						UpdateExpression: aws.String("SET colleges.#col.classes.#cls.folders = list_append(colleges.#col.classes.#cls.folders, :folder)"),
+						ExpressionAttributeNames: map[string]string{
+							"#col": collegeName,
+							"#cls": className,
+						},
+						ExpressionAttributeValues: map[string]types.AttributeValue{
+							":folder": &types.AttributeValueMemberL{Value: []types.AttributeValue{
+								&types.AttributeValueMemberS{Value: newFolderPath},
+							}},
+						},
+					})
+					if err != nil {
+						logger("Unable to update user folders", err)
+						return nil, errDB
+					}
+					break
+				}
+			}
+			if !isStudentFolder {
+				for _, f := range classInfo.SharedFolders {
+					if f == newFolderPath {
+						return nil, errAlreadyExists
+					}
+				}
+				_, err = s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+					TableName: aws.String("classroom_metadata"),
+					Key: map[string]types.AttributeValue{
+						"pk": &types.AttributeValueMemberS{Value: className},
+						"sk": &types.AttributeValueMemberS{Value: "class_info"},
+					},
+					UpdateExpression: aws.String("SET shared_folders = list_append(if_not_exists(shared_folders, :empty), :folder)"),
+					ExpressionAttributeValues: map[string]types.AttributeValue{
+						":folder": &types.AttributeValueMemberL{Value: []types.AttributeValue{
+							&types.AttributeValueMemberS{Value: newFolderPath},
+						}},
+						":empty": &types.AttributeValueMemberL{Value: []types.AttributeValue{}},
+					},
+				})
+				if err != nil {
+					logger("Unable to update shared folders", err)
+					return nil, errDB
+				}
+			}
+
+			item, _ := attributevalue.MarshalMap(Metadata{
+				PK:       className,
+				SK:       newFolderPath + "/",
+				Name:     newFolder,
+				Owner:    email,
+				Type:     "folder",
+				FullPath: cd + newFolder + "/",
+			})
+			_, err = s.DB.PutItem(context.TODO(), &dynamodb.PutItemInput{
+				TableName: aws.String("classroom_metadata"),
+				Item:      item,
+			})
+			if err != nil {
+				logger("Unable to create folder metadata", err)
+				return nil, errDB
+			}
+		}
+
 	}
-	return nil, nil
+	return &proto.MakeDirectoryResponse{Message: "Added " + newFolder + " to directory"}, nil
 }
 
 func main() {
