@@ -146,6 +146,7 @@ func GetDepth(cd string) int {
 	return len(strings.Split(trimmed, "/"))
 }
 
+// LS for student works, next step is encapuslate logic in another func and add logic if professor does ls
 // list
 func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryRequest) (*proto.ListDirectoryResponse, error) {
 	s.mu.RLock()
@@ -321,6 +322,13 @@ func (s *server) CurrentDirectory(ctx context.Context, in *proto.CurrentDirector
 	return &proto.CurrentDirectoryResponse{Directory: cd}, nil
 }
 
+/*
+For depth >= 2
+Build the new folder path relative to the class (pathWithinClass + newFolder)
+Check it doesn't already exist in the user's folders
+Add it to the user's Folders list in the user table
+Add a metadata entry to classroom_metadata
+*/
 func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryRequest) (*proto.ChangeDirectoryResponse, error) {
 	user := ctx.Value("User").(User)
 	email := user.Email
@@ -334,8 +342,13 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 		if user.Role == "student" || user.Role == "professor" {
 			return nil, errMkdir
 		}
+	} else if depth == 2 {
+		if user.Role == "student" {
+			return nil, errMkdir
+		}
+		//allow TA or professor to create folders here
 	} else {
-
+		//allow student,TA, professor to create folders here
 	}
 	return nil, nil
 }
