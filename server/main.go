@@ -11,7 +11,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -31,35 +30,10 @@ var (
 	errInvalidPath     = status.Errorf(codes.InvalidArgument, "invalid folder path")
 	errDB              = status.Errorf(codes.Internal, "internal db server error")
 	errName            = status.Errorf(codes.InvalidArgument, "invalid folder name for mkdir")
+	errMkdir           = status.Errorf(codes.Internal, "Unable to create a folder here")
+	errAlreadyExists   = status.Errorf(codes.Internal, "Folder already exists")
 )
 
-// This will log to our metrics in Cloudwatch
-func logger(format string, a ...any) {
-	fmt.Printf("LOG:\t"+format+"\n", a...)
-}
-
-type Metadata struct {
-	PK           string    `dynamodbav:"pk"`
-	SK           string    `dynamodbav:"sk"`
-	Name         string    `dynamodbav:"name"`
-	Owner        string    `dynamodbav:"owner"`
-	LastModified time.Time `dynamodbav:"last_modified"`
-	Type         string    `dynamodbav:"type"`
-	FullPath     string    `dynamodbav:"full_path"`
-	S3Url        string    `dynamodbav:"s3_url"`
-}
-type Class struct {
-	Role    string   `dynamodbav:"role"`
-	Folders []string `dynamodbav:"folders"`
-}
-type Classroom struct {
-	Classes map[string]Class `dynamodbav:"classes"`
-}
-type User struct {
-	Email    string               `dynamodbav:"email"`
-	Role     string               `dynamodbav:"role"`
-	Colleges map[string]Classroom `dynamodbav:"colleges"`
-}
 type server struct {
 	proto.UnimplementedServerServer
 	DB               *dynamodb.Client
@@ -122,7 +96,11 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 	// Depth >= 2: Entering a Subfolder (e.g. CS101 -> bob)
 	className := parts[1]
 	newCD := cd + in.Folder + "/"
-
+	classInfo, err := s.getClassInfo(className)
+	if err != nil {
+		logger("Cannot query db for shared folders", err)
+		return nil, errDB
+	}
 	// Calculate the relative path expected by the DB (e.g., "Khoury/CS101/bob/" -> "bob")
 	relPath := strings.TrimPrefix(newCD, collegeName+"/"+className+"/")
 	relPath = strings.TrimSuffix(relPath, "/")
@@ -130,6 +108,10 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 	if slices.Contains(user.Colleges[collegeName].Classes[className].Folders, relPath) {
 		s.currentDirectory[email] = newCD
 		msg = fmt.Sprintf("Changed directory to %q\n", newCD)
+	} else if slices.Contains(classInfo.SharedFolders, relPath) {
+		s.currentDirectory[email] = newCD
+		msg = fmt.Sprintf("Changed directory to %q\n", newCD)
+		return &proto.ChangeDirectoryResponse{Message: msg}, nil
 	} else {
 		return nil, errInvalidPath
 	}
@@ -145,6 +127,7 @@ func GetDepth(cd string) int {
 	return len(strings.Split(trimmed, "/"))
 }
 
+// LS for student works, next step is encapuslate logic in another func and add logic if professor does ls
 // list
 func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryRequest) (*proto.ListDirectoryResponse, error) {
 	s.mu.RLock()
@@ -177,10 +160,16 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 
 	// Depth >= 2: Show Files/Folders in Class
 	className := parts[1]
+	classInfo, err := s.getClassInfo(className)
+	if err != nil {
+		logger("Cannot query db for shared folders", err)
+		return nil, errDB
+	}
 	set := make(map[string]bool)
 	pathWithinClass := strings.TrimPrefix(cd, collegeName+"/"+className+"/")
 	allowedFolders := user.Colleges[collegeName].Classes[className].Folders
-
+	sharedFolders := classInfo.SharedFolders
+	allowedFolders = append(allowedFolders, sharedFolders...)
 	// 1. Gather Folders from the User Profile
 	for _, folder := range allowedFolders {
 		folderPath := folder + "/"
@@ -301,10 +290,7 @@ func unaryInterceptor(db *dynamodb.Client) grpc.UnaryServerInterceptor {
 		}
 		var foundUser User
 		err = attributevalue.UnmarshalMap(result.Item, &foundUser)
-		if err != nil {
-			logger("Unable to marshal user data", err)
-			return nil, err
-		}
+
 		ctx = context.WithValue(ctx, "User", foundUser)
 		m, err := handler(ctx, req)
 		if err != nil {
@@ -319,11 +305,21 @@ func (s *server) CurrentDirectory(ctx context.Context, in *proto.CurrentDirector
 	email := user.Email
 	cd := s.currentDirectory[email]
 	cd = "/" + cd
-	
+
 	return &proto.CurrentDirectoryResponse{Directory: cd}, nil
 }
 
+/*
+For depth >= 2
+Build the new folder path relative to the class (pathWithinClass + newFolder)
+Check it doesn't already exist in the user's folders
+Add it to the user's Folders list in the user table
+Add a metadata entry to classroom_metadata
+*/
+//DISCLAIMER, THIS IS SLOP I HAVE BEEN WORKING ON PIECING DB CALLS TOGETHER, WILL ADD
+//parsePath, getClassInfo, updateStudentFolders, updateSharedFolders and such to parse out logic cause this sucks
 func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryRequest) (*proto.MakeDirectoryResponse, error) {
+	//Grab context data
 	user := ctx.Value("User").(User)
 	email := user.Email
 	cd := s.currentDirectory[email]
@@ -332,14 +328,99 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 		return nil, errName
 	}
 	depth := GetDepth(cd)
+
 	if depth == 0 || depth == 1 {
-		if user.Role == "student" || user.Role == "professor" {
+		return nil, errMkdir
+	}
+	collegeName, className, pathWithinClass := parsePath(cd)
+	newFolderPath := pathWithinClass + newFolder
+
+	if depth == 2 {
+		if user.Role == "student" {
+			return nil, errMkdir
+		}
+		var classInfo ClassInfo
+		classInfo, err := s.getClassInfo(className)
+		if err != nil {
+			logger("Unable to get class info", err)
 			return nil, errDB
 		}
-	} else {
+
+		if slices.Contains(classInfo.SharedFolders, newFolderPath) {
+			return nil, errAlreadyExists
+		}
+		if err := s.updateSharedFolders(className, newFolderPath); err != nil {
+			logger("Unable to update shared folders", err)
+			return nil, errDB
+		}
+		if err := s.createFolderMetadata(className, newFolderPath+"/", newFolder, email, cd+newFolder+"/"); err != nil {
+			logger("Unable to create folder metadata", err)
+			return nil, errDB
+		}
+		return &proto.MakeDirectoryResponse{Message: "Added " + newFolder + " to directory"}, nil
 
 	}
-	return nil, nil
+	//if student is trying to build a folder path that doesn't start with their name, reject the request
+	if user.Role == "student" {
+		studentFolder := email[:strings.Index(email, "@")]
+		if !strings.HasPrefix(pathWithinClass, studentFolder+"/") && pathWithinClass != studentFolder {
+			return nil, errMkdir
+		}
+		if slices.Contains(user.Colleges[collegeName].Classes[className].Folders, newFolderPath) {
+			return nil, errAlreadyExists
+		}
+		if err := s.updateUserFolders(email, collegeName, className, newFolderPath); err != nil {
+			logger("Unable to update user folders", err)
+			return nil, errDB
+		}
+		if err := s.createFolderMetadata(className, newFolderPath+"/", newFolder, email, cd+newFolder+"/"); err != nil {
+			logger("Unable to create folder metadata", err)
+			return nil, errDB
+		}
+		return &proto.MakeDirectoryResponse{Message: "Added " + newFolder + " to directory"}, nil
+	}
+	classInfo, err := s.getClassInfo(className)
+	if err != nil {
+		logger("Cannot query db for shared folders", err)
+		return nil, errDB
+	}
+
+	studentName := strings.Split(pathWithinClass, "/")[0]
+	isStudentFolder := false
+	for _, studentEmail := range classInfo.Students {
+		if studentEmail[:strings.Index(studentEmail, "@")] == studentName {
+			isStudentFolder = true
+			foundUser, err := s.getUser(studentEmail)
+			if err != nil {
+				logger("Unable to get student user", err)
+				return nil, errDB
+			}
+			if slices.Contains(foundUser.Colleges[collegeName].Classes[className].Folders, newFolderPath) {
+				return nil, errAlreadyExists
+			}
+			if err := s.updateUserFolders(studentEmail, collegeName, className, newFolderPath); err != nil {
+				logger("Unable to update user folders", err)
+				return nil, errDB
+			}
+			break
+		}
+	}
+	if !isStudentFolder {
+		if slices.Contains(classInfo.SharedFolders, newFolderPath) {
+			return nil, errAlreadyExists
+		}
+		if err := s.updateSharedFolders(className, newFolderPath); err != nil {
+			logger("Unable to update shared folders", err)
+			return nil, errDB
+		}
+	}
+
+	if err := s.createFolderMetadata(className, newFolderPath+"/", newFolder, email, cd+newFolder+"/"); err != nil {
+		logger("Unable to create folder metadata", err)
+		return nil, errDB
+	}
+
+	return &proto.MakeDirectoryResponse{Message: "Added " + newFolder + " to directory"}, nil
 }
 
 func main() {
