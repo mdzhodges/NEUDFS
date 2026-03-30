@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"grpc-server/proto"
+	"os"
+	"os/exec"
 
 	"google.golang.org/grpc/metadata"
 )
@@ -162,9 +164,16 @@ func RegisterCommands(client proto.ServerClient, email string) *CommandMap {
 		"move":     cm.move,
 		"delete":   cm.delete_file_folder,
 		"--help":   cm.help,
+		"clear":    cm.clear,
 		"pwd":      cm.pwd,
 	}
 	return cm
+}
+
+func (c *CommandMap) clear(args []string) {
+	cmd := exec.Command("clear")
+	cmd.Stdout = os.Stdout
+	cmd.Run()
 }
 
 func (c *CommandMap) help(args []string) {
