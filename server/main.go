@@ -96,26 +96,11 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 	// Depth >= 2: Entering a Subfolder (e.g. CS101 -> bob)
 	className := parts[1]
 	newCD := cd + in.Folder + "/"
-	result, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
-		TableName: aws.String("classroom_metadata"),
-		Key: map[string]types.AttributeValue{
-			"pk": &types.AttributeValueMemberS{Value: className},
-			"sk": &types.AttributeValueMemberS{Value: "class_info"},
-		},
-	})
+	classInfo, err := s.getClassInfo(className)
 	if err != nil {
 		logger("Cannot query db for shared folders", err)
 		return nil, errDB
 	}
-	var classInfo ClassInfo
-	if result.Item != nil {
-		err = attributevalue.UnmarshalMap(result.Item, &classInfo)
-		if err != nil {
-			logger("Unable to unmarshal class info", err)
-			return nil, errDB
-		}
-	}
-
 	// Calculate the relative path expected by the DB (e.g., "Khoury/CS101/bob/" -> "bob")
 	relPath := strings.TrimPrefix(newCD, collegeName+"/"+className+"/")
 	relPath = strings.TrimSuffix(relPath, "/")
@@ -175,24 +160,10 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 
 	// Depth >= 2: Show Files/Folders in Class
 	className := parts[1]
-	result, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
-		TableName: aws.String("classroom_metadata"),
-		Key: map[string]types.AttributeValue{
-			"pk": &types.AttributeValueMemberS{Value: className},
-			"sk": &types.AttributeValueMemberS{Value: "class_info"},
-		},
-	})
+	classInfo, err := s.getClassInfo(className)
 	if err != nil {
 		logger("Cannot query db for shared folders", err)
 		return nil, errDB
-	}
-	var classInfo ClassInfo
-	if result.Item != nil {
-		err = attributevalue.UnmarshalMap(result.Item, &classInfo)
-		if err != nil {
-			logger("Unable to unmarshal class info", err)
-			return nil, errDB
-		}
 	}
 	set := make(map[string]bool)
 	pathWithinClass := strings.TrimPrefix(cd, collegeName+"/"+className+"/")
@@ -316,10 +287,7 @@ func unaryInterceptor(db *dynamodb.Client) grpc.UnaryServerInterceptor {
 		}
 		var foundUser User
 		err = attributevalue.UnmarshalMap(result.Item, &foundUser)
-		if err != nil {
-			logger("Unable to marshal user data", err)
-			return nil, err
-		}
+
 		ctx = context.WithValue(ctx, "User", foundUser)
 		m, err := handler(ctx, req)
 		if err != nil {
