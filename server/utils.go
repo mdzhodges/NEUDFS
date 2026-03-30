@@ -119,3 +119,42 @@ func (s *server) createFolderMetadata(className, sk, name, owner, fullPath strin
 	})
 	return err
 }
+
+// renameFileMetadata updates the 'name' and 'full_path' attributes of a specific file in DynamoDB.
+// It uses the className (PK) and file ID/path (SK) to locate the exact item to modify.
+func (s *server) renameFileMetadata(className, sk, newName, newFullPath string) error {
+	_, err := s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+		TableName: aws.String("classroom_metadata"),
+		
+		// Identify the exact item to update using its Primary Key (PK + SK)
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: className},
+			"sk": &types.AttributeValueMemberS{Value: sk},
+		},
+		
+		// Define the update expression (similar to a SQL SET clause)
+		// We use '#n' as a placeholder for the column 'name', and ':newName' / ':newPath' as placeholders for the values.
+		UpdateExpression: aws.String("SET #n = :newName, full_path = :newPath"),
+		
+		// Map the attribute name placeholders to the actual DynamoDB column names.
+		// We MUST do this for 'name' because "name" is a reserved keyword in DynamoDB. 
+		// If we put "SET name = :newName" directly in the expression above, AWS will throw an error.
+		ExpressionAttributeNames: map[string]string{
+			"#n": "name", 
+		},
+		
+		// Map the value placeholders to the actual strings passed into this function.
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":newName": &types.AttributeValueMemberS{Value: newName},
+			":newPath":  &types.AttributeValueMemberS{Value: newFullPath},
+		},
+	})
+
+	// Handle any errors returned by the AWS SDK
+	if err != nil {
+		logger("Cannot update file metadata for rename: %v", err)
+		return err
+	}
+
+	return nil
+}
