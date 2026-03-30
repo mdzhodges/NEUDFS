@@ -443,18 +443,20 @@ func (s *server) Rename(ctx context.Context, in *proto.RenameRequest) (*proto.Re
 
 	// Calculate the file's SK based on current directory
 	pathWithinClass := strings.TrimPrefix(cd, parts[0]+"/"+className+"/")
-	oldSK := pathWithinClass + in.OldName
+	
+	oldSK := pathWithinClass + in.Entry 
+	newSK := pathWithinClass + in.Name
 
-	// Update DynamoDB using the helper 
-	err := s.renameFileMetadata(className, oldSK, in.NewName, cd+in.NewName)
+	// Update DynamoDB using the helpe
+	err := s.renameFileMetadata(className, oldSK, newSK, in.Name, cd+in.Name)
 	if err != nil {
 		logger("Rename failed: %v", err)
 		return nil, errDB
 	}
 
 	return &proto.RenameResponse{
-		// ensure your proto fields match (e.g., OldName / NewName)
-		Message: fmt.Sprintf("Successfully renamed %s to %s", in.OldName, in.NewName),
+		// Use in.Entry and in.Name
+		Message: fmt.Sprintf("Successfully renamed %s to %s", in.Entry, in.Name),
 	}, nil
 }
 

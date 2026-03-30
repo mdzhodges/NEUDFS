@@ -55,7 +55,26 @@ func (c *CommandMap) rename_file(args []string) {
 		fmt.Println("Usage: rename <old_name> <new_name>")
 		return
 	}
-	fmt.Printf("rename %s to %s\n", args[0], args[1])
+
+	// Set up the context with the user's email
+	md := metadata.New(map[string]string{"email": c.UserEmail})
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
+
+	// Create the gRPC request using the correct protobuf fields
+	in := proto.RenameRequest{
+		Entry: args[0], 
+		Name:  args[1],
+	}
+
+	// Send the request to the gRPC server
+	message, err := c.Client.Rename(ctx, &in)
+	if err != nil {
+		fmt.Println("Error:", err.Error())
+		return
+	}
+
+	// Print the server's response
+	fmt.Println(message.Message)
 }
 
 func (c *CommandMap) rename_dir(args []string) {

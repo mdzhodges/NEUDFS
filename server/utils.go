@@ -120,39 +120,66 @@ func (s *server) createFolderMetadata(className, sk, name, owner, fullPath strin
 	return err
 }
 
-// renameFileMetadata updates the 'name' and 'full_path' attributes of a specific file in DynamoDB.
-// It uses the className (PK) and file ID/path (SK) to locate the exact item to modify.
-func (s *server) renameFileMetadata(className, sk, newName, newFullPath string) error {
-	_, err := s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+// renameFileMetadata replaces a file's metadata in DynamoDB to simulate a rename.
+// Because the file path is the Sort Key (SK), we cannot simply use UpdateItem.
+// We must Get the old item, Put a new item with the new SK, and Delete the old item.
+func (s *server) renameFileMetadata(className, oldSK, newSK, newName, newFullPath string) error {
+	
+	// GET the existing file metadata using the old SK
+	getResult, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
 		TableName: aws.String("classroom_metadata"),
-		
-		// Identify the exact item to update using its Primary Key (PK + SK)
 		Key: map[string]types.AttributeValue{
 			"pk": &types.AttributeValueMemberS{Value: className},
-			"sk": &types.AttributeValueMemberS{Value: sk},
-		},
-		
-		// Define the update expression (similar to a SQL SET clause)
-		// We use '#n' as a placeholder for the column 'name', and ':newName' / ':newPath' as placeholders for the values.
-		UpdateExpression: aws.String("SET #n = :newName, full_path = :newPath"),
-		
-		// Map the attribute name placeholders to the actual DynamoDB column names.
-		// We MUST do this for 'name' because "name" is a reserved keyword in DynamoDB. 
-		// If we put "SET name = :newName" directly in the expression above, AWS will throw an error.
-		ExpressionAttributeNames: map[string]string{
-			"#n": "name", 
-		},
-		
-		// Map the value placeholders to the actual strings passed into this function.
-		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":newName": &types.AttributeValueMemberS{Value: newName},
-			":newPath":  &types.AttributeValueMemberS{Value: newFullPath},
+			"sk": &types.AttributeValueMemberS{Value: oldSK},
 		},
 	})
-
-	// Handle any errors returned by the AWS SDK
 	if err != nil {
-		logger("Cannot update file metadata for rename: %v", err)
+		logger("Database error retrieving old file: %v", err)
+		return err
+	}
+	if getResult.Item == nil {
+		return fmt.Errorf("file not found")
+	}
+
+	// UNMARSHAL the old data into our Go struct
+	var item Metadata // Ensure Metadata struct is available in this file's scope
+	if err := attributevalue.UnmarshalMap(getResult.Item, &item); err != nil {
+		logger("Error unmarshaling metadata: %v", err)
+		return err
+	}
+
+	// UPDATE the struct with the new values
+	item.SK = newSK
+	item.Name = newName
+	item.FullPath = newFullPath
+
+	// MARSHAL the updated struct back into DynamoDB format
+	newItem, err := attributevalue.MarshalMap(item)
+	if err != nil {
+		logger("Error marshaling new metadata: %v", err)
+		return err
+	}
+
+	// PUT the new item into the database (this creates the "renamed" file)
+	_, err = s.DB.PutItem(context.TODO(), &dynamodb.PutItemInput{
+		TableName: aws.String("classroom_metadata"),
+		Item:      newItem,
+	})
+	if err != nil {
+		logger("Cannot save new file metadata: %v", err)
+		return err
+	}
+
+	// DELETE the old item to clean up the original filename
+	_, err = s.DB.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
+		TableName: aws.String("classroom_metadata"),
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: className},
+			"sk": &types.AttributeValueMemberS{Value: oldSK},
+		},
+	})
+	if err != nil {
+		logger("Cannot delete old file metadata: %v", err)
 		return err
 	}
 
