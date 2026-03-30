@@ -103,9 +103,16 @@ func (c *CommandMap) create(args []string) {
 		fmt.Println("Usage: mkdir <directory>")
 		return
 	}
-	fmt.Printf("create %s\n", args[0])
+	md := metadata.New(map[string]string{"email": c.UserEmail})
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
+	in := proto.MakeDirectoryRequest{Name: args[0]}
+	message, err := c.Client.MakeDirectory(ctx, &in)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	fmt.Println(message.Message)
 }
-
 
 func (c *CommandMap) pwd(args []string) {
 	md := metadata.New(map[string]string{"email": c.UserEmail})
@@ -117,7 +124,7 @@ func (c *CommandMap) pwd(args []string) {
 		fmt.Println("Please try again")
 		return
 	}
-	
+
 	fmt.Println(message.Directory)
 }
 
