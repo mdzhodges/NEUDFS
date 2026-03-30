@@ -342,6 +342,41 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 	return nil, nil
 }
 
+func (s *server) Rename(ctx context.Context, in *proto.RenameRequest) (*proto.RenameResponse, error) {
+	// Grab user from your interceptor context
+	user := ctx.Value("User").(User)
+	email := user.Email
+
+	// Get current directory context
+	s.mu.RLock()
+	cd := s.currentDirectory[email]
+	s.mu.RUnlock()
+
+	depth := GetDepth(cd)
+	if depth < 2 {
+		return nil, status.Errorf(codes.PermissionDenied, "must be inside a class to rename files")
+	}
+
+	parts := strings.Split(cd, "/")
+	className := parts[1]
+
+	// Calculate the file's SK based on current directory
+	pathWithinClass := strings.TrimPrefix(cd, parts[0]+"/"+className+"/")
+	oldSK := pathWithinClass + in.OldName
+
+	// Update DynamoDB using the helper 
+	err := s.renameFileMetadata(className, oldSK, in.NewName, cd+in.NewName)
+	if err != nil {
+		logger("Rename failed: %v", err)
+		return nil, errDB
+	}
+
+	return &proto.RenameResponse{
+		// ensure your proto fields match (e.g., OldName / NewName)
+		Message: fmt.Sprintf("Successfully renamed %s to %s", in.OldName, in.NewName),
+	}, nil
+}
+
 func main() {
 	//Grab Port Number
 	flag.Parse()
