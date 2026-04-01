@@ -6,8 +6,10 @@ import (
 	"grpc-server/proto"
 	"os"
 	"os/exec"
+	"strings"
 
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 // All commands share the same signature: they receive a slice of args
@@ -71,7 +73,12 @@ func (c *CommandMap) rename_file(args []string) {
 	// Send the request to the gRPC server
 	message, err := c.Client.Rename(ctx, &in)
 	if err != nil {
-		fmt.Println("Error:", err.Error())
+		// Cleanly extract just the description from the gRPC error
+		if st, ok := status.FromError(err); ok {
+			fmt.Println("Error:", st.Message())
+		} else {
+			fmt.Println("Error:", err.Error())
+		}
 		return
 	}
 
@@ -84,7 +91,41 @@ func (c *CommandMap) rename_dir(args []string) {
 		fmt.Println("Usage: renamedir <old_name> <new_name>")
 		return
 	}
-	fmt.Printf("rename dir %s to %s\n", args[0], args[1])
+
+	// format as directory paths by ensuring they end with "/"
+	oldDir := args[0]
+	newDir := args[1]
+	if !strings.HasSuffix(oldDir, "/") {
+		oldDir += "/"
+	}
+	if !strings.HasSuffix(newDir, "/") {
+		newDir += "/"
+	}
+
+	// set up the context with the user's email
+	md := metadata.New(map[string]string{"email": c.UserEmail})
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
+
+	// Create the request
+	in := proto.RenameRequest{
+		Entry: oldDir,
+		Name:  newDir,
+	}
+
+	// Send the request to gRPC endpoint
+	message, err := c.Client.RenameDirectory(ctx, &in)
+	if err != nil {
+		// Cleanly extract just the description from the gRPC error
+		if st, ok := status.FromError(err); ok {
+			fmt.Println("Error:", st.Message())
+		} else {
+			// Fallback just in case it's a non-gRPC error (like a network drop)
+			fmt.Println("Error:", err.Error())
+		}
+		return
+	}
+
+	fmt.Println(message.Message)
 }
 
 func (c *CommandMap) upload(args []string) {
@@ -158,6 +199,7 @@ func RegisterCommands(client proto.ServerClient, email string) *CommandMap {
 		"cd":       cm.change_dir,
 		"ls":       cm.list_dir,
 		"rename":   cm.rename_file,
+		"renamedir": cm.rename_dir,
 		"mkdir":    cm.create,
 		"upload":   cm.upload,
 		"download": cm.download,

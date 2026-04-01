@@ -9,6 +9,7 @@ service Server {
     rpc ListDirectory (ListDirectoryRequest) returns (ListDirectoryResponse) {}
     rpc CurrentDirectory (CurrentDirectoryRequest) returns (CurrentDirectoryResponse){}
     rpc Rename (RenameRequest) returns (RenameResponse){}
+    rpc RenameDirectory (RenameRequest) returns (RenameResponse){}
     rpc MakeDirectory (MakeDirectoryRequest) returns (MakeDirectoryResponse) {}
     rpc Upload (stream UploadRequest) returns (UploadResponse) {}
     rpc Download (DownloadRequest) returns (stream DownloadResponse){}

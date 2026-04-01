@@ -23,6 +23,7 @@ const (
 	Server_ListDirectory_FullMethodName    = "/main.Server/ListDirectory"
 	Server_CurrentDirectory_FullMethodName = "/main.Server/CurrentDirectory"
 	Server_Rename_FullMethodName           = "/main.Server/Rename"
+	Server_RenameDirectory_FullMethodName  = "/main.Server/RenameDirectory"
 	Server_MakeDirectory_FullMethodName    = "/main.Server/MakeDirectory"
 	Server_Upload_FullMethodName           = "/main.Server/Upload"
 	Server_Download_FullMethodName         = "/main.Server/Download"
@@ -38,6 +39,7 @@ type ServerClient interface {
 	ListDirectory(ctx context.Context, in *ListDirectoryRequest, opts ...grpc.CallOption) (*ListDirectoryResponse, error)
 	CurrentDirectory(ctx context.Context, in *CurrentDirectoryRequest, opts ...grpc.CallOption) (*CurrentDirectoryResponse, error)
 	Rename(ctx context.Context, in *RenameRequest, opts ...grpc.CallOption) (*RenameResponse, error)
+	RenameDirectory(ctx context.Context, in *RenameRequest, opts ...grpc.CallOption) (*RenameResponse, error)
 	MakeDirectory(ctx context.Context, in *MakeDirectoryRequest, opts ...grpc.CallOption) (*MakeDirectoryResponse, error)
 	Upload(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadRequest, UploadResponse], error)
 	Download(ctx context.Context, in *DownloadRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[DownloadResponse], error)
@@ -87,6 +89,16 @@ func (c *serverClient) Rename(ctx context.Context, in *RenameRequest, opts ...gr
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RenameResponse)
 	err := c.cc.Invoke(ctx, Server_Rename_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serverClient) RenameDirectory(ctx context.Context, in *RenameRequest, opts ...grpc.CallOption) (*RenameResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RenameResponse)
+	err := c.cc.Invoke(ctx, Server_RenameDirectory_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -163,6 +175,7 @@ type ServerServer interface {
 	ListDirectory(context.Context, *ListDirectoryRequest) (*ListDirectoryResponse, error)
 	CurrentDirectory(context.Context, *CurrentDirectoryRequest) (*CurrentDirectoryResponse, error)
 	Rename(context.Context, *RenameRequest) (*RenameResponse, error)
+	RenameDirectory(context.Context, *RenameRequest) (*RenameResponse, error)
 	MakeDirectory(context.Context, *MakeDirectoryRequest) (*MakeDirectoryResponse, error)
 	Upload(grpc.ClientStreamingServer[UploadRequest, UploadResponse]) error
 	Download(*DownloadRequest, grpc.ServerStreamingServer[DownloadResponse]) error
@@ -189,6 +202,9 @@ func (UnimplementedServerServer) CurrentDirectory(context.Context, *CurrentDirec
 }
 func (UnimplementedServerServer) Rename(context.Context, *RenameRequest) (*RenameResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Rename not implemented")
+}
+func (UnimplementedServerServer) RenameDirectory(context.Context, *RenameRequest) (*RenameResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RenameDirectory not implemented")
 }
 func (UnimplementedServerServer) MakeDirectory(context.Context, *MakeDirectoryRequest) (*MakeDirectoryResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method MakeDirectory not implemented")
@@ -298,6 +314,24 @@ func _Server_Rename_Handler(srv interface{}, ctx context.Context, dec func(inter
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Server_RenameDirectory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RenameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServerServer).RenameDirectory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Server_RenameDirectory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServerServer).RenameDirectory(ctx, req.(*RenameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Server_MakeDirectory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(MakeDirectoryRequest)
 	if err := dec(in); err != nil {
@@ -392,6 +426,10 @@ var Server_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Rename",
 			Handler:    _Server_Rename_Handler,
+		},
+		{
+			MethodName: "RenameDirectory",
+			Handler:    _Server_RenameDirectory_Handler,
 		},
 		{
 			MethodName: "MakeDirectory",

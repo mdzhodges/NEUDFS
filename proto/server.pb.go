@@ -862,12 +862,13 @@ const file_proto_server_proto_rawDesc = "" +
 	"\rDeleteRequest\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\"*\n" +
 	"\x0eDeleteResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage2\xde\x04\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage2\x9e\x05\n" +
 	"\x06Server\x12P\n" +
 	"\x0fChangeDirectory\x12\x1c.main.ChangeDirectoryRequest\x1a\x1d.main.ChangeDirectoryResponse\"\x00\x12J\n" +
 	"\rListDirectory\x12\x1a.main.ListDirectoryRequest\x1a\x1b.main.ListDirectoryResponse\"\x00\x12S\n" +
 	"\x10CurrentDirectory\x12\x1d.main.CurrentDirectoryRequest\x1a\x1e.main.CurrentDirectoryResponse\"\x00\x125\n" +
-	"\x06Rename\x12\x13.main.RenameRequest\x1a\x14.main.RenameResponse\"\x00\x12J\n" +
+	"\x06Rename\x12\x13.main.RenameRequest\x1a\x14.main.RenameResponse\"\x00\x12>\n" +
+	"\x0fRenameDirectory\x12\x13.main.RenameRequest\x1a\x14.main.RenameResponse\"\x00\x12J\n" +
 	"\rMakeDirectory\x12\x1a.main.MakeDirectoryRequest\x1a\x1b.main.MakeDirectoryResponse\"\x00\x127\n" +
 	"\x06Upload\x12\x13.main.UploadRequest\x1a\x14.main.UploadResponse\"\x00(\x01\x12=\n" +
 	"\bDownload\x12\x15.main.DownloadRequest\x1a\x16.main.DownloadResponse\"\x000\x01\x12/\n" +
@@ -912,22 +913,24 @@ var file_proto_server_proto_depIdxs = []int32{
 	2,  // 1: main.Server.ListDirectory:input_type -> main.ListDirectoryRequest
 	4,  // 2: main.Server.CurrentDirectory:input_type -> main.CurrentDirectoryRequest
 	6,  // 3: main.Server.Rename:input_type -> main.RenameRequest
-	8,  // 4: main.Server.MakeDirectory:input_type -> main.MakeDirectoryRequest
-	10, // 5: main.Server.Upload:input_type -> main.UploadRequest
-	12, // 6: main.Server.Download:input_type -> main.DownloadRequest
-	14, // 7: main.Server.Move:input_type -> main.MoveRequest
-	16, // 8: main.Server.Delete:input_type -> main.DeleteRequest
-	1,  // 9: main.Server.ChangeDirectory:output_type -> main.ChangeDirectoryResponse
-	3,  // 10: main.Server.ListDirectory:output_type -> main.ListDirectoryResponse
-	5,  // 11: main.Server.CurrentDirectory:output_type -> main.CurrentDirectoryResponse
-	7,  // 12: main.Server.Rename:output_type -> main.RenameResponse
-	9,  // 13: main.Server.MakeDirectory:output_type -> main.MakeDirectoryResponse
-	11, // 14: main.Server.Upload:output_type -> main.UploadResponse
-	13, // 15: main.Server.Download:output_type -> main.DownloadResponse
-	15, // 16: main.Server.Move:output_type -> main.MoveResponse
-	17, // 17: main.Server.Delete:output_type -> main.DeleteResponse
-	9,  // [9:18] is the sub-list for method output_type
-	0,  // [0:9] is the sub-list for method input_type
+	6,  // 4: main.Server.RenameDirectory:input_type -> main.RenameRequest
+	8,  // 5: main.Server.MakeDirectory:input_type -> main.MakeDirectoryRequest
+	10, // 6: main.Server.Upload:input_type -> main.UploadRequest
+	12, // 7: main.Server.Download:input_type -> main.DownloadRequest
+	14, // 8: main.Server.Move:input_type -> main.MoveRequest
+	16, // 9: main.Server.Delete:input_type -> main.DeleteRequest
+	1,  // 10: main.Server.ChangeDirectory:output_type -> main.ChangeDirectoryResponse
+	3,  // 11: main.Server.ListDirectory:output_type -> main.ListDirectoryResponse
+	5,  // 12: main.Server.CurrentDirectory:output_type -> main.CurrentDirectoryResponse
+	7,  // 13: main.Server.Rename:output_type -> main.RenameResponse
+	7,  // 14: main.Server.RenameDirectory:output_type -> main.RenameResponse
+	9,  // 15: main.Server.MakeDirectory:output_type -> main.MakeDirectoryResponse
+	11, // 16: main.Server.Upload:output_type -> main.UploadResponse
+	13, // 17: main.Server.Download:output_type -> main.DownloadResponse
+	15, // 18: main.Server.Move:output_type -> main.MoveResponse
+	17, // 19: main.Server.Delete:output_type -> main.DeleteResponse
+	10, // [10:20] is the sub-list for method output_type
+	0,  // [0:10] is the sub-list for method input_type
 	0,  // [0:0] is the sub-list for extension type_name
 	0,  // [0:0] is the sub-list for extension extendee
 	0,  // [0:0] is the sub-list for field type_name

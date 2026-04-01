@@ -449,6 +449,9 @@ func (s *server) Rename(ctx context.Context, in *proto.RenameRequest) (*proto.Re
 	// Update DynamoDB using the helpe
 	err := s.renameFileMetadata(className, oldSK, newSK, in.Name, cd+in.Name)
 	if err != nil {
+		if err.Error() == "file not found" {
+			return nil, status.Errorf(codes.NotFound, "file '%s' does not exist or is a directory", in.Entry)
+		}
 		logger("Rename failed: %v", err)
 		return nil, errDB
 	}
@@ -456,6 +459,48 @@ func (s *server) Rename(ctx context.Context, in *proto.RenameRequest) (*proto.Re
 	return &proto.RenameResponse{
 		// Use in.Entry and in.Name
 		Message: fmt.Sprintf("Successfully renamed %s to %s", in.Entry, in.Name),
+	}, nil
+}
+
+func (s *server) RenameDirectory(ctx context.Context, in *proto.RenameRequest) (*proto.RenameResponse, error) {
+	// Grab user from your interceptor context
+	user := ctx.Value("User").(User)
+	email := user.Email
+
+	// Get current directory context
+	s.mu.RLock()
+	cd := s.currentDirectory[email]
+	s.mu.RUnlock()
+
+	depth := GetDepth(cd)
+	if depth < 2 {
+		return nil, status.Errorf(codes.PermissionDenied, "must be inside a class to rename directories")
+	}
+
+	parts := strings.Split(cd, "/")
+	className := parts[1]
+
+	// Calculate the exact string prefixes we need to search for in the database
+	pathWithinClass := strings.TrimPrefix(cd, parts[0]+"/"+className+"/")
+	
+	oldPrefix := pathWithinClass + in.Entry
+	newPrefix := pathWithinClass + in.Name
+
+	// Call our new DB helper
+	err := s.renameDirectoryMetadata(className, oldPrefix, newPrefix)
+	if err != nil {
+		if err.Error() == "directory not found" {
+			return nil, status.Errorf(codes.NotFound, "directory '%s' does not exist", in.Entry)
+		}
+		logger("Rename directory failed: %v", err)
+		return nil, status.Errorf(codes.Internal, "database error")
+	}
+
+	// sync with permissions array
+	s.updateFolderLists(email, parts[0], className, oldPrefix, newPrefix)
+
+	return &proto.RenameResponse{
+		Message: fmt.Sprintf("Successfully renamed directory %s to %s", in.Entry, in.Name),
 	}, nil
 }
 

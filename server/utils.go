@@ -185,3 +185,145 @@ func (s *server) renameFileMetadata(className, oldSK, newSK, newName, newFullPat
 
 	return nil
 }
+
+// renameDirectoryMetadata finds all files/folders inside a directory and updates their paths.
+// In DynamoDB, we do this by querying for all items whose SK starts with the old directory prefix,
+// then creating new copies with the new prefix, and finally deleting the old copies.
+func (s *server) renameDirectoryMetadata(className, oldPrefix, newPrefix string) error {
+	// QUERY all items that belong to this class AND start with the old folder path
+	queryInput := &dynamodb.QueryInput{
+		TableName: aws.String("classroom_metadata"),
+		KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :oldPrefix)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk":        &types.AttributeValueMemberS{Value: className},
+			":oldPrefix": &types.AttributeValueMemberS{Value: oldPrefix},
+		},
+	}
+
+	result, err := s.DB.Query(context.TODO(), queryInput)
+	if err != nil {
+		logger("Failed to query directory items: %v", err)
+		return err
+	}
+
+	if len(result.Items) == 0 {
+		return fmt.Errorf("directory not found")
+	}
+
+	// LOOP through every single item we found inside the directory
+	for _, dynamodbItem := range result.Items {
+		var item Metadata
+		if err := attributevalue.UnmarshalMap(dynamodbItem, &item); err != nil {
+			logger("Error unmarshaling item in directory: %v", err)
+			continue // Skip this item if there's an error, but keep trying the rest
+		}
+
+		oldSK := item.SK
+
+		// CALCULATE the new paths
+		// We replace the first instance of the old folder path with the new folder path
+		newSK := strings.Replace(oldSK, oldPrefix, newPrefix, 1)
+		
+		item.SK = newSK
+		item.FullPath = strings.Replace(item.FullPath, oldSK, newSK, 1)
+
+		// If this specific item IS the directory itself (not a file inside it), update its Name attribute
+		if oldSK == oldPrefix {
+			// Strip the trailing slash and get the actual new folder name
+			cleanName := strings.TrimSuffix(newPrefix, "/")
+			parts := strings.Split(cleanName, "/")
+			item.Name = parts[len(parts)-1] 
+		}
+
+		// PUT the newly updated item into the database
+		newItem, err := attributevalue.MarshalMap(item)
+		if err != nil {
+			logger("Error marshaling new item: %v", err)
+			continue
+		}
+
+		_, err = s.DB.PutItem(context.TODO(), &dynamodb.PutItemInput{
+			TableName: aws.String("classroom_metadata"),
+			Item:      newItem,
+		})
+		if err != nil {
+			logger("Cannot save new item metadata: %v", err)
+			continue
+		}
+
+		// DELETE the old item to clean up the database
+		_, err = s.DB.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
+			TableName: aws.String("classroom_metadata"),
+			Key: map[string]types.AttributeValue{
+				"pk": &types.AttributeValueMemberS{Value: className},
+				"sk": &types.AttributeValueMemberS{Value: oldSK},
+			},
+		})
+		if err != nil {
+			logger("Cannot delete old item metadata: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// updateFolderLists syncs renamed folder paths inside the User and ClassInfo permission arrays.
+func (s *server) updateFolderLists(callerEmail, collegeName, className, oldPrefix, newPrefix string) {
+	oldTarget := strings.TrimSuffix(oldPrefix, "/")
+	newTarget := strings.TrimSuffix(newPrefix, "/")
+
+	// Update ClassInfo (Shared Folders)
+	classInfo, err := s.getClassInfo(className)
+	if err == nil {
+		updated := false
+		for i, f := range classInfo.SharedFolders {
+			if f == oldTarget || strings.HasPrefix(f, oldPrefix) {
+				classInfo.SharedFolders[i] = strings.Replace(f, oldTarget, newTarget, 1)
+				updated = true
+			}
+		}
+		if updated {
+			item, _ := attributevalue.MarshalMap(classInfo)
+			s.DB.PutItem(context.TODO(), &dynamodb.PutItemInput{
+				TableName: aws.String("classroom_metadata"),
+				Item:      item,
+			})
+		}
+	}
+
+	// Gather emails to check (the caller + all known students)
+	emailsToCheck := map[string]bool{callerEmail: true}
+	if err == nil {
+		for _, studentEmail := range classInfo.Students {
+			emailsToCheck[studentEmail] = true
+		}
+	}
+
+	// Update User profiles
+	for emailToCheck := range emailsToCheck {
+		user, err := s.getUser(emailToCheck)
+		if err != nil {
+			continue
+		}
+		
+		updated := false
+		if college, ok := user.Colleges[collegeName]; ok {
+			if classData, ok := college.Classes[className]; ok {
+				for i, f := range classData.Folders {
+					if f == oldTarget || strings.HasPrefix(f, oldPrefix) {
+						classData.Folders[i] = strings.Replace(f, oldTarget, newTarget, 1)
+						updated = true
+					}
+				}
+			}
+		}
+		
+		if updated {
+			item, _ := attributevalue.MarshalMap(user)
+			s.DB.PutItem(context.TODO(), &dynamodb.PutItemInput{
+				TableName: aws.String("user"),
+				Item:      item,
+			})
+		}
+	}
+}
