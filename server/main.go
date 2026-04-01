@@ -316,7 +316,6 @@ Check it doesn't already exist in the user's folders
 Add it to the user's Folders list in the user table
 Add a metadata entry to classroom_metadata
 */
-//DISCLAIMER, THIS IS SLOP I HAVE BEEN WORKING ON PIECING DB CALLS TOGETHER, WILL ADD
 //parsePath, getClassInfo, updateStudentFolders, updateSharedFolders and such to parse out logic cause this sucks
 func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryRequest) (*proto.MakeDirectoryResponse, error) {
 	//Grab context data
@@ -443,8 +442,8 @@ func (s *server) Rename(ctx context.Context, in *proto.RenameRequest) (*proto.Re
 
 	// Calculate the file's SK based on current directory
 	pathWithinClass := strings.TrimPrefix(cd, parts[0]+"/"+className+"/")
-	
-	oldSK := pathWithinClass + in.Entry 
+
+	oldSK := pathWithinClass + in.Entry
 	newSK := pathWithinClass + in.Name
 
 	// Update DynamoDB using the helpe
