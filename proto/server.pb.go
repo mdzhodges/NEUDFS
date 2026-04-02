@@ -454,9 +454,12 @@ func (x *MakeDirectoryResponse) GetMessage() string {
 }
 
 type UploadRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Request:
+	//
+	//	*UploadRequest_Metadata
+	//	*UploadRequest_Chunk
+	Request       isUploadRequest_Request `protobuf_oneof:"request"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -491,18 +494,97 @@ func (*UploadRequest) Descriptor() ([]byte, []int) {
 	return file_proto_server_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *UploadRequest) GetName() string {
+func (x *UploadRequest) GetRequest() isUploadRequest_Request {
+	if x != nil {
+		return x.Request
+	}
+	return nil
+}
+
+func (x *UploadRequest) GetMetadata() *UploadMetadata {
+	if x != nil {
+		if x, ok := x.Request.(*UploadRequest_Metadata); ok {
+			return x.Metadata
+		}
+	}
+	return nil
+}
+
+func (x *UploadRequest) GetChunk() []byte {
+	if x != nil {
+		if x, ok := x.Request.(*UploadRequest_Chunk); ok {
+			return x.Chunk
+		}
+	}
+	return nil
+}
+
+type isUploadRequest_Request interface {
+	isUploadRequest_Request()
+}
+
+type UploadRequest_Metadata struct {
+	Metadata *UploadMetadata `protobuf:"bytes,1,opt,name=metadata,proto3,oneof"`
+}
+
+type UploadRequest_Chunk struct {
+	Chunk []byte `protobuf:"bytes,2,opt,name=chunk,proto3,oneof"`
+}
+
+func (*UploadRequest_Metadata) isUploadRequest_Request() {}
+
+func (*UploadRequest_Chunk) isUploadRequest_Request() {}
+
+type UploadMetadata struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	ContentType   string                 `protobuf:"bytes,2,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UploadMetadata) Reset() {
+	*x = UploadMetadata{}
+	mi := &file_proto_server_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadMetadata) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadMetadata) ProtoMessage() {}
+
+func (x *UploadMetadata) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_server_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadMetadata.ProtoReflect.Descriptor instead.
+func (*UploadMetadata) Descriptor() ([]byte, []int) {
+	return file_proto_server_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *UploadMetadata) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *UploadRequest) GetData() []byte {
+func (x *UploadMetadata) GetContentType() string {
 	if x != nil {
-		return x.Data
+		return x.ContentType
 	}
-	return nil
+	return ""
 }
 
 type UploadResponse struct {
@@ -514,7 +596,7 @@ type UploadResponse struct {
 
 func (x *UploadResponse) Reset() {
 	*x = UploadResponse{}
-	mi := &file_proto_server_proto_msgTypes[11]
+	mi := &file_proto_server_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -526,7 +608,7 @@ func (x *UploadResponse) String() string {
 func (*UploadResponse) ProtoMessage() {}
 
 func (x *UploadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_server_proto_msgTypes[11]
+	mi := &file_proto_server_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -539,7 +621,7 @@ func (x *UploadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadResponse.ProtoReflect.Descriptor instead.
 func (*UploadResponse) Descriptor() ([]byte, []int) {
-	return file_proto_server_proto_rawDescGZIP(), []int{11}
+	return file_proto_server_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *UploadResponse) GetMessage() string {
@@ -558,7 +640,7 @@ type DownloadRequest struct {
 
 func (x *DownloadRequest) Reset() {
 	*x = DownloadRequest{}
-	mi := &file_proto_server_proto_msgTypes[12]
+	mi := &file_proto_server_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -570,7 +652,7 @@ func (x *DownloadRequest) String() string {
 func (*DownloadRequest) ProtoMessage() {}
 
 func (x *DownloadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_server_proto_msgTypes[12]
+	mi := &file_proto_server_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -583,7 +665,7 @@ func (x *DownloadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadRequest.ProtoReflect.Descriptor instead.
 func (*DownloadRequest) Descriptor() ([]byte, []int) {
-	return file_proto_server_proto_rawDescGZIP(), []int{12}
+	return file_proto_server_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *DownloadRequest) GetName() string {
@@ -602,7 +684,7 @@ type DownloadResponse struct {
 
 func (x *DownloadResponse) Reset() {
 	*x = DownloadResponse{}
-	mi := &file_proto_server_proto_msgTypes[13]
+	mi := &file_proto_server_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -614,7 +696,7 @@ func (x *DownloadResponse) String() string {
 func (*DownloadResponse) ProtoMessage() {}
 
 func (x *DownloadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_server_proto_msgTypes[13]
+	mi := &file_proto_server_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -627,7 +709,7 @@ func (x *DownloadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadResponse.ProtoReflect.Descriptor instead.
 func (*DownloadResponse) Descriptor() ([]byte, []int) {
-	return file_proto_server_proto_rawDescGZIP(), []int{13}
+	return file_proto_server_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *DownloadResponse) GetData() []byte {
@@ -647,7 +729,7 @@ type MoveRequest struct {
 
 func (x *MoveRequest) Reset() {
 	*x = MoveRequest{}
-	mi := &file_proto_server_proto_msgTypes[14]
+	mi := &file_proto_server_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -659,7 +741,7 @@ func (x *MoveRequest) String() string {
 func (*MoveRequest) ProtoMessage() {}
 
 func (x *MoveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_server_proto_msgTypes[14]
+	mi := &file_proto_server_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -672,7 +754,7 @@ func (x *MoveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MoveRequest.ProtoReflect.Descriptor instead.
 func (*MoveRequest) Descriptor() ([]byte, []int) {
-	return file_proto_server_proto_rawDescGZIP(), []int{14}
+	return file_proto_server_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *MoveRequest) GetName() string {
@@ -698,7 +780,7 @@ type MoveResponse struct {
 
 func (x *MoveResponse) Reset() {
 	*x = MoveResponse{}
-	mi := &file_proto_server_proto_msgTypes[15]
+	mi := &file_proto_server_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -710,7 +792,7 @@ func (x *MoveResponse) String() string {
 func (*MoveResponse) ProtoMessage() {}
 
 func (x *MoveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_server_proto_msgTypes[15]
+	mi := &file_proto_server_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -723,7 +805,7 @@ func (x *MoveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MoveResponse.ProtoReflect.Descriptor instead.
 func (*MoveResponse) Descriptor() ([]byte, []int) {
-	return file_proto_server_proto_rawDescGZIP(), []int{15}
+	return file_proto_server_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *MoveResponse) GetMessage() string {
@@ -742,7 +824,7 @@ type DeleteRequest struct {
 
 func (x *DeleteRequest) Reset() {
 	*x = DeleteRequest{}
-	mi := &file_proto_server_proto_msgTypes[16]
+	mi := &file_proto_server_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -754,7 +836,7 @@ func (x *DeleteRequest) String() string {
 func (*DeleteRequest) ProtoMessage() {}
 
 func (x *DeleteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_server_proto_msgTypes[16]
+	mi := &file_proto_server_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -767,7 +849,7 @@ func (x *DeleteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteRequest.ProtoReflect.Descriptor instead.
 func (*DeleteRequest) Descriptor() ([]byte, []int) {
-	return file_proto_server_proto_rawDescGZIP(), []int{16}
+	return file_proto_server_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *DeleteRequest) GetPath() string {
@@ -786,7 +868,7 @@ type DeleteResponse struct {
 
 func (x *DeleteResponse) Reset() {
 	*x = DeleteResponse{}
-	mi := &file_proto_server_proto_msgTypes[17]
+	mi := &file_proto_server_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -798,7 +880,7 @@ func (x *DeleteResponse) String() string {
 func (*DeleteResponse) ProtoMessage() {}
 
 func (x *DeleteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_server_proto_msgTypes[17]
+	mi := &file_proto_server_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -811,7 +893,7 @@ func (x *DeleteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteResponse.ProtoReflect.Descriptor instead.
 func (*DeleteResponse) Descriptor() ([]byte, []int) {
-	return file_proto_server_proto_rawDescGZIP(), []int{17}
+	return file_proto_server_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *DeleteResponse) GetMessage() string {
@@ -829,7 +911,7 @@ type TreeDirectoryRequest struct {
 
 func (x *TreeDirectoryRequest) Reset() {
 	*x = TreeDirectoryRequest{}
-	mi := &file_proto_server_proto_msgTypes[18]
+	mi := &file_proto_server_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -841,7 +923,7 @@ func (x *TreeDirectoryRequest) String() string {
 func (*TreeDirectoryRequest) ProtoMessage() {}
 
 func (x *TreeDirectoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_server_proto_msgTypes[18]
+	mi := &file_proto_server_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -854,7 +936,7 @@ func (x *TreeDirectoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TreeDirectoryRequest.ProtoReflect.Descriptor instead.
 func (*TreeDirectoryRequest) Descriptor() ([]byte, []int) {
-	return file_proto_server_proto_rawDescGZIP(), []int{18}
+	return file_proto_server_proto_rawDescGZIP(), []int{19}
 }
 
 type TreeDirectoryResponse struct {
@@ -866,7 +948,7 @@ type TreeDirectoryResponse struct {
 
 func (x *TreeDirectoryResponse) Reset() {
 	*x = TreeDirectoryResponse{}
-	mi := &file_proto_server_proto_msgTypes[19]
+	mi := &file_proto_server_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -878,7 +960,7 @@ func (x *TreeDirectoryResponse) String() string {
 func (*TreeDirectoryResponse) ProtoMessage() {}
 
 func (x *TreeDirectoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_server_proto_msgTypes[19]
+	mi := &file_proto_server_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -891,7 +973,7 @@ func (x *TreeDirectoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TreeDirectoryResponse.ProtoReflect.Descriptor instead.
 func (*TreeDirectoryResponse) Descriptor() ([]byte, []int) {
-	return file_proto_server_proto_rawDescGZIP(), []int{19}
+	return file_proto_server_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *TreeDirectoryResponse) GetEntries() []string {
@@ -924,10 +1006,14 @@ const file_proto_server_proto_rawDesc = "" +
 	"\x14MakeDirectoryRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"1\n" +
 	"\x15MakeDirectoryResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"7\n" +
-	"\rUploadRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
-	"\x04data\x18\x02 \x01(\fR\x04data\"*\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"f\n" +
+	"\rUploadRequest\x122\n" +
+	"\bmetadata\x18\x01 \x01(\v2\x14.main.UploadMetadataH\x00R\bmetadata\x12\x16\n" +
+	"\x05chunk\x18\x02 \x01(\fH\x00R\x05chunkB\t\n" +
+	"\arequest\"G\n" +
+	"\x0eUploadMetadata\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
+	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\"*\n" +
 	"\x0eUploadResponse\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage\"%\n" +
 	"\x0fDownloadRequest\x12\x12\n" +
@@ -971,7 +1057,7 @@ func file_proto_server_proto_rawDescGZIP() []byte {
 	return file_proto_server_proto_rawDescData
 }
 
-var file_proto_server_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_proto_server_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_proto_server_proto_goTypes = []any{
 	(*ChangeDirectoryRequest)(nil),   // 0: main.ChangeDirectoryRequest
 	(*ChangeDirectoryResponse)(nil),  // 1: main.ChangeDirectoryResponse
@@ -984,44 +1070,46 @@ var file_proto_server_proto_goTypes = []any{
 	(*MakeDirectoryRequest)(nil),     // 8: main.MakeDirectoryRequest
 	(*MakeDirectoryResponse)(nil),    // 9: main.MakeDirectoryResponse
 	(*UploadRequest)(nil),            // 10: main.UploadRequest
-	(*UploadResponse)(nil),           // 11: main.UploadResponse
-	(*DownloadRequest)(nil),          // 12: main.DownloadRequest
-	(*DownloadResponse)(nil),         // 13: main.DownloadResponse
-	(*MoveRequest)(nil),              // 14: main.MoveRequest
-	(*MoveResponse)(nil),             // 15: main.MoveResponse
-	(*DeleteRequest)(nil),            // 16: main.DeleteRequest
-	(*DeleteResponse)(nil),           // 17: main.DeleteResponse
-	(*TreeDirectoryRequest)(nil),     // 18: main.TreeDirectoryRequest
-	(*TreeDirectoryResponse)(nil),    // 19: main.TreeDirectoryResponse
+	(*UploadMetadata)(nil),           // 11: main.UploadMetadata
+	(*UploadResponse)(nil),           // 12: main.UploadResponse
+	(*DownloadRequest)(nil),          // 13: main.DownloadRequest
+	(*DownloadResponse)(nil),         // 14: main.DownloadResponse
+	(*MoveRequest)(nil),              // 15: main.MoveRequest
+	(*MoveResponse)(nil),             // 16: main.MoveResponse
+	(*DeleteRequest)(nil),            // 17: main.DeleteRequest
+	(*DeleteResponse)(nil),           // 18: main.DeleteResponse
+	(*TreeDirectoryRequest)(nil),     // 19: main.TreeDirectoryRequest
+	(*TreeDirectoryResponse)(nil),    // 20: main.TreeDirectoryResponse
 }
 var file_proto_server_proto_depIdxs = []int32{
-	0,  // 0: main.Server.ChangeDirectory:input_type -> main.ChangeDirectoryRequest
-	2,  // 1: main.Server.ListDirectory:input_type -> main.ListDirectoryRequest
-	4,  // 2: main.Server.CurrentDirectory:input_type -> main.CurrentDirectoryRequest
-	6,  // 3: main.Server.Rename:input_type -> main.RenameRequest
-	6,  // 4: main.Server.RenameDirectory:input_type -> main.RenameRequest
-	8,  // 5: main.Server.MakeDirectory:input_type -> main.MakeDirectoryRequest
-	10, // 6: main.Server.Upload:input_type -> main.UploadRequest
-	12, // 7: main.Server.Download:input_type -> main.DownloadRequest
-	14, // 8: main.Server.Move:input_type -> main.MoveRequest
-	16, // 9: main.Server.Delete:input_type -> main.DeleteRequest
-	18, // 10: main.Server.TreeDirectory:input_type -> main.TreeDirectoryRequest
-	1,  // 11: main.Server.ChangeDirectory:output_type -> main.ChangeDirectoryResponse
-	3,  // 12: main.Server.ListDirectory:output_type -> main.ListDirectoryResponse
-	5,  // 13: main.Server.CurrentDirectory:output_type -> main.CurrentDirectoryResponse
-	7,  // 14: main.Server.Rename:output_type -> main.RenameResponse
-	7,  // 15: main.Server.RenameDirectory:output_type -> main.RenameResponse
-	9,  // 16: main.Server.MakeDirectory:output_type -> main.MakeDirectoryResponse
-	11, // 17: main.Server.Upload:output_type -> main.UploadResponse
-	13, // 18: main.Server.Download:output_type -> main.DownloadResponse
-	15, // 19: main.Server.Move:output_type -> main.MoveResponse
-	17, // 20: main.Server.Delete:output_type -> main.DeleteResponse
-	19, // 21: main.Server.TreeDirectory:output_type -> main.TreeDirectoryResponse
-	11, // [11:22] is the sub-list for method output_type
-	0,  // [0:11] is the sub-list for method input_type
-	0,  // [0:0] is the sub-list for extension type_name
-	0,  // [0:0] is the sub-list for extension extendee
-	0,  // [0:0] is the sub-list for field type_name
+	11, // 0: main.UploadRequest.metadata:type_name -> main.UploadMetadata
+	0,  // 1: main.Server.ChangeDirectory:input_type -> main.ChangeDirectoryRequest
+	2,  // 2: main.Server.ListDirectory:input_type -> main.ListDirectoryRequest
+	4,  // 3: main.Server.CurrentDirectory:input_type -> main.CurrentDirectoryRequest
+	6,  // 4: main.Server.Rename:input_type -> main.RenameRequest
+	6,  // 5: main.Server.RenameDirectory:input_type -> main.RenameRequest
+	8,  // 6: main.Server.MakeDirectory:input_type -> main.MakeDirectoryRequest
+	10, // 7: main.Server.Upload:input_type -> main.UploadRequest
+	13, // 8: main.Server.Download:input_type -> main.DownloadRequest
+	15, // 9: main.Server.Move:input_type -> main.MoveRequest
+	17, // 10: main.Server.Delete:input_type -> main.DeleteRequest
+	19, // 11: main.Server.TreeDirectory:input_type -> main.TreeDirectoryRequest
+	1,  // 12: main.Server.ChangeDirectory:output_type -> main.ChangeDirectoryResponse
+	3,  // 13: main.Server.ListDirectory:output_type -> main.ListDirectoryResponse
+	5,  // 14: main.Server.CurrentDirectory:output_type -> main.CurrentDirectoryResponse
+	7,  // 15: main.Server.Rename:output_type -> main.RenameResponse
+	7,  // 16: main.Server.RenameDirectory:output_type -> main.RenameResponse
+	9,  // 17: main.Server.MakeDirectory:output_type -> main.MakeDirectoryResponse
+	12, // 18: main.Server.Upload:output_type -> main.UploadResponse
+	14, // 19: main.Server.Download:output_type -> main.DownloadResponse
+	16, // 20: main.Server.Move:output_type -> main.MoveResponse
+	18, // 21: main.Server.Delete:output_type -> main.DeleteResponse
+	20, // 22: main.Server.TreeDirectory:output_type -> main.TreeDirectoryResponse
+	12, // [12:23] is the sub-list for method output_type
+	1,  // [1:12] is the sub-list for method input_type
+	1,  // [1:1] is the sub-list for extension type_name
+	1,  // [1:1] is the sub-list for extension extendee
+	0,  // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_proto_server_proto_init() }
@@ -1029,13 +1117,17 @@ func file_proto_server_proto_init() {
 	if File_proto_server_proto != nil {
 		return
 	}
+	file_proto_server_proto_msgTypes[10].OneofWrappers = []any{
+		(*UploadRequest_Metadata)(nil),
+		(*UploadRequest_Chunk)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_server_proto_rawDesc), len(file_proto_server_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   20,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -18,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -25,25 +26,27 @@ import (
 )
 
 var (
-	port               = flag.Int("port", 50051, "the port to serve on")
-	errMissingMetadata = status.Errorf(codes.InvalidArgument, "missing metadata")
-	errInvalidPath     = status.Errorf(codes.InvalidArgument, "invalid folder path")
-	errDB              = status.Errorf(codes.Internal, "internal db server error")
-	errName            = status.Errorf(codes.InvalidArgument, "invalid folder name for mkdir")
-	errMkdir           = status.Errorf(codes.Internal, "Unable to create a folder here")
-	errAlreadyExists   = status.Errorf(codes.Internal, "Folder already exists")
+	port                    = flag.Int("port", 50051, "the port to serve on")
+	errMissingMetadata      = status.Errorf(codes.InvalidArgument, "missing metadata")
+	errInvalidPath          = status.Errorf(codes.InvalidArgument, "invalid folder path")
+	errDB                   = status.Errorf(codes.Internal, "internal db server error")
+	errName                 = status.Errorf(codes.InvalidArgument, "invalid folder name for mkdir")
+	errMkdir                = status.Errorf(codes.Internal, "Unable to create a folder here")
+	errAlreadyExists        = status.Errorf(codes.Internal, "Folder already exists")
+	errFileCannotBeStreamed  = status.Errorf(codes.InvalidArgument, "File cannot be streamed")
 )
 
 type server struct {
 	proto.UnimplementedServerServer
 	DB               *dynamodb.Client
+	S3Client         *s3.Client
 	currentDirectory map[string]string
 	mu               sync.RWMutex
 }
 
 // Initializes gRPC server
-func NewServer(db *dynamodb.Client) *server {
-	return &server{DB: db, currentDirectory: make(map[string]string)}
+func NewServer(db *dynamodb.Client, s3Client *s3.Client) *server {
+	return &server{DB: db, S3Client: s3Client, currentDirectory: make(map[string]string)}
 }
 
 // Changes Current Directory of a user
@@ -312,6 +315,52 @@ func unaryInterceptor(db *dynamodb.Client) grpc.UnaryServerInterceptor {
 		}
 		return m, err
 	}
+}
+
+func streamInterceptor(db *dynamodb.Client) grpc.StreamServerInterceptor {
+	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		ctx := ss.Context()
+		md, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			return errMissingMetadata
+		}
+		emails := md["email"]
+		if len(emails) == 0 {
+			return status.Error(codes.Unauthenticated, "no email provided in metadata")
+		}
+		result, err := db.GetItem(context.TODO(), &dynamodb.GetItemInput{
+			TableName: aws.String("user"),
+			Key: map[string]types.AttributeValue{
+				"email": &types.AttributeValueMemberS{Value: emails[0]},
+			},
+		})
+		if err != nil {
+			logger("Database error", err)
+			return err
+		}
+		if result.Item == nil {
+			return status.Error(codes.Unauthenticated, "user not found")
+		}
+		var foundUser User
+		err = attributevalue.UnmarshalMap(result.Item, &foundUser)
+		if err != nil {
+			return err
+		}
+		wrapped := &wrappedStream{
+			ServerStream: ss,
+			ctx:          context.WithValue(ctx, "User", foundUser),
+		}
+		return handler(srv, wrapped)
+	}
+}
+
+type wrappedStream struct {
+	grpc.ServerStream
+	ctx context.Context
+}
+
+func (w *wrappedStream) Context() context.Context {
+	return w.ctx
 }
 
 func (s *server) CurrentDirectory(ctx context.Context, in *proto.CurrentDirectoryRequest) (*proto.CurrentDirectoryResponse, error) {
@@ -656,28 +705,41 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("us-east-1"))
-	if err != nil {
-		log.Fatalf("Critical error: Could not connect to AWS: %v", err)
-	}
 	//sets up dynamodb
 	endpoint := os.Getenv("DYNAMODB_ENDPOINT")
-	dbClient := dynamodb.NewFromConfig(cfg)
-	if endpoint != "" {
+	endpointS3 := os.Getenv("S3_ENDPOINT")
+	isDev := endpoint != "" || endpointS3 != ""
+	var cfg aws.Config
+	if isDev {
 		cfg, err = config.LoadDefaultConfig(context.TODO(),
 			config.WithRegion("us-east-1"),
 			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("fake", "fake", "fake")),
 		)
-		dbClient = dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
-			o.BaseEndpoint = aws.String(endpoint)
-		})
 	} else {
-		dbClient = dynamodb.NewFromConfig(cfg)
+		cfg, err = config.LoadDefaultConfig(context.TODO(), config.WithRegion("us-east-1"))
 	}
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// DynamoDB client
+	dbClient := dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
+		if endpoint != "" {
+			o.BaseEndpoint = aws.String(endpoint)
+		}
+	})
+
+	// S3 client
+	s3Client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		if endpointS3 != "" {
+			o.BaseEndpoint = aws.String(endpointS3)
+			o.UsePathStyle = true
+		}
+	})
 	//Init Server Object and gRPC server
-	s := NewServer(dbClient)
+	s := NewServer(dbClient, s3Client)
 	//add interceptor ie middleware to validate user
-	g := grpc.NewServer(grpc.UnaryInterceptor(unaryInterceptor(dbClient)))
+	g := grpc.NewServer(grpc.UnaryInterceptor(unaryInterceptor(dbClient)), grpc.StreamInterceptor(streamInterceptor(dbClient)))
 
 	//Register server object into gRPC server
 	proto.RegisterServerServer(g, s)

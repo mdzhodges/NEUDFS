@@ -59,9 +59,17 @@ message MakeDirectoryResponse {
 }
 
 message UploadRequest {
-    string name = 1;
-    bytes data = 2;
+    oneof request {
+        UploadMetadata metadata = 1;
+        bytes chunk = 2;
+    }
 }
+
+message UploadMetadata {
+    string name = 1;
+    string content_type = 2;
+}
+
 message UploadResponse {
     string message = 1;
 }
