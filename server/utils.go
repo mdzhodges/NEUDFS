@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 func logger(format string, a ...any) {
@@ -124,7 +126,7 @@ func (s *server) createFolderMetadata(className, sk, name, owner, fullPath strin
 // Because the file path is the Sort Key (SK), we cannot simply use UpdateItem.
 // We must Get the old item, Put a new item with the new SK, and Delete the old item.
 func (s *server) renameFileMetadata(className, oldSK, newSK, newName, newFullPath string) error {
-	
+
 	// GET the existing file metadata using the old SK
 	getResult, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
 		TableName: aws.String("classroom_metadata"),
@@ -192,7 +194,7 @@ func (s *server) renameFileMetadata(className, oldSK, newSK, newName, newFullPat
 func (s *server) renameDirectoryMetadata(className, oldPrefix, newPrefix string) error {
 	// QUERY all items that belong to this class AND start with the old folder path
 	queryInput := &dynamodb.QueryInput{
-		TableName: aws.String("classroom_metadata"),
+		TableName:              aws.String("classroom_metadata"),
 		KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :oldPrefix)"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":pk":        &types.AttributeValueMemberS{Value: className},
@@ -223,7 +225,7 @@ func (s *server) renameDirectoryMetadata(className, oldPrefix, newPrefix string)
 		// CALCULATE the new paths
 		// We replace the first instance of the old folder path with the new folder path
 		newSK := strings.Replace(oldSK, oldPrefix, newPrefix, 1)
-		
+
 		item.SK = newSK
 		item.FullPath = strings.Replace(item.FullPath, oldSK, newSK, 1)
 
@@ -232,7 +234,7 @@ func (s *server) renameDirectoryMetadata(className, oldPrefix, newPrefix string)
 			// Strip the trailing slash and get the actual new folder name
 			cleanName := strings.TrimSuffix(newPrefix, "/")
 			parts := strings.Split(cleanName, "/")
-			item.Name = parts[len(parts)-1] 
+			item.Name = parts[len(parts)-1]
 		}
 
 		// PUT the newly updated item into the database
@@ -305,7 +307,7 @@ func (s *server) updateFolderLists(callerEmail, collegeName, className, oldPrefi
 		if err != nil {
 			continue
 		}
-		
+
 		updated := false
 		if college, ok := user.Colleges[collegeName]; ok {
 			if classData, ok := college.Classes[className]; ok {
@@ -317,7 +319,7 @@ func (s *server) updateFolderLists(callerEmail, collegeName, className, oldPrefi
 				}
 			}
 		}
-		
+
 		if updated {
 			item, _ := attributevalue.MarshalMap(user)
 			s.DB.PutItem(context.TODO(), &dynamodb.PutItemInput{
@@ -326,4 +328,40 @@ func (s *server) updateFolderLists(callerEmail, collegeName, className, oldPrefi
 			})
 		}
 	}
+}
+
+// Need to implement S3
+func (s *server) uploadToS3(content []byte, filePath string) (string, error) {
+	// In a real implementation, this function would use the AWS SDK to upload the file content to S3
+	// and return the public URL of the uploaded file. For this example, we'll just return a placeholder URL.
+	s3Url := "https://s3.amazonaws.com/your-bucket/" + filePath
+	_, err := s.S3Client.PutObject(context.TODO(), &s3.PutObjectInput{
+		Bucket: aws.String("neudfs-storage-dev"),
+		Key:    aws.String(filePath),
+		Body:   bytes.NewReader(content),
+	})
+	if err != nil {
+		return "", err
+	}
+	return s3Url, nil
+}
+
+func (s *server) uploadFileMetadata(className, sk, name, owner, fullPath, s3Url string) error {
+	item, err := attributevalue.MarshalMap(Metadata{
+		PK:       className,
+		SK:       sk,
+		Name:     name,
+		Owner:    owner,
+		Type:     "file",
+		FullPath: fullPath,
+		S3Url:    s3Url,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = s.DB.PutItem(context.TODO(), &dynamodb.PutItemInput{
+		TableName: aws.String("classroom_metadata"),
+		Item:      item,
+	})
+	return err
 }

@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
 	"grpc-server/proto"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -18,6 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -25,13 +28,14 @@ import (
 )
 
 var (
-	port               = flag.Int("port", 50051, "the port to serve on")
-	errMissingMetadata = status.Errorf(codes.InvalidArgument, "missing metadata")
-	errInvalidPath     = status.Errorf(codes.InvalidArgument, "invalid folder path")
-	errDB              = status.Errorf(codes.Internal, "internal db server error")
-	errName            = status.Errorf(codes.InvalidArgument, "invalid folder name for mkdir")
-	errMkdir           = status.Errorf(codes.Internal, "Unable to create a folder here")
-	errAlreadyExists   = status.Errorf(codes.Internal, "Folder already exists")
+	port                     = flag.Int("port", 50051, "the port to serve on")
+	errMissingMetadata       = status.Errorf(codes.InvalidArgument, "missing metadata")
+	errInvalidPath           = status.Errorf(codes.InvalidArgument, "invalid folder path")
+	errDB                    = status.Errorf(codes.Internal, "internal db server error")
+	errName                  = status.Errorf(codes.InvalidArgument, "invalid folder name for mkdir")
+	errMkdir                 = status.Errorf(codes.Internal, "Unable to create a folder here")
+	errAlreadyExists         = status.Errorf(codes.Internal, "Folder already exists")
+	errFileCannnotBeStreamed = status.Errorf(codes.InvalidArgument, "File cannot be streamed")
 )
 
 type server struct {
@@ -39,11 +43,12 @@ type server struct {
 	DB               *dynamodb.Client
 	currentDirectory map[string]string
 	mu               sync.RWMutex
+	S3Client         *s3.Client
 }
 
 // Initializes gRPC server
-func NewServer(db *dynamodb.Client) *server {
-	return &server{DB: db, currentDirectory: make(map[string]string)}
+func NewServer(db *dynamodb.Client, s3 *s3.Client) *server {
+	return &server{DB: db, currentDirectory: make(map[string]string), S3Client: s3}
 }
 
 // Changes Current Directory of a user
@@ -259,6 +264,51 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 	}
 
 	return &proto.ListDirectoryResponse{Entries: res}, nil
+}
+func streamInterceptor(db *dynamodb.Client) grpc.StreamServerInterceptor {
+	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		ctx := ss.Context()
+		md, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			return errMissingMetadata
+		}
+		emails := md["email"]
+		if len(emails) == 0 {
+			return status.Error(codes.Unauthenticated, "no email provided in metadata")
+		}
+		result, err := db.GetItem(context.TODO(), &dynamodb.GetItemInput{
+			TableName: aws.String("user"),
+			Key: map[string]types.AttributeValue{
+				"email": &types.AttributeValueMemberS{Value: emails[0]},
+			},
+		})
+		if err != nil {
+			logger("Database error", err)
+			return err
+		}
+		if result.Item == nil {
+			return status.Error(codes.Unauthenticated, "user not found")
+		}
+		var foundUser User
+		err = attributevalue.UnmarshalMap(result.Item, &foundUser)
+		if err != nil {
+			return err
+		}
+		wrapped := &wrappedStream{
+			ServerStream: ss,
+			ctx:          context.WithValue(ctx, "User", foundUser),
+		}
+		return handler(srv, wrapped)
+	}
+}
+
+type wrappedStream struct {
+	grpc.ServerStream
+	ctx context.Context
+}
+
+func (w *wrappedStream) Context() context.Context {
+	return w.ctx
 }
 
 // shorten db calls for grabbing user information
@@ -482,7 +532,7 @@ func (s *server) RenameDirectory(ctx context.Context, in *proto.RenameRequest) (
 
 	// Calculate the exact string prefixes we need to search for in the database
 	pathWithinClass := strings.TrimPrefix(cd, parts[0]+"/"+className+"/")
-	
+
 	oldPrefix := pathWithinClass + in.Entry
 	newPrefix := pathWithinClass + in.Name
 
@@ -504,6 +554,93 @@ func (s *server) RenameDirectory(ctx context.Context, in *proto.RenameRequest) (
 	}, nil
 }
 
+// bidirectional upload func, returns unary response
+//Idea HERE:
+/*
+Read the first message to grab the metadata — filename, content type, and the cd (current directory) the user is in.
+Accumulate the chunks as they come in via stream.Recv() in a loop. You can either buffer them all in memory (fine for small files) or pipe them directly to S3 using a multipart upload (better for large files).
+Upload to S3 once you have the complete file (or as you stream it). You'll construct the S3 key however you want — maybe something like userID/college/class/folder/filename.
+Save the metadata to DynamoDB — the file's path relative to the user's current directory, the S3 key, owner, timestamp, etc. This is where cd comes in — you'd store the file's parent folder as cd so your earlier query logic works.
+Return the response via stream.SendAndClose() with whatever info the client needs (success/failure, the file path, etc.).
+*/
+func (s *server) Upload(stream proto.Server_UploadServer) error {
+	// Grab user from your interceptor context
+	user := stream.Context().Value("User").(User)
+	email := user.Email
+	cd := s.currentDirectory[email]
+	cd = strings.TrimSuffix(cd, "/")
+	depth := GetDepth(cd)
+	role := user.Role
+	if depth < 2 {
+		return status.Errorf(codes.PermissionDenied, "must be inside a class to upload files")
+	}
+	if role == "student" && depth == 2 {
+		return status.Errorf(codes.PermissionDenied, "students must be inside their personal folder to upload files")
+	}
+
+	parts := strings.Split(cd, "/")
+	collegeName := parts[0]
+	className := parts[1]
+	pathWithinClass := strings.TrimPrefix(cd, collegeName+"/"+className+"/")
+	//Checks for a student if they are trying to upload outside of their personal folder
+	if role == "student" {
+		personalFolders := user.Colleges[collegeName].Classes[className].Folders
+		isAllowed := false
+		for _, folder := range personalFolders {
+			if strings.HasPrefix(pathWithinClass, folder+"/") || pathWithinClass == folder {
+				isAllowed = true
+				break
+			}
+		}
+		if !isAllowed {
+			return status.Errorf(codes.PermissionDenied, "you do not have permission to upload files to this directory")
+		}
+	}
+	req, err := stream.Recv()
+	if err != nil {
+		logger("Failed to receive upload metadata", err)
+		return errFileCannnotBeStreamed
+	}
+	meta := req.GetMetadata()
+	if meta == nil {
+		return errFileCannnotBeStreamed
+	}
+	filename := meta.Name
+	contentType := meta.ContentType
+	if filename == "" || contentType == "" {
+		return errFileCannnotBeStreamed
+	}
+	var buf bytes.Buffer
+	for {
+		req, err = stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		buf.Write(req.GetChunk())
+	}
+	s3Key := cd + "/" + filename
+	url, err := s.uploadToS3(buf.Bytes(), s3Key)
+	if err != nil {
+		logger("Failed to upload file to S3", err)
+		return status.Errorf(codes.Internal, "failed to upload file")
+	}
+	if url == "" {
+		logger("S3 upload returned empty URL", fmt.Errorf("empty URL"))
+		return status.Errorf(codes.Internal, "failed to upload file")
+	}
+	err = s.uploadFileMetadata(className, pathWithinClass+"/"+filename, filename, email, cd+"/"+filename, url)
+	if err != nil {
+		logger("Failed to save file metadata to DynamoDB", err)
+		return status.Errorf(codes.Internal, "failed to save file metadata")
+	}
+	fmt.Println("cd:", cd)
+	fmt.Println("pathWithinClass:", pathWithinClass)
+	fmt.Println("s3Key:", s3Key)
+	return stream.SendAndClose(&proto.UploadResponse{Message: "uploaded"})
+}
 func main() {
 	//Grab Port Number
 	flag.Parse()
@@ -511,28 +648,41 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("us-east-1"))
-	if err != nil {
-		log.Fatalf("Critical error: Could not connect to AWS: %v", err)
-	}
 	//sets up dynamodb
 	endpoint := os.Getenv("DYNAMODB_ENDPOINT")
-	dbClient := dynamodb.NewFromConfig(cfg)
-	if endpoint != "" {
+	endpointS3 := os.Getenv("S3_ENDPOINT")
+	isDev := endpoint != "" || endpointS3 != ""
+	var cfg aws.Config
+	if isDev {
 		cfg, err = config.LoadDefaultConfig(context.TODO(),
 			config.WithRegion("us-east-1"),
 			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("fake", "fake", "fake")),
 		)
-		dbClient = dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
-			o.BaseEndpoint = aws.String(endpoint)
-		})
 	} else {
-		dbClient = dynamodb.NewFromConfig(cfg)
+		cfg, err = config.LoadDefaultConfig(context.TODO(), config.WithRegion("us-east-1"))
 	}
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// DynamoDB client
+	dbClient := dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
+		if endpoint != "" {
+			o.BaseEndpoint = aws.String(endpoint)
+		}
+	})
+
+	// S3 client
+	s3Client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		if endpointS3 != "" {
+			o.BaseEndpoint = aws.String(endpointS3)
+			o.UsePathStyle = true
+		}
+	})
 	//Init Server Object and gRPC server
-	s := NewServer(dbClient)
+	s := NewServer(dbClient, s3Client)
 	//add interceptor ie middleware to validate user
-	g := grpc.NewServer(grpc.UnaryInterceptor(unaryInterceptor(dbClient)))
+	g := grpc.NewServer(grpc.UnaryInterceptor(unaryInterceptor(dbClient)), grpc.StreamInterceptor(streamInterceptor(dbClient)))
 
 	//Register server object into gRPC server
 	proto.RegisterServerServer(g, s)
