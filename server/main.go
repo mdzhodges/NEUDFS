@@ -478,8 +478,9 @@ func (s *server) Rename(ctx context.Context, in *proto.RenameRequest) (*proto.Re
 
 // queryClassEntries fetches all metadata items for a class from DynamoDB,
 // starting at pathWithinClass, and returns their SKs relative to pathWithinClass
-// with entryPrefix prepended (used to build full relative paths for the client).
-func (s *server) queryClassEntries(className, pathWithinClass, entryPrefix string) ([]string, error) {
+// with entryPrefix prepended. If allowedFolders is non-nil, only entries whose
+// SK falls within one of those folders are returned (student access control).
+func (s *server) queryClassEntries(className, pathWithinClass, entryPrefix string, allowedFolders []string) ([]string, error) {
 	keyCondition := "pk = :pk"
 	exprValues := map[string]types.AttributeValue{
 		":pk": &types.AttributeValueMemberS{Value: className},
@@ -504,9 +505,24 @@ func (s *server) queryClassEntries(className, pathWithinClass, entryPrefix strin
 	set := make(map[string]bool)
 	var entries []string
 	for _, entry := range dbEntries {
-		// skip the class_info sentinel row
 		if entry.SK == "class_info" {
 			continue
+		}
+		if allowedFolders != nil {
+			allowed := false
+			for _, f := range allowedFolders {
+				fp := f
+				if !strings.HasSuffix(fp, "/") {
+					fp += "/"
+				}
+				if strings.HasPrefix(entry.SK, fp) || strings.HasPrefix(fp, entry.SK) {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				continue
+			}
 		}
 		relPath := entryPrefix + strings.TrimPrefix(entry.SK, pathWithinClass)
 		if relPath != "" && !set[relPath] {
@@ -517,14 +533,25 @@ func (s *server) queryClassEntries(className, pathWithinClass, entryPrefix strin
 	return entries, nil
 }
 
+// allowedFoldersForClass returns the folders a student may see in a class
+// (their own folders + shared folders). Returns nil for teachers (no filter).
+func (s *server) allowedFoldersForClass(user User, collegeName, className string) []string {
+	if user.Role == "teacher" {
+		return nil
+	}
+	classInfo, err := s.getClassInfo(className)
+	allowed := append([]string{}, user.Colleges[collegeName].Classes[className].Folders...)
+	if err == nil {
+		allowed = append(allowed, classInfo.SharedFolders...)
+	}
+	return allowed
+}
+
 func (s *server) TreeDirectory(ctx context.Context, in *proto.TreeDirectoryRequest) (*proto.TreeDirectoryResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	user := ctx.Value("User").(User)
-	if user.Role != "teacher" {
-		return nil, status.Errorf(codes.PermissionDenied, "tree is only available to professors")
-	}
 	email := user.Email
 	cd := s.currentDirectory[email]
 	depth := GetDepth(cd)
@@ -538,7 +565,7 @@ func (s *server) TreeDirectory(ctx context.Context, in *proto.TreeDirectoryReque
 			for className := range college.Classes {
 				classPrefix := collegeName + "/" + className + "/"
 				entries = append(entries, classPrefix)
-				classEntries, err := s.queryClassEntries(className, "", classPrefix)
+				classEntries, err := s.queryClassEntries(className, "", classPrefix, s.allowedFoldersForClass(user, collegeName, className))
 				if err != nil {
 					logger("Unable to query DB for class %s", className)
 					return nil, errDB
@@ -557,7 +584,7 @@ func (s *server) TreeDirectory(ctx context.Context, in *proto.TreeDirectoryReque
 		for className := range user.Colleges[collegeName].Classes {
 			classPrefix := className + "/"
 			entries = append(entries, classPrefix)
-			classEntries, err := s.queryClassEntries(className, "", classPrefix)
+			classEntries, err := s.queryClassEntries(className, "", classPrefix, s.allowedFoldersForClass(user, collegeName, className))
 			if err != nil {
 				logger("Unable to query DB for class %s", className)
 				return nil, errDB
@@ -570,7 +597,7 @@ func (s *server) TreeDirectory(ctx context.Context, in *proto.TreeDirectoryReque
 	// Depth >= 2: query DynamoDB for all items under the current path
 	className := parts[1]
 	pathWithinClass := strings.TrimPrefix(cd, collegeName+"/"+className+"/")
-	classEntries, err := s.queryClassEntries(className, pathWithinClass, "")
+	classEntries, err := s.queryClassEntries(className, pathWithinClass, "", s.allowedFoldersForClass(user, collegeName, className))
 	if err != nil {
 		logger("Unable to query DB", err)
 		return nil, errDB
