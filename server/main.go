@@ -112,6 +112,20 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 		s.currentDirectory[email] = newCD
 		msg = fmt.Sprintf("Changed directory to %q\n", newCD)
 		return &proto.ChangeDirectoryResponse{Message: msg}, nil
+	} else if user.Role == "teacher" {
+		// Teachers can cd into any folder that exists in DynamoDB
+		result, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
+			TableName: aws.String("classroom_metadata"),
+			Key: map[string]types.AttributeValue{
+				"pk": &types.AttributeValueMemberS{Value: className},
+				"sk": &types.AttributeValueMemberS{Value: relPath + "/"},
+			},
+		})
+		if err != nil || result.Item == nil {
+			return nil, errInvalidPath
+		}
+		s.currentDirectory[email] = newCD
+		msg = fmt.Sprintf("Changed directory to %q\n", newCD)
 	} else {
 		return nil, errInvalidPath
 	}
@@ -460,6 +474,110 @@ func (s *server) Rename(ctx context.Context, in *proto.RenameRequest) (*proto.Re
 		// Use in.Entry and in.Name
 		Message: fmt.Sprintf("Successfully renamed %s to %s", in.Entry, in.Name),
 	}, nil
+}
+
+// queryClassEntries fetches all metadata items for a class from DynamoDB,
+// starting at pathWithinClass, and returns their SKs relative to pathWithinClass
+// with entryPrefix prepended (used to build full relative paths for the client).
+func (s *server) queryClassEntries(className, pathWithinClass, entryPrefix string) ([]string, error) {
+	keyCondition := "pk = :pk"
+	exprValues := map[string]types.AttributeValue{
+		":pk": &types.AttributeValueMemberS{Value: className},
+	}
+	if pathWithinClass != "" {
+		keyCondition = "pk = :pk AND begins_with(sk, :prefix)"
+		exprValues[":prefix"] = &types.AttributeValueMemberS{Value: pathWithinClass}
+	}
+
+	results, err := s.DB.Query(context.TODO(), &dynamodb.QueryInput{
+		TableName:                 aws.String("classroom_metadata"),
+		KeyConditionExpression:    aws.String(keyCondition),
+		ExpressionAttributeValues: exprValues,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var dbEntries []Metadata
+	attributevalue.UnmarshalListOfMaps(results.Items, &dbEntries)
+
+	set := make(map[string]bool)
+	var entries []string
+	for _, entry := range dbEntries {
+		// skip the class_info sentinel row
+		if entry.SK == "class_info" {
+			continue
+		}
+		relPath := entryPrefix + strings.TrimPrefix(entry.SK, pathWithinClass)
+		if relPath != "" && !set[relPath] {
+			set[relPath] = true
+			entries = append(entries, relPath)
+		}
+	}
+	return entries, nil
+}
+
+func (s *server) TreeDirectory(ctx context.Context, in *proto.TreeDirectoryRequest) (*proto.TreeDirectoryResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	user := ctx.Value("User").(User)
+	if user.Role != "teacher" {
+		return nil, status.Errorf(codes.PermissionDenied, "tree is only available to professors")
+	}
+	email := user.Email
+	cd := s.currentDirectory[email]
+	depth := GetDepth(cd)
+
+	var entries []string
+
+	// Depth 0: show everything under each college → class → DynamoDB contents
+	if depth == 0 || cd == "" {
+		for collegeName, college := range user.Colleges {
+			entries = append(entries, collegeName+"/")
+			for className := range college.Classes {
+				classPrefix := collegeName + "/" + className + "/"
+				entries = append(entries, classPrefix)
+				classEntries, err := s.queryClassEntries(className, "", classPrefix)
+				if err != nil {
+					logger("Unable to query DB for class %s", className)
+					return nil, errDB
+				}
+				entries = append(entries, classEntries...)
+			}
+		}
+		return &proto.TreeDirectoryResponse{Entries: entries}, nil
+	}
+
+	parts := strings.Split(cd, "/")
+	collegeName := parts[0]
+
+	// Depth 1: show each class and its DynamoDB contents
+	if depth == 1 {
+		for className := range user.Colleges[collegeName].Classes {
+			classPrefix := className + "/"
+			entries = append(entries, classPrefix)
+			classEntries, err := s.queryClassEntries(className, "", classPrefix)
+			if err != nil {
+				logger("Unable to query DB for class %s", className)
+				return nil, errDB
+			}
+			entries = append(entries, classEntries...)
+		}
+		return &proto.TreeDirectoryResponse{Entries: entries}, nil
+	}
+
+	// Depth >= 2: query DynamoDB for all items under the current path
+	className := parts[1]
+	pathWithinClass := strings.TrimPrefix(cd, collegeName+"/"+className+"/")
+	classEntries, err := s.queryClassEntries(className, pathWithinClass, "")
+	if err != nil {
+		logger("Unable to query DB", err)
+		return nil, errDB
+	}
+	entries = append(entries, classEntries...)
+
+	return &proto.TreeDirectoryResponse{Entries: entries}, nil
 }
 
 func (s *server) RenameDirectory(ctx context.Context, in *proto.RenameRequest) (*proto.RenameResponse, error) {

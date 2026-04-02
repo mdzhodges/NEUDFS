@@ -29,6 +29,7 @@ const (
 	Server_Download_FullMethodName         = "/main.Server/Download"
 	Server_Move_FullMethodName             = "/main.Server/Move"
 	Server_Delete_FullMethodName           = "/main.Server/Delete"
+	Server_TreeDirectory_FullMethodName    = "/main.Server/TreeDirectory"
 )
 
 // ServerClient is the client API for Server service.
@@ -45,6 +46,7 @@ type ServerClient interface {
 	Download(ctx context.Context, in *DownloadRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[DownloadResponse], error)
 	Move(ctx context.Context, in *MoveRequest, opts ...grpc.CallOption) (*MoveResponse, error)
 	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
+	TreeDirectory(ctx context.Context, in *TreeDirectoryRequest, opts ...grpc.CallOption) (*TreeDirectoryResponse, error)
 }
 
 type serverClient struct {
@@ -167,6 +169,16 @@ func (c *serverClient) Delete(ctx context.Context, in *DeleteRequest, opts ...gr
 	return out, nil
 }
 
+func (c *serverClient) TreeDirectory(ctx context.Context, in *TreeDirectoryRequest, opts ...grpc.CallOption) (*TreeDirectoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TreeDirectoryResponse)
+	err := c.cc.Invoke(ctx, Server_TreeDirectory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ServerServer is the server API for Server service.
 // All implementations must embed UnimplementedServerServer
 // for forward compatibility.
@@ -181,6 +193,7 @@ type ServerServer interface {
 	Download(*DownloadRequest, grpc.ServerStreamingServer[DownloadResponse]) error
 	Move(context.Context, *MoveRequest) (*MoveResponse, error)
 	Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
+	TreeDirectory(context.Context, *TreeDirectoryRequest) (*TreeDirectoryResponse, error)
 	mustEmbedUnimplementedServerServer()
 }
 
@@ -220,6 +233,9 @@ func (UnimplementedServerServer) Move(context.Context, *MoveRequest) (*MoveRespo
 }
 func (UnimplementedServerServer) Delete(context.Context, *DeleteRequest) (*DeleteResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Delete not implemented")
+}
+func (UnimplementedServerServer) TreeDirectory(context.Context, *TreeDirectoryRequest) (*TreeDirectoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method TreeDirectory not implemented")
 }
 func (UnimplementedServerServer) mustEmbedUnimplementedServerServer() {}
 func (UnimplementedServerServer) testEmbeddedByValue()                {}
@@ -404,6 +420,24 @@ func _Server_Delete_Handler(srv interface{}, ctx context.Context, dec func(inter
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Server_TreeDirectory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TreeDirectoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServerServer).TreeDirectory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Server_TreeDirectory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServerServer).TreeDirectory(ctx, req.(*TreeDirectoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Server_ServiceDesc is the grpc.ServiceDesc for Server service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -442,6 +476,10 @@ var Server_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Delete",
 			Handler:    _Server_Delete_Handler,
+		},
+		{
+			MethodName: "TreeDirectory",
+			Handler:    _Server_TreeDirectory_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

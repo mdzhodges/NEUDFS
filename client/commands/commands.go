@@ -208,8 +208,70 @@ func RegisterCommands(client proto.ServerClient, email string) *CommandMap {
 		"--help":   cm.help,
 		"clear":    cm.clear,
 		"pwd":      cm.pwd,
+		"tree":     cm.tree,
 	}
 	return cm
+}
+
+func (c *CommandMap) tree(args []string) {
+	md := metadata.New(map[string]string{"email": c.UserEmail})
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
+	message, err := c.Client.TreeDirectory(ctx, &proto.TreeDirectoryRequest{})
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			fmt.Println("Error:", st.Message())
+		} else {
+			fmt.Println("Error:", err.Error())
+		}
+		return
+	}
+	fmt.Println(".")
+	renderTree(message.Entries, "", "")
+}
+
+// renderTree prints entries with tree-style branch characters.
+// entries are relative paths like "bob/", "bob/hw1/", "bob/hw1/main.go"
+// pathPrefix is the current directory being expanded, visualPrefix is the indentation string.
+func renderTree(entries []string, pathPrefix, visualPrefix string) {
+	seen := make(map[string]bool)
+	var children []string
+	for _, e := range entries {
+		if !strings.HasPrefix(e, pathPrefix) {
+			continue
+		}
+		trimmed := strings.TrimPrefix(e, pathPrefix)
+		if trimmed == "" {
+			continue
+		}
+		// Take everything up to and including the first slash (directory),
+		// or the full string if there is no slash (file).
+		idx := strings.Index(trimmed, "/")
+		var name string
+		if idx == -1 {
+			name = trimmed
+		} else {
+			name = trimmed[:idx+1]
+		}
+		if !seen[name] {
+			seen[name] = true
+			children = append(children, name)
+		}
+	}
+
+	for i, child := range children {
+		isLast := i == len(children)-1
+		connector := "├── "
+		childVisualPrefix := visualPrefix + "│   "
+		if isLast {
+			connector = "└── "
+			childVisualPrefix = visualPrefix + "    "
+		}
+		fmt.Println(visualPrefix + connector + child)
+
+		if strings.HasSuffix(child, "/") {
+			renderTree(entries, pathPrefix+child, childVisualPrefix)
+		}
+	}
 }
 
 func (c *CommandMap) clear(args []string) {

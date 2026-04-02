@@ -15,6 +15,7 @@ service Server {
     rpc Download (DownloadRequest) returns (stream DownloadResponse){}
     rpc Move (MoveRequest) returns (MoveResponse) {}
     rpc Delete (DeleteRequest) returns (DeleteResponse){}
+    rpc TreeDirectory (TreeDirectoryRequest) returns (TreeDirectoryResponse) {}
 }
 
 message ChangeDirectoryRequest {
@@ -86,4 +87,10 @@ message DeleteRequest{
 
 message DeleteResponse{
     string message = 1;
+}
+
+message TreeDirectoryRequest {}
+
+message TreeDirectoryResponse {
+    repeated string entries = 1;
 }

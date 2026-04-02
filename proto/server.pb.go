@@ -821,6 +821,86 @@ func (x *DeleteResponse) GetMessage() string {
 	return ""
 }
 
+type TreeDirectoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TreeDirectoryRequest) Reset() {
+	*x = TreeDirectoryRequest{}
+	mi := &file_proto_server_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TreeDirectoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TreeDirectoryRequest) ProtoMessage() {}
+
+func (x *TreeDirectoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_server_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TreeDirectoryRequest.ProtoReflect.Descriptor instead.
+func (*TreeDirectoryRequest) Descriptor() ([]byte, []int) {
+	return file_proto_server_proto_rawDescGZIP(), []int{18}
+}
+
+type TreeDirectoryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entries       []string               `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TreeDirectoryResponse) Reset() {
+	*x = TreeDirectoryResponse{}
+	mi := &file_proto_server_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TreeDirectoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TreeDirectoryResponse) ProtoMessage() {}
+
+func (x *TreeDirectoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_server_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TreeDirectoryResponse.ProtoReflect.Descriptor instead.
+func (*TreeDirectoryResponse) Descriptor() ([]byte, []int) {
+	return file_proto_server_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *TreeDirectoryResponse) GetEntries() []string {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
 var File_proto_server_proto protoreflect.FileDescriptor
 
 const file_proto_server_proto_rawDesc = "" +
@@ -862,7 +942,10 @@ const file_proto_server_proto_rawDesc = "" +
 	"\rDeleteRequest\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\"*\n" +
 	"\x0eDeleteResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage2\x9e\x05\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"\x16\n" +
+	"\x14TreeDirectoryRequest\"1\n" +
+	"\x15TreeDirectoryResponse\x12\x18\n" +
+	"\aentries\x18\x01 \x03(\tR\aentries2\xea\x05\n" +
 	"\x06Server\x12P\n" +
 	"\x0fChangeDirectory\x12\x1c.main.ChangeDirectoryRequest\x1a\x1d.main.ChangeDirectoryResponse\"\x00\x12J\n" +
 	"\rListDirectory\x12\x1a.main.ListDirectoryRequest\x1a\x1b.main.ListDirectoryResponse\"\x00\x12S\n" +
@@ -873,7 +956,8 @@ const file_proto_server_proto_rawDesc = "" +
 	"\x06Upload\x12\x13.main.UploadRequest\x1a\x14.main.UploadResponse\"\x00(\x01\x12=\n" +
 	"\bDownload\x12\x15.main.DownloadRequest\x1a\x16.main.DownloadResponse\"\x000\x01\x12/\n" +
 	"\x04Move\x12\x11.main.MoveRequest\x1a\x12.main.MoveResponse\"\x00\x125\n" +
-	"\x06Delete\x12\x13.main.DeleteRequest\x1a\x14.main.DeleteResponse\"\x00B\tZ\a./protob\x06proto3"
+	"\x06Delete\x12\x13.main.DeleteRequest\x1a\x14.main.DeleteResponse\"\x00\x12J\n" +
+	"\rTreeDirectory\x12\x1a.main.TreeDirectoryRequest\x1a\x1b.main.TreeDirectoryResponse\"\x00B\tZ\a./protob\x06proto3"
 
 var (
 	file_proto_server_proto_rawDescOnce sync.Once
@@ -887,7 +971,7 @@ func file_proto_server_proto_rawDescGZIP() []byte {
 	return file_proto_server_proto_rawDescData
 }
 
-var file_proto_server_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_proto_server_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_proto_server_proto_goTypes = []any{
 	(*ChangeDirectoryRequest)(nil),   // 0: main.ChangeDirectoryRequest
 	(*ChangeDirectoryResponse)(nil),  // 1: main.ChangeDirectoryResponse
@@ -907,6 +991,8 @@ var file_proto_server_proto_goTypes = []any{
 	(*MoveResponse)(nil),             // 15: main.MoveResponse
 	(*DeleteRequest)(nil),            // 16: main.DeleteRequest
 	(*DeleteResponse)(nil),           // 17: main.DeleteResponse
+	(*TreeDirectoryRequest)(nil),     // 18: main.TreeDirectoryRequest
+	(*TreeDirectoryResponse)(nil),    // 19: main.TreeDirectoryResponse
 }
 var file_proto_server_proto_depIdxs = []int32{
 	0,  // 0: main.Server.ChangeDirectory:input_type -> main.ChangeDirectoryRequest
@@ -919,18 +1005,20 @@ var file_proto_server_proto_depIdxs = []int32{
 	12, // 7: main.Server.Download:input_type -> main.DownloadRequest
 	14, // 8: main.Server.Move:input_type -> main.MoveRequest
 	16, // 9: main.Server.Delete:input_type -> main.DeleteRequest
-	1,  // 10: main.Server.ChangeDirectory:output_type -> main.ChangeDirectoryResponse
-	3,  // 11: main.Server.ListDirectory:output_type -> main.ListDirectoryResponse
-	5,  // 12: main.Server.CurrentDirectory:output_type -> main.CurrentDirectoryResponse
-	7,  // 13: main.Server.Rename:output_type -> main.RenameResponse
-	7,  // 14: main.Server.RenameDirectory:output_type -> main.RenameResponse
-	9,  // 15: main.Server.MakeDirectory:output_type -> main.MakeDirectoryResponse
-	11, // 16: main.Server.Upload:output_type -> main.UploadResponse
-	13, // 17: main.Server.Download:output_type -> main.DownloadResponse
-	15, // 18: main.Server.Move:output_type -> main.MoveResponse
-	17, // 19: main.Server.Delete:output_type -> main.DeleteResponse
-	10, // [10:20] is the sub-list for method output_type
-	0,  // [0:10] is the sub-list for method input_type
+	18, // 10: main.Server.TreeDirectory:input_type -> main.TreeDirectoryRequest
+	1,  // 11: main.Server.ChangeDirectory:output_type -> main.ChangeDirectoryResponse
+	3,  // 12: main.Server.ListDirectory:output_type -> main.ListDirectoryResponse
+	5,  // 13: main.Server.CurrentDirectory:output_type -> main.CurrentDirectoryResponse
+	7,  // 14: main.Server.Rename:output_type -> main.RenameResponse
+	7,  // 15: main.Server.RenameDirectory:output_type -> main.RenameResponse
+	9,  // 16: main.Server.MakeDirectory:output_type -> main.MakeDirectoryResponse
+	11, // 17: main.Server.Upload:output_type -> main.UploadResponse
+	13, // 18: main.Server.Download:output_type -> main.DownloadResponse
+	15, // 19: main.Server.Move:output_type -> main.MoveResponse
+	17, // 20: main.Server.Delete:output_type -> main.DeleteResponse
+	19, // 21: main.Server.TreeDirectory:output_type -> main.TreeDirectoryResponse
+	11, // [11:22] is the sub-list for method output_type
+	0,  // [0:11] is the sub-list for method input_type
 	0,  // [0:0] is the sub-list for extension type_name
 	0,  // [0:0] is the sub-list for extension extendee
 	0,  // [0:0] is the sub-list for field type_name
@@ -947,7 +1035,7 @@ func file_proto_server_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_server_proto_rawDesc), len(file_proto_server_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
