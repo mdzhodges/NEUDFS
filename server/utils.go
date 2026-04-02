@@ -329,12 +329,22 @@ func (s *server) updateFolderLists(callerEmail, collegeName, className, oldPrefi
 		}
 	}
 }
+func (s *server) DownloadS3File(s3Url string) (*s3.GetObjectOutput, error) {
+	result, err := s.S3Client.GetObject(context.TODO(), &s3.GetObjectInput{
+		Bucket: aws.String("neudfs-storage-dev"),
+		Key:    aws.String(s3Url),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
 
 // Need to implement S3
 func (s *server) uploadToS3(content []byte, filePath string) (string, error) {
 	// In a real implementation, this function would use the AWS SDK to upload the file content to S3
 	// and return the public URL of the uploaded file. For this example, we'll just return a placeholder URL.
-	s3Url := "https://s3.amazonaws.com/your-bucket/" + filePath
+	s3Url := "https://s3.amazonaws.com/neudfs-storage-dev/" + filePath
 	_, err := s.S3Client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String("neudfs-storage-dev"),
 		Key:    aws.String(filePath),

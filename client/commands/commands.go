@@ -191,7 +191,31 @@ func (c *CommandMap) download(args []string) {
 		fmt.Println("Usage: download <file>")
 		return
 	}
-	fmt.Printf("download %s\n", args[0])
+	md := metadata.New(map[string]string{"email": c.UserEmail})
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
+	stream, err := c.Client.Download(ctx, &proto.DownloadRequest{Name: args[0]})
+	if err != nil {
+		fmt.Printf("Error initiating download: %v\n", err)
+		return
+	}
+	file, err := os.Create(args[0])
+	if err != nil {
+		fmt.Printf("Error creating file: %v\n", err)
+		return
+	}
+	defer file.Close()
+	for {
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			fmt.Printf("Error receiving file chunk: %v\n", err)
+			return
+		}
+		file.Write(resp.Data)
+	}
+	fmt.Printf("downloaded %s\n", args[0])
 }
 
 func (c *CommandMap) move(args []string) {

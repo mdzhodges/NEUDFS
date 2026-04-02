@@ -553,6 +553,44 @@ func (s *server) RenameDirectory(ctx context.Context, in *proto.RenameRequest) (
 		Message: fmt.Sprintf("Successfully renamed directory %s to %s", in.Entry, in.Name),
 	}, nil
 }
+func (s *server) Download(req *proto.DownloadRequest, stream proto.Server_DownloadServer) error {
+	// Grab user from your interceptor context
+	user := stream.Context().Value("User").(User)
+	email := user.Email
+	cd := s.currentDirectory[email]
+	cd = strings.TrimSuffix(cd, "/")
+	depth := GetDepth(cd)
+	if depth < 2 {
+		return status.Errorf(codes.PermissionDenied, "must be inside a class to download files")
+	}
+	s3Key := cd + "/" + req.Name
+	result, err := s.DownloadS3File(s3Key)
+	if err != nil {
+		logger("Failed to download file from S3", err)
+		return status.Errorf(codes.Internal, "failed to download file")
+	}
+	if result == nil {
+		logger("S3 download returned nil result", fmt.Errorf("nil result"))
+		return status.Errorf(codes.Internal, "failed to download file")
+	}
+	defer result.Body.Close()
+	buf := make([]byte, 64*1024)
+	for {
+		n, err := result.Body.Read(buf)
+		if n > 0 {
+			stream.Send(&proto.DownloadResponse{
+				Data: buf[:n],
+			})
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return status.Errorf(codes.Internal, "error reading file")
+		}
+	}
+	return nil
+}
 
 // bidirectional upload func, returns unary response
 //Idea HERE:
