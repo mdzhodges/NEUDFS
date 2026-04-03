@@ -7,6 +7,8 @@ type ClassInfo struct {
 	SK            string   `dynamodbav:"sk"`
 	SharedFolders []string `dynamodbav:"shared_folders"`
 	Students      []string `dynamodbav:"students"`
+	Professor     string   `dynamodbav:"professor"`
+	TAs           []string `dynamodbav:"tas"`
 }
 type Metadata struct {
 	PK           string    `dynamodbav:"pk"`
