@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"strings"
 	"time"
 
@@ -123,18 +124,35 @@ func createTables(client *dynamodb.Client) {
 }
 
 func main() {
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion("us-east-1"),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("fake", "fake", "fake")),
-	)
+	endpoint := os.Getenv("DYNAMODB_ENDPOINT")
+
+	var cfg aws.Config
+	var err error
+	if endpoint != "" {
+		// Local — fake credentials, custom endpoint
+		cfg, err = config.LoadDefaultConfig(context.TODO(),
+			config.WithRegion("us-east-1"),
+			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("fake", "fake", "fake")),
+		)
+	} else {
+		// Deployed — use real AWS credentials from environment/profile
+		cfg, err = config.LoadDefaultConfig(context.TODO(),
+			config.WithRegion("us-east-1"),
+		)
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	client := dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
-		o.BaseEndpoint = aws.String("http://localhost:8000")
+		if endpoint != "" {
+			o.BaseEndpoint = aws.String(endpoint)
+		}
 	})
 
-	createTables(client)
+	if endpoint != "" {
+		createTables(client)
+	}
 	seedLargeData(client)
 	fmt.Println("Setup complete!")
 }
