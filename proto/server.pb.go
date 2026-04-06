@@ -460,6 +460,12 @@ type UploadRequest struct {
 	//	*UploadRequest_Metadata
 	//	*UploadRequest_Chunk
 	Request       isUploadRequest_Request `protobuf_oneof:"request"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Request:
+	//
+	//	*UploadRequest_Metadata
+	//	*UploadRequest_Chunk
+	Request       isUploadRequest_Request `protobuf_oneof:"request"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1116,6 +1122,10 @@ func init() { file_proto_server_proto_init() }
 func file_proto_server_proto_init() {
 	if File_proto_server_proto != nil {
 		return
+	}
+	file_proto_server_proto_msgTypes[10].OneofWrappers = []any{
+		(*UploadRequest_Metadata)(nil),
+		(*UploadRequest_Chunk)(nil),
 	}
 	file_proto_server_proto_msgTypes[10].OneofWrappers = []any{
 		(*UploadRequest_Metadata)(nil),

@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"grpc-server/proto"
+	"io"
+	"mime"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"google.golang.org/grpc/metadata"
@@ -66,7 +69,7 @@ func (c *CommandMap) rename_file(args []string) {
 
 	// Create the gRPC request using the correct protobuf fields
 	in := proto.RenameRequest{
-		Entry: args[0], 
+		Entry: args[0],
 		Name:  args[1],
 	}
 
@@ -133,6 +136,53 @@ func (c *CommandMap) upload(args []string) {
 		fmt.Println("Usage: upload <file>")
 		return
 	}
+	md := metadata.New(map[string]string{"email": c.UserEmail})
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
+	contentType := mime.TypeByExtension(filepath.Ext(args[0]))
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	file, err := os.Open(args[0])
+	if err != nil {
+		fmt.Printf("Error opening file: %v\n", err)
+		return
+	}
+	defer file.Close()
+	stream, err := c.Client.Upload(ctx)
+	err = stream.Send(&proto.UploadRequest{
+		Request: &proto.UploadRequest_Metadata{
+			Metadata: &proto.UploadMetadata{
+				Name:        args[0],
+				ContentType: contentType,
+			},
+		},
+	})
+	if err != nil {
+		fmt.Printf("Error sending metadata: %v\n", err)
+		return
+	}
+
+	buf := make([]byte, 64*1024) // 64KB chunks
+	for {
+		n, err := file.Read(buf)
+		if err == io.EOF {
+			break
+		}
+
+		stream.Send(&proto.UploadRequest{
+			Request: &proto.UploadRequest_Chunk{
+				Chunk: buf[:n],
+			},
+		})
+	}
+
+	// Close and get response
+	_, err = stream.CloseAndRecv()
+	if err != nil {
+		fmt.Printf("Error uploading file: %v\n", err)
+		return
+	}
+
 	fmt.Printf("upload %s\n", args[0])
 }
 
@@ -196,9 +246,9 @@ func RegisterCommands(client proto.ServerClient, email string) *CommandMap {
 		UserEmail: email,
 	}
 	cm.Commands = map[string]func(args []string){
-		"cd":       cm.change_dir,
-		"ls":       cm.list_dir,
-		"rename":   cm.rename_file,
+		"cd":        cm.change_dir,
+		"ls":        cm.list_dir,
+		"rename":    cm.rename_file,
 		"renamedir": cm.rename_dir,
 		"mkdir":    cm.create,
 		"upload":   cm.upload,
