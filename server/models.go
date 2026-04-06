@@ -29,7 +29,9 @@ type Classroom struct {
 	Classes map[string]Class `dynamodbav:"classes"`
 }
 type User struct {
-	Email    string               `dynamodbav:"email"`
-	Role     string               `dynamodbav:"role"`
-	Colleges map[string]Classroom `dynamodbav:"colleges"`
+	Email            string               `dynamodbav:"email"`
+	Role             string               `dynamodbav:"role"`
+	Colleges         map[string]Classroom `dynamodbav:"colleges"`
+	CurrentDirectory string               `dynamodbav:"currentDirectory"`
+	DirectoryTTL     int64                `dynamodbav:"directoryTTL"`
 }

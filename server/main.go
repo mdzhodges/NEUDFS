@@ -12,7 +12,7 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -35,39 +35,38 @@ var (
 	errName                 = status.Errorf(codes.InvalidArgument, "invalid folder name for mkdir")
 	errMkdir                = status.Errorf(codes.Internal, "Unable to create a folder here")
 	errAlreadyExists        = status.Errorf(codes.Internal, "Folder already exists")
-	errFileCannotBeStreamed  = status.Errorf(codes.InvalidArgument, "File cannot be streamed")
+	errFileCannotBeStreamed = status.Errorf(codes.InvalidArgument, "File cannot be streamed")
 )
 
 type server struct {
 	proto.UnimplementedServerServer
-	DB               *dynamodb.Client
-	S3Client         *s3.Client
-	currentDirectory map[string]string
-	mu               sync.RWMutex
+	DB       *dynamodb.Client
+	S3Client *s3.Client
 }
 
 // Initializes gRPC server
-func NewServer(db *dynamodb.Client, s3Client *s3.Client) *server {
-	return &server{DB: db, S3Client: s3Client, currentDirectory: make(map[string]string)}
+func NewServer(db *dynamodb.Client, s3 *s3.Client) *server {
+	return &server{DB: db, S3Client: s3}
 }
 
 // Changes Current Directory of a user
 // User can cd .., cd directoryName or cd fullPath if they have access
 func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryRequest) (*proto.ChangeDirectoryResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	user := ctx.Value("User").(User)
 	email := user.Email
+	cd := user.CurrentDirectory
 	if in.Folder == "" {
-		s.currentDirectory[email] = ""
+		if err := s.SetCurrentDirectory(ctx, email, cd, ""); err != nil {
+			return nil, err
+		}
 		return &proto.ChangeDirectoryResponse{Message: fmt.Sprintf("Changed directory to root")}, nil
 	}
-	cd := s.currentDirectory[email]
-
 	// Depth 0: Entering a College
 	if cd == "" {
 		if _, ok := user.Colleges[in.Folder]; ok {
-			s.currentDirectory[email] = in.Folder + "/"
+			if err := s.SetCurrentDirectory(ctx, email, cd, in.Folder+"/"); err != nil {
+				return nil, err
+			}
 			return &proto.ChangeDirectoryResponse{Message: fmt.Sprintf("Changed directory to %q\n", in.Folder+"/")}, nil
 		}
 		return nil, errInvalidPath
@@ -81,18 +80,20 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 	if in.Folder == ".." {
 		trimmed := strings.TrimSuffix(cd, "/")
 		parentDir := trimmed[:strings.LastIndex(trimmed, "/")+1]
-		s.currentDirectory[email] = parentDir
+		if err := s.SetCurrentDirectory(ctx, email, cd, parentDir); err != nil {
+			return nil, err
+		}
 		msg = fmt.Sprintf("Changed directory to %q\n", parentDir)
 		return &proto.ChangeDirectoryResponse{Message: msg}, nil
 	}
-
 	depth := GetDepth(cd)
-
 	// Depth 1: Entering a Class (e.g. Khoury -> CS101)
 	if depth == 1 {
 		if _, ok := user.Colleges[collegeName].Classes[in.Folder]; ok {
 			newCD := cd + in.Folder + "/"
-			s.currentDirectory[email] = newCD
+			if err := s.SetCurrentDirectory(ctx, email, cd, newCD); err != nil {
+				return nil, err
+			}
 			return &proto.ChangeDirectoryResponse{Message: fmt.Sprintf("Changed directory to %q\n", newCD)}, nil
 		}
 		return nil, errInvalidPath
@@ -110,32 +111,17 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 	relPath := strings.TrimPrefix(newCD, collegeName+"/"+className+"/")
 	relPath = strings.TrimSuffix(relPath, "/")
 
-	if slices.Contains(user.Colleges[collegeName].Classes[className].Folders, relPath) {
-		s.currentDirectory[email] = newCD
-		msg = fmt.Sprintf("Changed directory to %q\n", newCD)
-	} else if slices.Contains(classInfo.SharedFolders, relPath) {
-		s.currentDirectory[email] = newCD
-		msg = fmt.Sprintf("Changed directory to %q\n", newCD)
-		return &proto.ChangeDirectoryResponse{Message: msg}, nil
-	} else if user.Role == "teacher" {
-		// Teachers can cd into any folder that exists in DynamoDB
-		result, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
-			TableName: aws.String("classroom_metadata"),
-			Key: map[string]types.AttributeValue{
-				"pk": &types.AttributeValueMemberS{Value: className},
-				"sk": &types.AttributeValueMemberS{Value: relPath + "/"},
-			},
-		})
-		if err != nil || result.Item == nil {
-			return nil, errInvalidPath
+	if slices.Contains(user.Colleges[collegeName].Classes[className].Folders, relPath) ||
+		slices.Contains(classInfo.SharedFolders, relPath) {
+		if err := s.SetCurrentDirectory(ctx, email, cd, newCD); err != nil {
+			return nil, err
 		}
-		s.currentDirectory[email] = newCD
-		msg = fmt.Sprintf("Changed directory to %q\n", newCD)
-	} else {
-		return nil, errInvalidPath
+		return &proto.ChangeDirectoryResponse{
+			Message: fmt.Sprintf("Changed directory to %q\n", newCD),
+		}, nil
 	}
 
-	return &proto.ChangeDirectoryResponse{Message: msg}, nil
+	return nil, errInvalidPath
 }
 
 func GetDepth(cd string) int {
@@ -149,13 +135,9 @@ func GetDepth(cd string) int {
 // LS for student works, next step is encapuslate logic in another func and add logic if professor does ls
 // list
 func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryRequest) (*proto.ListDirectoryResponse, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	user := ctx.Value("User").(User)
-	email := user.Email
 	var res []string
-	cd := s.currentDirectory[email]
+	cd := user.CurrentDirectory
 	depth := GetDepth(cd)
 
 	// Depth 0: Show Colleges
@@ -305,6 +287,19 @@ func streamInterceptor(db *dynamodb.Client) grpc.StreamServerInterceptor {
 		}
 		var foundUser User
 		err = attributevalue.UnmarshalMap(result.Item, &foundUser)
+		if foundUser.DirectoryTTL != 0 && time.Now().Unix() > foundUser.DirectoryTTL {
+			if foundUser.CurrentDirectory != "" {
+				db.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+					TableName: aws.String("user"),
+					Key: map[string]types.AttributeValue{
+						"email": &types.AttributeValueMemberS{Value: emails[0]},
+					},
+					UpdateExpression: aws.String("REMOVE currentDirectory, directoryTTL"),
+				})
+				foundUser.CurrentDirectory = ""
+				foundUser.DirectoryTTL = 0
+			}
+		}
 		if err != nil {
 			return err
 		}
@@ -354,7 +349,19 @@ func unaryInterceptor(db *dynamodb.Client) grpc.UnaryServerInterceptor {
 		}
 		var foundUser User
 		err = attributevalue.UnmarshalMap(result.Item, &foundUser)
-
+		if foundUser.DirectoryTTL != 0 && time.Now().Unix() > foundUser.DirectoryTTL {
+			if foundUser.CurrentDirectory != "" {
+				db.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+					TableName: aws.String("user"),
+					Key: map[string]types.AttributeValue{
+						"email": &types.AttributeValueMemberS{Value: email},
+					},
+					UpdateExpression: aws.String("REMOVE currentDirectory, directoryTTL"),
+				})
+			}
+			foundUser.CurrentDirectory = ""
+			foundUser.DirectoryTTL = 0
+		}
 		ctx = context.WithValue(ctx, "User", foundUser)
 		m, err := handler(ctx, req)
 		if err != nil {
@@ -366,8 +373,7 @@ func unaryInterceptor(db *dynamodb.Client) grpc.UnaryServerInterceptor {
 
 func (s *server) CurrentDirectory(ctx context.Context, in *proto.CurrentDirectoryRequest) (*proto.CurrentDirectoryResponse, error) {
 	user := ctx.Value("User").(User)
-	email := user.Email
-	cd := s.currentDirectory[email]
+	cd := user.CurrentDirectory
 	cd = "/" + cd
 
 	return &proto.CurrentDirectoryResponse{Directory: cd}, nil
@@ -385,7 +391,7 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 	//Grab context data
 	user := ctx.Value("User").(User)
 	email := user.Email
-	cd := s.currentDirectory[email]
+	cd := user.CurrentDirectory
 	newFolder := in.Name
 	if newFolder == "" {
 		return nil, errName
@@ -489,12 +495,8 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 func (s *server) Rename(ctx context.Context, in *proto.RenameRequest) (*proto.RenameResponse, error) {
 	// Grab user from your interceptor context
 	user := ctx.Value("User").(User)
-	email := user.Email
-
 	// Get current directory context
-	s.mu.RLock()
-	cd := s.currentDirectory[email]
-	s.mu.RUnlock()
+	cd := user.CurrentDirectory
 
 	depth := GetDepth(cd)
 	if depth < 2 {
@@ -598,12 +600,8 @@ func (s *server) allowedFoldersForClass(user User, collegeName, className string
 }
 
 func (s *server) TreeDirectory(ctx context.Context, in *proto.TreeDirectoryRequest) (*proto.TreeDirectoryResponse, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	user := ctx.Value("User").(User)
-	email := user.Email
-	cd := s.currentDirectory[email]
+	cd := user.CurrentDirectory
 	depth := GetDepth(cd)
 
 	var entries []string
@@ -663,9 +661,7 @@ func (s *server) RenameDirectory(ctx context.Context, in *proto.RenameRequest) (
 	email := user.Email
 
 	// Get current directory context
-	s.mu.RLock()
-	cd := s.currentDirectory[email]
-	s.mu.RUnlock()
+	cd := user.CurrentDirectory
 
 	depth := GetDepth(cd)
 	if depth < 2 {
@@ -701,8 +697,7 @@ func (s *server) RenameDirectory(ctx context.Context, in *proto.RenameRequest) (
 func (s *server) Download(req *proto.DownloadRequest, stream proto.Server_DownloadServer) error {
 	// Grab user from your interceptor context
 	user := stream.Context().Value("User").(User)
-	email := user.Email
-	cd := s.currentDirectory[email]
+	cd := user.CurrentDirectory
 	cd = strings.TrimSuffix(cd, "/")
 	depth := GetDepth(cd)
 	if depth < 2 {
@@ -750,7 +745,7 @@ func (s *server) Upload(stream proto.Server_UploadServer) error {
 	// Grab user from your interceptor context
 	user := stream.Context().Value("User").(User)
 	email := user.Email
-	cd := s.currentDirectory[email]
+	cd := user.CurrentDirectory
 	cd = strings.TrimSuffix(cd, "/")
 	depth := GetDepth(cd)
 	role := user.Role
