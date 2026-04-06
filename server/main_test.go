@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -85,6 +86,23 @@ func navigateTo(t *testing.T, email, folder string) {
 	_, err := testClient.ChangeDirectory(ctx, &proto.ChangeDirectoryRequest{Folder: folder})
 	if err != nil {
 		t.Fatalf("failed to cd to %s: %v", folder, err)
+	}
+}
+
+func resetToRoot(t *testing.T, email string) {
+	t.Helper()
+	_, err := dbClient.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+		TableName: aws.String("user"),
+		Key: map[string]types.AttributeValue{
+			"email": &types.AttributeValueMemberS{Value: email},
+		},
+		UpdateExpression: aws.String("SET currentDirectory = :empty"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":empty": &types.AttributeValueMemberS{Value: ""},
+		},
+	})
+	if err != nil {
+		t.Fatalf("failed to reset directory for %s: %v", email, err)
 	}
 }
 func getTAsEmails(t *testing.T, className string) []string {
@@ -329,6 +347,109 @@ func TestReadWhileWriting(t *testing.T) {
 		if !validVersions[content] {
 			t.Errorf("got invalid content: %q", content)
 		}
+	}
+}
+
+// Test: teacher can ls a class and see all student folders
+func TestTeacherCanSeeStudentFolders(t *testing.T) {
+	cleanup := setupTest(t)
+	defer cleanup()
+
+	profEmail := getProfessorEmail(t, "CS5010")
+	resetToRoot(t, profEmail)
+	navigateTo(t, profEmail, "Khoury")
+	navigateTo(t, profEmail, "CS5010")
+
+	ctx := ctxForUser(profEmail)
+	res, err := testClient.ListDirectory(ctx, &proto.ListDirectoryRequest{})
+	if err != nil {
+		t.Fatalf("teacher ls failed: %v", err)
+	}
+
+	students := getStudentEmails(t, "CS5010")
+	// Build set of expected student folder names (first name of email)
+	seen := make(map[string]bool)
+	for _, e := range res.Entries {
+		seen[e] = true
+	}
+	for _, email := range students {
+		firstName := strings.Split(email, ".")[0]
+		if !seen[firstName+"/"] {
+			t.Errorf("teacher should see student folder %s/ but didn't", firstName)
+		}
+	}
+}
+
+// Test: teacher can cd into a student folder
+func TestTeacherCanCDIntoStudentFolder(t *testing.T) {
+	cleanup := setupTest(t)
+	defer cleanup()
+
+	profEmail := getProfessorEmail(t, "CS5010")
+	resetToRoot(t, profEmail)
+	navigateTo(t, profEmail, "Khoury")
+	navigateTo(t, profEmail, "CS5010")
+
+	students := getStudentEmails(t, "CS5010")
+	user := getUser(t, students[0])
+	studentFolder := user.Colleges["Khoury"].Classes["CS5010"].Folders[0]
+
+	ctx := ctxForUser(profEmail)
+	_, err := testClient.ChangeDirectory(ctx, &proto.ChangeDirectoryRequest{Folder: studentFolder})
+	if err != nil {
+		t.Errorf("teacher should be able to cd into student folder %s: %v", studentFolder, err)
+	}
+}
+
+// Test: TA can ls a class and see all student folders
+func TestTACanSeeStudentFolders(t *testing.T) {
+	cleanup := setupTest(t)
+	defer cleanup()
+
+	taEmails := getTAsEmails(t, "CS5010")
+	taEmail := taEmails[0]
+	resetToRoot(t, taEmail)
+	navigateTo(t, taEmail, "Khoury")
+	navigateTo(t, taEmail, "CS5010")
+
+	ctx := ctxForUser(taEmail)
+	res, err := testClient.ListDirectory(ctx, &proto.ListDirectoryRequest{})
+	if err != nil {
+		t.Fatalf("TA ls failed: %v", err)
+	}
+
+	students := getStudentEmails(t, "CS5010")
+	seen := make(map[string]bool)
+	for _, e := range res.Entries {
+		seen[e] = true
+	}
+	for _, email := range students {
+		firstName := strings.Split(email, ".")[0]
+		if !seen[firstName+"/"] {
+			t.Errorf("TA should see student folder %s/ but didn't", firstName)
+		}
+	}
+}
+
+// Test: TA can cd into a student folder
+func TestTACanCDIntoStudentFolder(t *testing.T) {
+	cleanup := setupTest(t)
+	defer cleanup()
+
+	taEmails := getTAsEmails(t, "CS5010")
+	taEmail := taEmails[0]
+	resetToRoot(t, taEmail)
+	navigateTo(t, taEmail, "Khoury")
+	navigateTo(t, taEmail, "CS5010")
+
+	students := getStudentEmails(t, "CS5010")
+	user := getUser(t, students[0])
+	studentFolder := user.Colleges["Khoury"].Classes["CS5010"].Folders[0]
+
+	ctx := ctxForUser(taEmail)
+	_, err := testClient.ChangeDirectory(ctx, &proto.ChangeDirectoryRequest{Folder: studentFolder})
+	if err != nil {
+		t.Errorf("TA should be able to cd into student folder %s: %v", studentFolder, err)
 	}
 }
 
