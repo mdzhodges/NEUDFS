@@ -18,3 +18,4 @@ Thumbs.db
 *.log
 .env
 terraform.*.bin/
+.bin/
