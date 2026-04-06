@@ -3,15 +3,21 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+const SessionTTL = 2 * time.Hour
 
 func logger(format string, a ...any) {
 	fmt.Printf("LOG:\t"+format+"\n", a...)
@@ -342,8 +348,6 @@ func (s *server) DownloadS3File(s3Url string) (*s3.GetObjectOutput, error) {
 
 // Need to implement S3
 func (s *server) uploadToS3(content []byte, filePath string) (string, error) {
-	// In a real implementation, this function would use the AWS SDK to upload the file content to S3
-	// and return the public URL of the uploaded file. For this example, we'll just return a placeholder URL.
 	s3Url := "https://s3.amazonaws.com/neudfs-storage-dev/" + filePath
 	_, err := s.S3Client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String("neudfs-storage-dev"),
@@ -374,4 +378,60 @@ func (s *server) uploadFileMetadata(className, sk, name, owner, fullPath, s3Url 
 		Item:      item,
 	})
 	return err
+}
+
+func (s *server) SetCurrentDirectory(ctx context.Context, email string, expectedPrev string, dir string) error {
+	ttl := time.Now().Add(SessionTTL).Unix()
+	input := &dynamodb.UpdateItemInput{
+		TableName: aws.String("user"),
+		Key: map[string]types.AttributeValue{
+			"email": &types.AttributeValueMemberS{Value: email},
+		},
+		UpdateExpression: aws.String("SET currentDirectory = :cd, directoryTTL = :ttl"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":cd":   &types.AttributeValueMemberS{Value: dir},
+			":ttl":  &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", ttl)},
+			":prev": &types.AttributeValueMemberS{Value: expectedPrev},
+		},
+	}
+	//Ensures that that the directory being read has not changed
+	if expectedPrev == "" {
+		input.ConditionExpression = aws.String(
+			"attribute_not_exists(currentDirectory) OR currentDirectory = :prev",
+		)
+	} else {
+		input.ConditionExpression = aws.String("currentDirectory = :prev")
+	}
+	_, err := s.DB.UpdateItem(ctx, input)
+	if err != nil {
+		var condErr *types.ConditionalCheckFailedException
+		if errors.As(err, &condErr) {
+			return status.Errorf(codes.Aborted, "directory was modified by another session, please retry")
+		}
+		return err
+	}
+	return nil
+}
+
+// Clears current directory of the user
+func (s *server) ClearCurrentDirectory(ctx context.Context, email string) error {
+	_, err := s.DB.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName: aws.String("user"),
+		Key: map[string]types.AttributeValue{
+			"email": &types.AttributeValueMemberS{Value: email},
+		},
+		UpdateExpression: aws.String("REMOVE currentDirectory, directoryTTL"),
+	})
+	return err
+}
+
+func (u *User) GetCurrentDirectory() string {
+	if u.DirectoryTTL == 0 {
+		return ""
+	}
+	if time.Now().Unix() > u.DirectoryTTL {
+		// Session expired — treat as root
+		return ""
+	}
+	return u.CurrentDirectory
 }

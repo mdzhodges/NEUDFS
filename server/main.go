@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -340,7 +341,17 @@ func unaryInterceptor(db *dynamodb.Client) grpc.UnaryServerInterceptor {
 		}
 		var foundUser User
 		err = attributevalue.UnmarshalMap(result.Item, &foundUser)
-
+		if foundUser.DirectoryTTL != 0 && time.Now().Unix() > foundUser.DirectoryTTL {
+			db.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+				TableName: aws.String("user"),
+				Key: map[string]types.AttributeValue{
+					"email": &types.AttributeValueMemberS{Value: email},
+				},
+				UpdateExpression: aws.String("REMOVE currentDirectory, directoryTTL"),
+			})
+			foundUser.CurrentDirectory = ""
+			foundUser.DirectoryTTL = 0
+		}
 		ctx = context.WithValue(ctx, "User", foundUser)
 		m, err := handler(ctx, req)
 		if err != nil {
