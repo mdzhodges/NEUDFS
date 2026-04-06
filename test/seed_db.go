@@ -198,14 +198,14 @@ func seedLargeData(client *dynamodb.Client) {
 		fmt.Printf("Professor: %s (%s) -> %s/%s\n", profName, profEmail, class.college, class.name)
 		professors[i] = User{
 			Email:            profEmail,
-			Role:             "professor",
+			Role:             "teacher",
 			CurrentDirectory: "",
 			DirectoryTTL:     0,
 			Colleges: map[string]Classroom{
 				class.college: {
 					Classes: map[string]Class{
 						class.name: {
-							Role:          "professor",
+							Role:          "teacher",
 							Folders:       []string{"announcements", "assignments"},
 							SharedFolders: []string{"announcements", "assignments"},
 						},

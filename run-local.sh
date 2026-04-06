@@ -57,7 +57,7 @@ fi
 # Print a valid login email so you know what to type
 echo ""
 echo "==> Sample login emails from seeded data:"
-for role_pair in "professor:professor" "TA:ta" "student:student"; do
+for role_pair in "teacher:professor" "TA:ta" "student:student"; do
   role="${role_pair%%:*}"
   label="${role_pair##*:}"
   aws dynamodb scan \
