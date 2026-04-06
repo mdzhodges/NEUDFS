@@ -43,9 +43,11 @@ type Classroom struct {
 	Classes map[string]Class `dynamodbav:"classes"`
 }
 type User struct {
-	Email    string               `dynamodbav:"email"`
-	Role     string               `dynamodbav:"role"`
-	Colleges map[string]Classroom `dynamodbav:"colleges"`
+	Email            string               `dynamodbav:"email"`
+	Role             string               `dynamodbav:"role"`
+	Colleges         map[string]Classroom `dynamodbav:"colleges"`
+	CurrentDirectory string               `dynamodbav:"currentDirectory"`
+	DirectoryTTL     int64                `dynamodbav:"directoryTTL"`
 }
 
 var firstNames = []string{
@@ -177,8 +179,10 @@ func seedLargeData(client *dynamodb.Client) {
 		usedNames[profName] = true
 		fmt.Printf("Professor: %s (%s) -> %s/%s\n", profName, profEmail, class.college, class.name)
 		professors[i] = User{
-			Email: profEmail,
-			Role:  "professor",
+			Email:            profEmail,
+			Role:             "professor",
+			CurrentDirectory: "",
+			DirectoryTTL:     0,
 			Colleges: map[string]Classroom{
 				class.college: {
 					Classes: map[string]Class{
@@ -221,8 +225,10 @@ func seedLargeData(client *dynamodb.Client) {
 		usedNames[taName] = true
 		fmt.Printf("  TA: %s (%s) -> %s/%s\n", taName, taEmail, class.college, class.name)
 		tas = append(tas, User{
-			Email: taEmail,
-			Role:  "TA",
+			Email:            taEmail,
+			Role:             "TA",
+			CurrentDirectory: "",
+			DirectoryTTL:     0,
 			Colleges: map[string]Classroom{
 				class.college: {
 					Classes: map[string]Class{
@@ -244,8 +250,10 @@ func seedLargeData(client *dynamodb.Client) {
 		}
 		taEmail2 := randomEmail(taName2)
 		tas = append(tas, User{
-			Email: taEmail2,
-			Role:  "TA",
+			Email:            taEmail2,
+			Role:             "TA",
+			CurrentDirectory: "",
+			DirectoryTTL:     0,
 			Colleges: map[string]Classroom{
 				class.college: {
 					Classes: map[string]Class{
@@ -276,8 +284,10 @@ func seedLargeData(client *dynamodb.Client) {
 			studentEmail := randomEmail(studentName)
 			fmt.Printf("  Student: %s (%s) folder: %s\n", studentName, studentEmail, firstName)
 			students[i*10+j] = User{
-				Email: studentEmail,
-				Role:  "student",
+				Email:            studentEmail,
+				Role:             "student",
+				CurrentDirectory: "",
+				DirectoryTTL:     0,
 				Colleges: map[string]Classroom{
 					class.college: {
 						Classes: map[string]Class{

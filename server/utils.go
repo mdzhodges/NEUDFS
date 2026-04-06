@@ -283,19 +283,24 @@ func (s *server) updateFolderLists(callerEmail, collegeName, className, oldPrefi
 	// Update ClassInfo (Shared Folders)
 	classInfo, err := s.getClassInfo(className)
 	if err == nil {
-		updated := false
 		for i, f := range classInfo.SharedFolders {
 			if f == oldTarget || strings.HasPrefix(f, oldPrefix) {
-				classInfo.SharedFolders[i] = strings.Replace(f, oldTarget, newTarget, 1)
-				updated = true
+				newVal := strings.Replace(f, oldTarget, newTarget, 1)
+				_, err := s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+					TableName: aws.String("classroom_metadata"),
+					Key: map[string]types.AttributeValue{
+						"pk": &types.AttributeValueMemberS{Value: className},
+						"sk": &types.AttributeValueMemberS{Value: "class_info"},
+					},
+					UpdateExpression: aws.String(fmt.Sprintf("SET shared_folders[%d] = :val", i)),
+					ExpressionAttributeValues: map[string]types.AttributeValue{
+						":val": &types.AttributeValueMemberS{Value: newVal},
+					},
+				})
+				if err != nil {
+					logger("Failed to update shared folder at index %d: %v", i, err)
+				}
 			}
-		}
-		if updated {
-			item, _ := attributevalue.MarshalMap(classInfo)
-			s.DB.PutItem(context.TODO(), &dynamodb.PutItemInput{
-				TableName: aws.String("classroom_metadata"),
-				Item:      item,
-			})
 		}
 	}
 
@@ -314,24 +319,36 @@ func (s *server) updateFolderLists(callerEmail, collegeName, className, oldPrefi
 			continue
 		}
 
-		updated := false
-		if college, ok := user.Colleges[collegeName]; ok {
-			if classData, ok := college.Classes[className]; ok {
-				for i, f := range classData.Folders {
-					if f == oldTarget || strings.HasPrefix(f, oldPrefix) {
-						classData.Folders[i] = strings.Replace(f, oldTarget, newTarget, 1)
-						updated = true
-					}
-				}
-			}
+		college, ok := user.Colleges[collegeName]
+		if !ok {
+			continue
+		}
+		classData, ok := college.Classes[className]
+		if !ok {
+			continue
 		}
 
-		if updated {
-			item, _ := attributevalue.MarshalMap(user)
-			s.DB.PutItem(context.TODO(), &dynamodb.PutItemInput{
-				TableName: aws.String("user"),
-				Item:      item,
-			})
+		for i, f := range classData.Folders {
+			if f == oldTarget || strings.HasPrefix(f, oldPrefix) {
+				newVal := strings.Replace(f, oldTarget, newTarget, 1)
+				_, err := s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+					TableName: aws.String("user"),
+					Key: map[string]types.AttributeValue{
+						"email": &types.AttributeValueMemberS{Value: emailToCheck},
+					},
+					UpdateExpression: aws.String(fmt.Sprintf("SET colleges.#col.classes.#cls.folders[%d] = :val", i)),
+					ExpressionAttributeNames: map[string]string{
+						"#col": collegeName,
+						"#cls": className,
+					},
+					ExpressionAttributeValues: map[string]types.AttributeValue{
+						":val": &types.AttributeValueMemberS{Value: newVal},
+					},
+				})
+				if err != nil {
+					logger("Failed to update folder at index %d for user %s: %v", i, emailToCheck, err)
+				}
+			}
 		}
 	}
 }
@@ -400,7 +417,9 @@ func (s *server) SetCurrentDirectory(ctx context.Context, email string, expected
 			"attribute_not_exists(currentDirectory) OR currentDirectory = :prev",
 		)
 	} else {
-		input.ConditionExpression = aws.String("currentDirectory = :prev")
+		input.ConditionExpression = aws.String(
+			"attribute_not_exists(currentDirectory) OR currentDirectory = :prev",
+		)
 	}
 	_, err := s.DB.UpdateItem(ctx, input)
 	if err != nil {
