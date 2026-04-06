@@ -600,12 +600,8 @@ func (s *server) allowedFoldersForClass(user User, collegeName, className string
 }
 
 func (s *server) TreeDirectory(ctx context.Context, in *proto.TreeDirectoryRequest) (*proto.TreeDirectoryResponse, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	user := ctx.Value("User").(User)
-	email := user.Email
-	cd := s.currentDirectory[email]
+	cd := user.CurrentDirectory
 	depth := GetDepth(cd)
 
 	var entries []string
