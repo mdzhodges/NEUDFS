@@ -28,14 +28,14 @@ import (
 )
 
 var (
-	port                     = flag.Int("port", 50051, "the port to serve on")
-	errMissingMetadata       = status.Errorf(codes.InvalidArgument, "missing metadata")
-	errInvalidPath           = status.Errorf(codes.InvalidArgument, "invalid folder path")
-	errDB                    = status.Errorf(codes.Internal, "internal db server error")
-	errName                  = status.Errorf(codes.InvalidArgument, "invalid folder name for mkdir")
-	errMkdir                 = status.Errorf(codes.Internal, "Unable to create a folder here")
-	errAlreadyExists         = status.Errorf(codes.Internal, "Folder already exists")
-	errFileCannnotBeStreamed = status.Errorf(codes.InvalidArgument, "File cannot be streamed")
+	port                    = flag.Int("port", 50051, "the port to serve on")
+	errMissingMetadata      = status.Errorf(codes.InvalidArgument, "missing metadata")
+	errInvalidPath          = status.Errorf(codes.InvalidArgument, "invalid folder path")
+	errDB                   = status.Errorf(codes.Internal, "internal db server error")
+	errName                 = status.Errorf(codes.InvalidArgument, "invalid folder name for mkdir")
+	errMkdir                = status.Errorf(codes.Internal, "Unable to create a folder here")
+	errAlreadyExists        = status.Errorf(codes.Internal, "Folder already exists")
+	errFileCannotBeStreamed = status.Errorf(codes.InvalidArgument, "File cannot be streamed")
 )
 
 type server struct {
@@ -528,6 +528,137 @@ func (s *server) Rename(ctx context.Context, in *proto.RenameRequest) (*proto.Re
 	}, nil
 }
 
+// queryClassEntries fetches all metadata items for a class from DynamoDB,
+// starting at pathWithinClass, and returns their SKs relative to pathWithinClass
+// with entryPrefix prepended. If allowedFolders is non-nil, only entries whose
+// SK falls within one of those folders are returned (student access control).
+func (s *server) queryClassEntries(className, pathWithinClass, entryPrefix string, allowedFolders []string) ([]string, error) {
+	keyCondition := "pk = :pk"
+	exprValues := map[string]types.AttributeValue{
+		":pk": &types.AttributeValueMemberS{Value: className},
+	}
+	if pathWithinClass != "" {
+		keyCondition = "pk = :pk AND begins_with(sk, :prefix)"
+		exprValues[":prefix"] = &types.AttributeValueMemberS{Value: pathWithinClass}
+	}
+
+	results, err := s.DB.Query(context.TODO(), &dynamodb.QueryInput{
+		TableName:                 aws.String("classroom_metadata"),
+		KeyConditionExpression:    aws.String(keyCondition),
+		ExpressionAttributeValues: exprValues,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var dbEntries []Metadata
+	attributevalue.UnmarshalListOfMaps(results.Items, &dbEntries)
+
+	set := make(map[string]bool)
+	var entries []string
+	for _, entry := range dbEntries {
+		if entry.SK == "class_info" {
+			continue
+		}
+		if allowedFolders != nil {
+			allowed := false
+			for _, f := range allowedFolders {
+				fp := f
+				if !strings.HasSuffix(fp, "/") {
+					fp += "/"
+				}
+				if strings.HasPrefix(entry.SK, fp) || strings.HasPrefix(fp, entry.SK) {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				continue
+			}
+		}
+		relPath := entryPrefix + strings.TrimPrefix(entry.SK, pathWithinClass)
+		if relPath != "" && !set[relPath] {
+			set[relPath] = true
+			entries = append(entries, relPath)
+		}
+	}
+	return entries, nil
+}
+
+// allowedFoldersForClass returns the folders a student may see in a class
+// (their own folders + shared folders). Returns nil for teachers (no filter).
+func (s *server) allowedFoldersForClass(user User, collegeName, className string) []string {
+	if user.Role == "teacher" {
+		return nil
+	}
+	classInfo, err := s.getClassInfo(className)
+	allowed := append([]string{}, user.Colleges[collegeName].Classes[className].Folders...)
+	if err == nil {
+		allowed = append(allowed, classInfo.SharedFolders...)
+	}
+	return allowed
+}
+
+func (s *server) TreeDirectory(ctx context.Context, in *proto.TreeDirectoryRequest) (*proto.TreeDirectoryResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	user := ctx.Value("User").(User)
+	email := user.Email
+	cd := s.currentDirectory[email]
+	depth := GetDepth(cd)
+
+	var entries []string
+
+	// Depth 0: show everything under each college → class → DynamoDB contents
+	if depth == 0 || cd == "" {
+		for collegeName, college := range user.Colleges {
+			entries = append(entries, collegeName+"/")
+			for className := range college.Classes {
+				classPrefix := collegeName + "/" + className + "/"
+				entries = append(entries, classPrefix)
+				classEntries, err := s.queryClassEntries(className, "", classPrefix, s.allowedFoldersForClass(user, collegeName, className))
+				if err != nil {
+					logger("Unable to query DB for class %s", className)
+					return nil, errDB
+				}
+				entries = append(entries, classEntries...)
+			}
+		}
+		return &proto.TreeDirectoryResponse{Entries: entries}, nil
+	}
+
+	parts := strings.Split(cd, "/")
+	collegeName := parts[0]
+
+	// Depth 1: show each class and its DynamoDB contents
+	if depth == 1 {
+		for className := range user.Colleges[collegeName].Classes {
+			classPrefix := className + "/"
+			entries = append(entries, classPrefix)
+			classEntries, err := s.queryClassEntries(className, "", classPrefix, s.allowedFoldersForClass(user, collegeName, className))
+			if err != nil {
+				logger("Unable to query DB for class %s", className)
+				return nil, errDB
+			}
+			entries = append(entries, classEntries...)
+		}
+		return &proto.TreeDirectoryResponse{Entries: entries}, nil
+	}
+
+	// Depth >= 2: query DynamoDB for all items under the current path
+	className := parts[1]
+	pathWithinClass := strings.TrimPrefix(cd, collegeName+"/"+className+"/")
+	classEntries, err := s.queryClassEntries(className, pathWithinClass, "", s.allowedFoldersForClass(user, collegeName, className))
+	if err != nil {
+		logger("Unable to query DB", err)
+		return nil, errDB
+	}
+	entries = append(entries, classEntries...)
+
+	return &proto.TreeDirectoryResponse{Entries: entries}, nil
+}
+
 func (s *server) RenameDirectory(ctx context.Context, in *proto.RenameRequest) (*proto.RenameResponse, error) {
 	// Grab user from your interceptor context
 	user := ctx.Value("User").(User)
@@ -650,16 +781,16 @@ func (s *server) Upload(stream proto.Server_UploadServer) error {
 	req, err := stream.Recv()
 	if err != nil {
 		logger("Failed to receive upload metadata", err)
-		return errFileCannnotBeStreamed
+		return errFileCannotBeStreamed
 	}
 	meta := req.GetMetadata()
 	if meta == nil {
-		return errFileCannnotBeStreamed
+		return errFileCannotBeStreamed
 	}
 	filename := meta.Name
 	contentType := meta.ContentType
 	if filename == "" || contentType == "" {
-		return errFileCannnotBeStreamed
+		return errFileCannotBeStreamed
 	}
 	var buf bytes.Buffer
 	for {

@@ -14,7 +14,7 @@ Inside test folder
   
 Then in another terminal (still in test folder)
 
-    go run scripts.go
+    go run seed_db.go
   
 In server folder set `DYNAMODB_ENDPOINT` to `http://localhost:8000`
 export DYNAMODB_ENDPOINT="http://localhost:8000"
