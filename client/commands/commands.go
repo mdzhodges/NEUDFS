@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"google.golang.org/grpc/metadata"
@@ -263,7 +264,21 @@ func (c *CommandMap) pwd(args []string) {
 
 	fmt.Println(message.Directory)
 }
-
+func (c *CommandMap) open(args []string) {
+	if len(args) < 1 {
+		fmt.Println("Usage: open <file>")
+		return
+	}
+	c.download(args)
+	switch runtime.GOOS {
+	case "darwin":
+		exec.Command("open", args[0]).Start()
+	case "linux":
+		exec.Command("xdg-open", args[0]).Start()
+	case "windows":
+		exec.Command("cmd", "/c", "start", args[0]).Start()
+	}
+}
 func RegisterCommands(client proto.ServerClient, email string) *CommandMap {
 	cm := &CommandMap{
 		Client:    client,
@@ -283,6 +298,7 @@ func RegisterCommands(client proto.ServerClient, email string) *CommandMap {
 		"clear":    cm.clear,
 		"pwd":      cm.pwd,
 		"tree":     cm.tree,
+		"open":      cm.open,
 	}
 	return cm
 }
