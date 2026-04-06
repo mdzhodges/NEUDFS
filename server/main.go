@@ -344,8 +344,7 @@ func unaryInterceptor(db *dynamodb.Client) grpc.UnaryServerInterceptor {
 			return nil, err
 		}
 		if result.Item == nil {
-			logger("User not found", err)
-			return nil, err
+			return nil, status.Error(codes.Unauthenticated, "user not found: "+email)
 		}
 		var foundUser User
 		err = attributevalue.UnmarshalMap(result.Item, &foundUser)
@@ -819,6 +818,161 @@ func (s *server) Upload(stream proto.Server_UploadServer) error {
 	fmt.Println("s3Key:", s3Key)
 	return stream.SendAndClose(&proto.UploadResponse{Message: "uploaded"})
 }
+func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.DeleteResponse, error) {
+	user := ctx.Value("User").(User)
+	cd := user.CurrentDirectory
+	depth := GetDepth(cd)
+
+	if depth < 2 {
+		return nil, status.Errorf(codes.PermissionDenied, "must be inside a class to delete")
+	}
+
+	targetName := strings.TrimSuffix(in.Path, "/")
+	if targetName == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid path")
+	}
+
+	collegeName, className, pathWithinClass := parsePath(cd)
+	targetSK := pathWithinClass + targetName
+
+	// Nobody can delete a student's root folder.
+	// A student's root folder is any top-level class folder (no "/" in name) that
+	// appears in a student's personal folders list.
+	if depth == 2 && !strings.Contains(targetName, "/") {
+		classInfo, err := s.getClassInfo(className)
+		if err != nil {
+			logger("Cannot query db for class info", err)
+			return nil, errDB
+		}
+		for _, studentEmail := range classInfo.Students {
+			studentUser, err := s.getUser(studentEmail)
+			if err != nil {
+				continue
+			}
+			if college, ok := studentUser.Colleges[collegeName]; ok {
+				if classData, ok := college.Classes[className]; ok {
+					for _, folder := range classData.Folders {
+						if !strings.Contains(folder, "/") && folder == targetName {
+							return nil, status.Errorf(codes.PermissionDenied, "cannot delete a student's root folder")
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Students can only delete within their own personal folders (not shared folders, not other students').
+	// Use the actual folders list — not an email-derived name — since folder names may differ from email prefix.
+	if user.Role == "student" {
+		personalFolders := user.Colleges[collegeName].Classes[className].Folders
+		isAllowed := false
+		for _, folder := range personalFolders {
+			// HasPrefix with "folder/" ensures target is *inside* the folder, not the folder itself
+			if strings.HasPrefix(targetSK, folder+"/") {
+				isAllowed = true
+				break
+			}
+		}
+		if !isAllowed {
+			return nil, status.Errorf(codes.PermissionDenied, "you can only delete files and folders within your own directory")
+		}
+	}
+
+	// Check if target is a file (exact SK, no trailing slash)
+	fileResult, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
+		TableName: aws.String("classroom_metadata"),
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: className},
+			"sk": &types.AttributeValueMemberS{Value: targetSK},
+		},
+	})
+	if err != nil {
+		logger("DB error checking for file: %v", err)
+		return nil, errDB
+	}
+
+	// Check if target is a folder (SK with trailing slash)
+	folderSK := targetSK + "/"
+	folderResult, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
+		TableName: aws.String("classroom_metadata"),
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: className},
+			"sk": &types.AttributeValueMemberS{Value: folderSK},
+		},
+	})
+	if err != nil {
+		logger("DB error checking for folder: %v", err)
+		return nil, errDB
+	}
+
+	if fileResult.Item == nil && folderResult.Item == nil {
+		return nil, status.Errorf(codes.NotFound, "%s not found", targetName)
+	}
+
+	// Delete a file
+	if fileResult.Item != nil {
+		s3Key := collegeName + "/" + className + "/" + targetSK
+		if err := s.DeleteS3File(s3Key); err != nil {
+			logger("Failed to delete S3 file %s: %v", s3Key, err)
+		}
+		_, err = s.DB.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
+			TableName: aws.String("classroom_metadata"),
+			Key: map[string]types.AttributeValue{
+				"pk": &types.AttributeValueMemberS{Value: className},
+				"sk": &types.AttributeValueMemberS{Value: targetSK},
+			},
+		})
+		if err != nil {
+			logger("Failed to delete file metadata: %v", err)
+			return nil, errDB
+		}
+		return &proto.DeleteResponse{Message: fmt.Sprintf("Deleted %s", targetName)}, nil
+	}
+
+	// Delete a folder: query all items with the folder prefix then delete them
+	queryResult, err := s.DB.Query(context.TODO(), &dynamodb.QueryInput{
+		TableName:              aws.String("classroom_metadata"),
+		KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :prefix)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk":     &types.AttributeValueMemberS{Value: className},
+			":prefix": &types.AttributeValueMemberS{Value: folderSK},
+		},
+	})
+	if err != nil {
+		logger("Failed to query folder contents: %v", err)
+		return nil, errDB
+	}
+
+	for _, item := range queryResult.Items {
+		var meta Metadata
+		if err := attributevalue.UnmarshalMap(item, &meta); err != nil {
+			logger("Failed to unmarshal item: %v", err)
+			continue
+		}
+		if meta.Type == "file" {
+			s3Key := collegeName + "/" + className + "/" + meta.SK
+			if err := s.DeleteS3File(s3Key); err != nil {
+				logger("Failed to delete S3 file %s: %v", s3Key, err)
+			}
+		}
+		_, err = s.DB.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
+			TableName: aws.String("classroom_metadata"),
+			Key: map[string]types.AttributeValue{
+				"pk": &types.AttributeValueMemberS{Value: className},
+				"sk": &types.AttributeValueMemberS{Value: meta.SK},
+			},
+		})
+		if err != nil {
+			logger("Failed to delete item %s: %v", meta.SK, err)
+		}
+	}
+
+	// Remove deleted folder and its subfolders from permission arrays
+	s.removeFolderFromLists(collegeName, className, targetSK)
+
+	return &proto.DeleteResponse{Message: fmt.Sprintf("Deleted folder %s", targetName)}, nil
+}
+
 func main() {
 	//Grab Port Number
 	flag.Parse()

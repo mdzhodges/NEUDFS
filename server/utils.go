@@ -352,6 +352,93 @@ func (s *server) updateFolderLists(callerEmail, collegeName, className, oldPrefi
 		}
 	}
 }
+func (s *server) DeleteS3File(s3Key string) error {
+	_, err := s.S3Client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
+		Bucket: aws.String("neudfs-storage-dev"),
+		Key:    aws.String(s3Key),
+	})
+	return err
+}
+
+// removeFolderFromLists removes a folder and all its subfolders from user and class permission arrays.
+func (s *server) removeFolderFromLists(collegeName, className, folderPath string) {
+	targetPath := strings.TrimSuffix(folderPath, "/")
+	prefix := targetPath + "/"
+
+	classInfo, err := s.getClassInfo(className)
+	if err != nil {
+		logger("removeFolderFromLists: failed to get class info: %v", err)
+		return
+	}
+
+	// Rebuild shared_folders without the deleted folder/subfolders
+	newShared := make([]types.AttributeValue, 0)
+	for _, f := range classInfo.SharedFolders {
+		if f != targetPath && !strings.HasPrefix(f, prefix) {
+			newShared = append(newShared, &types.AttributeValueMemberS{Value: f})
+		}
+	}
+	_, err = s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+		TableName: aws.String("classroom_metadata"),
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: className},
+			"sk": &types.AttributeValueMemberS{Value: "class_info"},
+		},
+		UpdateExpression: aws.String("SET shared_folders = :val"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":val": &types.AttributeValueMemberL{Value: newShared},
+		},
+	})
+	if err != nil {
+		logger("removeFolderFromLists: failed to update shared folders: %v", err)
+	}
+
+	// Rebuild every class member's (students, TAs, professor) folders list.
+	// Each user profile stores their own copy of the folder list, so all must be updated.
+	allEmails := append([]string{}, classInfo.Students...)
+	allEmails = append(allEmails, classInfo.TAs...)
+	if classInfo.Professor != "" {
+		allEmails = append(allEmails, classInfo.Professor)
+	}
+	for _, memberEmail := range allEmails {
+		u, err := s.getUser(memberEmail)
+		if err != nil {
+			continue
+		}
+		college, ok := u.Colleges[collegeName]
+		if !ok {
+			continue
+		}
+		classData, ok := college.Classes[className]
+		if !ok {
+			continue
+		}
+		newFolders := make([]types.AttributeValue, 0)
+		for _, f := range classData.Folders {
+			if f != targetPath && !strings.HasPrefix(f, prefix) {
+				newFolders = append(newFolders, &types.AttributeValueMemberS{Value: f})
+			}
+		}
+		_, err = s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+			TableName: aws.String("user"),
+			Key: map[string]types.AttributeValue{
+				"email": &types.AttributeValueMemberS{Value: memberEmail},
+			},
+			UpdateExpression: aws.String("SET colleges.#col.classes.#cls.folders = :val"),
+			ExpressionAttributeNames: map[string]string{
+				"#col": collegeName,
+				"#cls": className,
+			},
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				":val": &types.AttributeValueMemberL{Value: newFolders},
+			},
+		})
+		if err != nil {
+			logger("removeFolderFromLists: failed to update folders for %s: %v", memberEmail, err)
+		}
+	}
+}
+
 func (s *server) DownloadS3File(s3Url string) (*s3.GetObjectOutput, error) {
 	result, err := s.S3Client.GetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: aws.String("neudfs-storage-dev"),
