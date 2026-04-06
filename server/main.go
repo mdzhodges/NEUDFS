@@ -111,7 +111,8 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 	relPath := strings.TrimPrefix(newCD, collegeName+"/"+className+"/")
 	relPath = strings.TrimSuffix(relPath, "/")
 
-	if slices.Contains(user.Colleges[collegeName].Classes[className].Folders, relPath) ||
+	if user.Role == "teacher" || user.Role == "TA" ||
+		slices.Contains(user.Colleges[collegeName].Classes[className].Folders, relPath) ||
 		slices.Contains(classInfo.SharedFolders, relPath) {
 		if err := s.SetCurrentDirectory(ctx, email, cd, newCD); err != nil {
 			return nil, err
@@ -233,7 +234,7 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 			}
 
 			// Skip this entry if the user doesn't have permission and isn't a teacher
-			if !isAllowed && user.Role != "teacher" {
+			if !isAllowed && user.Role != "teacher" && user.Role != "TA" {
 				continue
 			}
 			// --- END ACCESS CONTROL CHECK ---
@@ -587,7 +588,7 @@ func (s *server) queryClassEntries(className, pathWithinClass, entryPrefix strin
 // allowedFoldersForClass returns the folders a student may see in a class
 // (their own folders + shared folders). Returns nil for teachers (no filter).
 func (s *server) allowedFoldersForClass(user User, collegeName, className string) []string {
-	if user.Role == "teacher" {
+	if user.Role == "teacher" || user.Role == "TA" {
 		return nil
 	}
 	classInfo, err := s.getClassInfo(className)
