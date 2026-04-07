@@ -23,6 +23,15 @@ func logger(format string, a ...any) {
 	fmt.Printf("LOG:\t"+format+"\n", a...)
 }
 
+// converts a []string into a DynamoDB List of String AttributeValues
+func stringSliceToAVList(vals []string) []types.AttributeValue {
+	out := make([]types.AttributeValue, 0, len(vals))
+	for _, v := range vals {
+		out = append(out, &types.AttributeValueMemberS{Value: v})
+	}
+	return out
+}
+
 func parsePath(cd string) (collegeName, className, pathWithinClass string) {
 	parts := strings.Split(cd, "/")
 	collegeName = parts[0]
@@ -352,6 +361,139 @@ func (s *server) updateFolderLists(callerEmail, collegeName, className, oldPrefi
 		}
 	}
 }
+func (s *server) DeleteS3File(s3Key string) error {
+	_, err := s.S3Client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
+		Bucket: aws.String("neudfs-storage-dev"),
+		Key:    aws.String(s3Key),
+	})
+	return err
+}
+
+// removeFolderFromLists removes a folder and all its subfolders from user and class permission arrays.
+func (s *server) removeFolderFromLists(collegeName, className, folderPath string) {
+	targetPath := strings.TrimSuffix(folderPath, "/")
+	prefix := targetPath + "/"
+
+	// I used compare and swap to avoid race conditions
+	// the trick is to write it back only if the list is unchanged
+	var classInfo ClassInfo
+	//  I looped 8 times so this will still work if the list is being constantly modified
+	for attempt := 0; attempt < 8; attempt++ {
+		var err error
+		classInfo, err = s.getClassInfo(className)
+		if err != nil {
+			logger("removeFolderFromLists: failed to get class info: %v", err)
+			return
+		}
+
+		newSharedStr := make([]string, 0, len(classInfo.SharedFolders))
+		changed := false
+		for _, f := range classInfo.SharedFolders {
+			if f == targetPath || strings.HasPrefix(f, prefix) {
+				changed = true
+				continue
+			}
+			newSharedStr = append(newSharedStr, f)
+		}
+		if !changed {
+			break
+		}
+
+		_, err = s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+			TableName: aws.String("classroom_metadata"),
+			Key: map[string]types.AttributeValue{
+				"pk": &types.AttributeValueMemberS{Value: className},
+				"sk": &types.AttributeValueMemberS{Value: "class_info"},
+			},
+			UpdateExpression: aws.String("SET shared_folders = :val"),
+			ConditionExpression: aws.String(
+				"attribute_not_exists(shared_folders) OR shared_folders = :expected",
+			),
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				":val": &types.AttributeValueMemberL{Value: stringSliceToAVList(newSharedStr)},
+				// compare against the list read, if another request updated it then it will fail
+				":expected": &types.AttributeValueMemberL{Value: stringSliceToAVList(classInfo.SharedFolders)},
+			},
+		})
+		if err == nil {
+			break
+		}
+		var condErr *types.ConditionalCheckFailedException
+		if errors.As(err, &condErr) {
+			continue
+		}
+		logger("removeFolderFromLists: failed to update shared folders: %v", err)
+		break
+	}
+
+	// Rebuild every class member's (students, TAs, professor) folders list.
+	// Each user profile stores their own copy of the folder list, so all must be updated.
+	allEmails := append([]string{}, classInfo.Students...)
+	allEmails = append(allEmails, classInfo.TAs...)
+	if classInfo.Professor != "" {
+		allEmails = append(allEmails, classInfo.Professor)
+	}
+	for _, memberEmail := range allEmails {
+		for attempt := 0; attempt < 8; attempt++ {
+			u, err := s.getUser(memberEmail)
+			if err != nil {
+				break
+			}
+			college, ok := u.Colleges[collegeName]
+			if !ok {
+				break
+			}
+			classData, ok := college.Classes[className]
+			if !ok {
+				break
+			}
+			oldFolders := classData.Folders
+
+			newFoldersStr := make([]string, 0, len(oldFolders))
+			changed := false
+			for _, f := range oldFolders {
+				if f == targetPath || strings.HasPrefix(f, prefix) {
+					changed = true
+					continue
+				}
+				newFoldersStr = append(newFoldersStr, f)
+			}
+			if !changed {
+				break
+			}
+
+			_, err = s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+				TableName: aws.String("user"),
+				Key: map[string]types.AttributeValue{
+					"email": &types.AttributeValueMemberS{Value: memberEmail},
+				},
+				UpdateExpression: aws.String("SET colleges.#col.classes.#cls.folders = :val"),
+				ConditionExpression: aws.String(
+					"attribute_not_exists(colleges.#col.classes.#cls.folders) OR colleges.#col.classes.#cls.folders = :expected",
+				),
+				ExpressionAttributeNames: map[string]string{
+					"#col": collegeName,
+					"#cls": className,
+				},
+				ExpressionAttributeValues: map[string]types.AttributeValue{
+					":val": &types.AttributeValueMemberL{Value: stringSliceToAVList(newFoldersStr)},
+					// Same CAS idea as above; prevents one delete from clobbering another.
+					":expected": &types.AttributeValueMemberL{Value: stringSliceToAVList(oldFolders)},
+				},
+			})
+			if err == nil {
+				break
+			}
+			var condErr *types.ConditionalCheckFailedException
+			if errors.As(err, &condErr) {
+				continue
+			}
+			logger("removeFolderFromLists: failed to update folders for %s: %v", memberEmail, err)
+			break
+		}
+	}
+}
+
 func (s *server) DownloadS3File(s3Url string) (*s3.GetObjectOutput, error) {
 	result, err := s.S3Client.GetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: aws.String("neudfs-storage-dev"),

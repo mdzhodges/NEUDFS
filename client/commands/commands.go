@@ -232,7 +232,19 @@ func (c *CommandMap) delete_file_folder(args []string) {
 		fmt.Println("Usage: delete <file_or_folder>")
 		return
 	}
-	fmt.Printf("delete %s\n", args[0])
+	md := metadata.New(map[string]string{"email": c.UserEmail})
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
+	in := proto.DeleteRequest{Path: args[0]}
+	message, err := c.Client.Delete(ctx, &in)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			fmt.Println("Error:", st.Message())
+		} else {
+			fmt.Println("Error:", err.Error())
+		}
+		return
+	}
+	fmt.Println(message.Message)
 }
 
 func (c *CommandMap) create(args []string) {
