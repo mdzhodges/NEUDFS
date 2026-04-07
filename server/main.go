@@ -428,10 +428,23 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 		return &proto.MakeDirectoryResponse{Message: "Added " + newFolder + " to directory"}, nil
 
 	}
-	//if student is trying to build a folder path that doesn't start with their name, reject the request
+	// If student is trying to build a folder path outside of their assigned directories, reject it
 	if user.Role == "student" {
-		studentFolder := email[:strings.Index(email, "@")]
-		if !strings.HasPrefix(pathWithinClass, studentFolder+"/") && pathWithinClass != studentFolder {
+		isAllowed := false
+		userFolders := user.Colleges[collegeName].Classes[className].Folders
+		
+		// Look through the folders the student already owns in this class
+		for _, ownedFolder := range userFolders {
+			// Extract their base root directory ("victor" from "victor/notes")
+			baseFolder := strings.Split(ownedFolder, "/")[0]
+			
+			// check if their current path falls under their base folder
+			if strings.HasPrefix(pathWithinClass, baseFolder+"/") || pathWithinClass == baseFolder {
+				isAllowed = true
+				break
+			}
+		}
+		if !isAllowed {
 			return nil, errMkdir
 		}
 		if slices.Contains(user.Colleges[collegeName].Classes[className].Folders, newFolderPath) {
@@ -456,7 +469,7 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 	studentName := strings.Split(pathWithinClass, "/")[0]
 	isStudentFolder := false
 	for _, studentEmail := range classInfo.Students {
-		if studentEmail[:strings.Index(studentEmail, "@")] == studentName {
+		if strings.Split(studentEmail, "@")[0] == studentName {
 			isStudentFolder = true
 			foundUser, err := s.getUser(studentEmail)
 			if err != nil {

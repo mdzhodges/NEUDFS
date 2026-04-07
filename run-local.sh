@@ -9,6 +9,7 @@ export AWS_SECRET_ACCESS_KEY="fake"
 export AWS_SESSION_TOKEN="fake"
 export AWS_DEFAULT_REGION="us-east-1"
 export DYNAMODB_ENDPOINT="http://localhost:8000"
+export S3_ENDPOINT="http://localhost:4566"
 
 # Parse flags
 KEEP_DATA=false
@@ -36,6 +37,41 @@ fi
 echo "==> Waiting for DynamoDB to be ready..."
 until curl -s http://localhost:8000 > /dev/null 2>&1; do sleep 0.5; done
 echo "    DynamoDB ready."
+
+# ---------------------------------------------------------------------------
+# Local S3 (LocalStack)
+# ---------------------------------------------------------------------------
+echo "==> Starting local S3 (LocalStack)..."
+S3_STARTED=false
+
+if curl -s http://localhost:4566/_localstack/health > /dev/null 2>&1; then
+  echo "    LocalStack already running on port 4566, reusing."
+else
+  # Check if a container named neudfs-s3 already exists
+  if docker ps -a --format '{{.Names}}' | grep -q '^neudfs-s3$'; then
+    # Check if it's using the correct 3.8 image
+    CURRENT_IMAGE=$(docker inspect -f '{{.Config.Image}}' neudfs-s3)
+    if [ "$CURRENT_IMAGE" != "localstack/localstack:3.8" ]; then
+      echo "    Found neudfs-s3 using wrong image ($CURRENT_IMAGE). Recreating..."
+      docker rm -f neudfs-s3 > /dev/null
+      docker run -d --name neudfs-s3 -p 4566:4566 localstack/localstack:3.8 > /dev/null
+    else
+      docker start neudfs-s3 > /dev/null
+    fi
+    S3_STARTED=true
+  else
+    # Container doesn't exist at all, create it
+    docker run -d --name neudfs-s3 -p 4566:4566 localstack/localstack:3.8 > /dev/null
+    S3_STARTED=true
+  fi
+fi
+
+echo "==> Waiting for LocalStack S3 to be ready..."
+until curl -s http://localhost:4566/_localstack/health > /dev/null 2>&1; do sleep 0.5; done
+echo "    S3 ready."
+
+echo "==> Ensuring S3 bucket exists..."
+aws --endpoint-url http://localhost:4566 s3 mb s3://neudfs-storage-dev --region us-east-1 > /dev/null 2>&1 || true
 
 # ---------------------------------------------------------------------------
 # Wipe and re-seed (default), or keep existing data with --keep-data
@@ -91,6 +127,14 @@ cleanup() {
     docker stop neudfs-dynamo > /dev/null 2>&1 && docker rm neudfs-dynamo > /dev/null 2>&1 || true
   else
     echo "    Leaving pre-existing DynamoDB running."
+  fi
+
+  # --- cleanup the S3 bucket
+  if [ "$S3_STARTED" = true ]; then
+    echo "    Stopping LocalStack S3 container..."
+    docker stop neudfs-s3 > /dev/null 2>&1 && docker rm neudfs-s3 > /dev/null 2>&1 || true
+  else
+    echo "    Leaving pre-existing LocalStack S3 running."
   fi
 }
 trap cleanup EXIT
