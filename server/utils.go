@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -13,11 +14,100 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 const SessionTTL = 2 * time.Hour
+
+const minPartSize = 5 * 1024 * 1024 // 5MB - S3 multipart minimum
+
+type MultipartUpload struct {
+	s3Client       *s3.Client
+	bucket         string
+	key            string
+	uploadID       *string
+	completedParts []s3types.CompletedPart
+	partNumber     int32
+	buf            []byte
+}
+
+func (m *MultipartUpload) Write(ctx context.Context, chunk []byte) error {
+	m.buf = append(m.buf, chunk...)
+	if len(m.buf) >= minPartSize {
+		return m.flushPart(ctx)
+	}
+	return nil
+}
+func (m *MultipartUpload) flushPart(ctx context.Context) error {
+	resp, err := m.s3Client.UploadPart(ctx, &s3.UploadPartInput{
+		Bucket:     aws.String(m.bucket),
+		Key:        aws.String(m.key),
+		UploadId:   m.uploadID,
+		PartNumber: aws.Int32(m.partNumber),
+		Body:       bytes.NewReader(m.buf),
+	})
+	if err != nil {
+		return err
+	}
+	m.completedParts = append(m.completedParts, s3types.CompletedPart{
+		ETag:       resp.ETag,
+		PartNumber: aws.Int32(m.partNumber),
+	})
+	m.partNumber++
+	m.buf = m.buf[:0]
+	return nil
+}
+
+func (m *MultipartUpload) Complete(ctx context.Context) (string, error) {
+	if len(m.buf) > 0 {
+		if err := m.flushPart(ctx); err != nil {
+			return "", err
+		}
+	}
+	_, err := m.s3Client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
+		Bucket:   aws.String(m.bucket),
+		Key:      aws.String(m.key),
+		UploadId: m.uploadID,
+		MultipartUpload: &s3types.CompletedMultipartUpload{
+			Parts: m.completedParts,
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("https://%s.s3.amazonaws.com/%s", m.bucket, m.key), nil
+}
+
+// Abort cleans up an incomplete multipart upload. Safe to call multiple times.
+func (m *MultipartUpload) Abort(ctx context.Context) {
+	m.s3Client.AbortMultipartUpload(ctx, &s3.AbortMultipartUploadInput{
+		Bucket:   aws.String(m.bucket),
+		Key:      aws.String(m.key),
+		UploadId: m.uploadID,
+	})
+}
+
+func (s *server) NewMultipartUpload(ctx context.Context, key, contentType string) (*MultipartUpload, error) {
+	bucket := os.Getenv("S3_BUCKET")
+	resp, err := s.S3Client.CreateMultipartUpload(ctx, &s3.CreateMultipartUploadInput{
+		Bucket:      aws.String(bucket),
+		Key:         aws.String(key),
+		ContentType: aws.String(contentType),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &MultipartUpload{
+		s3Client:   s.S3Client,
+		bucket:     bucket,
+		key:        key,
+		uploadID:   resp.UploadId,
+		partNumber: 1,
+		buf:        make([]byte, 0, minPartSize+1024*1024),
+	}, nil
+}
 
 func logger(format string, a ...any) {
 	fmt.Printf("LOG:\t"+format+"\n", a...)

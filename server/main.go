@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -432,12 +431,12 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 	if user.Role == "student" {
 		isAllowed := false
 		userFolders := user.Colleges[collegeName].Classes[className].Folders
-		
+
 		// Look through the folders the student already owns in this class
 		for _, ownedFolder := range userFolders {
 			// Extract their base root directory ("victor" from "victor/notes")
 			baseFolder := strings.Split(ownedFolder, "/")[0]
-			
+
 			// check if their current path falls under their base folder
 			if strings.HasPrefix(pathWithinClass, baseFolder+"/") || pathWithinClass == baseFolder {
 				isAllowed = true
@@ -754,13 +753,13 @@ Save the metadata to DynamoDB — the file's path relative to the user's current
 Return the response via stream.SendAndClose() with whatever info the client needs (success/failure, the file path, etc.).
 */
 func (s *server) Upload(stream proto.Server_UploadServer) error {
-	// Grab user from your interceptor context
-	user := stream.Context().Value("User").(User)
+	ctx := stream.Context()
+	user := ctx.Value("User").(User)
 	email := user.Email
-	cd := user.CurrentDirectory
-	cd = strings.TrimSuffix(cd, "/")
+	cd := strings.TrimSuffix(user.CurrentDirectory, "/")
 	depth := GetDepth(cd)
 	role := user.Role
+
 	if depth < 2 {
 		return status.Errorf(codes.PermissionDenied, "must be inside a class to upload files")
 	}
@@ -768,11 +767,8 @@ func (s *server) Upload(stream proto.Server_UploadServer) error {
 		return status.Errorf(codes.PermissionDenied, "students must be inside their personal folder to upload files")
 	}
 
-	parts := strings.Split(cd, "/")
-	collegeName := parts[0]
-	className := parts[1]
-	pathWithinClass := strings.TrimPrefix(cd, collegeName+"/"+className+"/")
-	//Checks for a student if they are trying to upload outside of their personal folder
+	collegeName, className, pathWithinClass := parsePath(cd + "/")
+
 	if role == "student" {
 		personalFolders := user.Colleges[collegeName].Classes[className].Folders
 		isAllowed := false
@@ -786,49 +782,59 @@ func (s *server) Upload(stream proto.Server_UploadServer) error {
 			return status.Errorf(codes.PermissionDenied, "you do not have permission to upload files to this directory")
 		}
 	}
+
+	// First message must contain metadata
 	req, err := stream.Recv()
 	if err != nil {
 		logger("Failed to receive upload metadata", err)
 		return errFileCannotBeStreamed
 	}
 	meta := req.GetMetadata()
-	if meta == nil {
+	if meta == nil || meta.Name == "" || meta.ContentType == "" {
 		return errFileCannotBeStreamed
 	}
-	filename := meta.Name
-	contentType := meta.ContentType
-	if filename == "" || contentType == "" {
-		return errFileCannotBeStreamed
+
+	s3Key := cd + "/" + meta.Name
+
+	mp, err := s.NewMultipartUpload(ctx, s3Key, meta.ContentType)
+	if err != nil {
+		logger("Failed to initiate multipart upload", err)
+		return status.Errorf(codes.Internal, "failed to start upload")
 	}
-	var buf bytes.Buffer
+
+	// Stream chunks directly to S3
 	for {
 		req, err = stream.Recv()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			return err
+			mp.Abort(ctx)
+			return status.Errorf(codes.Internal, "error receiving chunk")
 		}
-		buf.Write(req.GetChunk())
+		if chunk := req.GetChunk(); len(chunk) > 0 {
+			if err := mp.Write(ctx, chunk); err != nil {
+				mp.Abort(ctx)
+				logger("Failed to upload part", err)
+				return status.Errorf(codes.Internal, "failed to upload file part")
+			}
+		}
 	}
-	s3Key := cd + "/" + filename
-	url, err := s.uploadToS3(buf.Bytes(), s3Key)
+
+	url, err := mp.Complete(ctx)
 	if err != nil {
-		logger("Failed to upload file to S3", err)
-		return status.Errorf(codes.Internal, "failed to upload file")
+		mp.Abort(ctx)
+		logger("Failed to complete multipart upload", err)
+		return status.Errorf(codes.Internal, "failed to complete upload")
 	}
-	if url == "" {
-		logger("S3 upload returned empty URL", fmt.Errorf("empty URL"))
-		return status.Errorf(codes.Internal, "failed to upload file")
-	}
-	err = s.uploadFileMetadata(className, pathWithinClass+"/"+filename, filename, email, cd+"/"+filename, url)
+
+	// Save metadata to DynamoDB
+	err = s.uploadFileMetadata(className, pathWithinClass+"/"+meta.Name, meta.Name, email, cd+"/"+meta.Name, url)
 	if err != nil {
 		logger("Failed to save file metadata to DynamoDB", err)
 		return status.Errorf(codes.Internal, "failed to save file metadata")
 	}
-	fmt.Println("cd:", cd)
-	fmt.Println("pathWithinClass:", pathWithinClass)
-	fmt.Println("s3Key:", s3Key)
+
 	return stream.SendAndClose(&proto.UploadResponse{Message: "uploaded"})
 }
 func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.DeleteResponse, error) {
