@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -90,9 +89,8 @@ func (m *MultipartUpload) Abort(ctx context.Context) {
 }
 
 func (s *server) NewMultipartUpload(ctx context.Context, key, contentType string) (*MultipartUpload, error) {
-	bucket := os.Getenv("S3_BUCKET")
 	resp, err := s.S3Client.CreateMultipartUpload(ctx, &s3.CreateMultipartUploadInput{
-		Bucket:      aws.String(bucket),
+		Bucket:      aws.String(s3Bucket),
 		Key:         aws.String(key),
 		ContentType: aws.String(contentType),
 	})
@@ -101,7 +99,7 @@ func (s *server) NewMultipartUpload(ctx context.Context, key, contentType string
 	}
 	return &MultipartUpload{
 		s3Client:   s.S3Client,
-		bucket:     bucket,
+		bucket:     s3Bucket,
 		key:        key,
 		uploadID:   resp.UploadId,
 		partNumber: 1,
@@ -132,7 +130,7 @@ func parsePath(cd string) (collegeName, className, pathWithinClass string) {
 
 func (s *server) getClassInfo(className string) (ClassInfo, error) {
 	result, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
-		TableName: aws.String("classroom_metadata"),
+		TableName: aws.String(metadataTable),
 		Key: map[string]types.AttributeValue{
 			"pk": &types.AttributeValueMemberS{Value: className},
 			"sk": &types.AttributeValueMemberS{Value: "class_info"},
@@ -154,7 +152,7 @@ func (s *server) getClassInfo(className string) (ClassInfo, error) {
 
 func (s *server) getUser(email string) (User, error) {
 	result, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
-		TableName: aws.String("user"),
+		TableName: aws.String(userTable),
 		Key: map[string]types.AttributeValue{
 			"email": &types.AttributeValueMemberS{Value: email},
 		},
@@ -174,7 +172,7 @@ func (s *server) getUser(email string) (User, error) {
 }
 func (s *server) updateSharedFolders(className, newFolderPath string) error {
 	_, err := s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
-		TableName: aws.String("classroom_metadata"),
+		TableName: aws.String(metadataTable),
 		Key: map[string]types.AttributeValue{
 			"pk": &types.AttributeValueMemberS{Value: className},
 			"sk": &types.AttributeValueMemberS{Value: "class_info"},
@@ -191,7 +189,7 @@ func (s *server) updateSharedFolders(className, newFolderPath string) error {
 }
 func (s *server) updateUserFolders(email, collegeName, className, newFolderPath string) error {
 	_, err := s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
-		TableName: aws.String("user"),
+		TableName: aws.String(userTable),
 		Key: map[string]types.AttributeValue{
 			"email": &types.AttributeValueMemberS{Value: email},
 		},
@@ -221,7 +219,7 @@ func (s *server) createFolderMetadata(className, sk, name, owner, fullPath strin
 		return err
 	}
 	_, err = s.DB.PutItem(context.TODO(), &dynamodb.PutItemInput{
-		TableName: aws.String("classroom_metadata"),
+		TableName: aws.String(metadataTable),
 		Item:      item,
 	})
 	return err
@@ -234,7 +232,7 @@ func (s *server) renameFileMetadata(className, oldSK, newSK, newName, newFullPat
 
 	// GET the existing file metadata using the old SK
 	getResult, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
-		TableName: aws.String("classroom_metadata"),
+		TableName: aws.String(metadataTable),
 		Key: map[string]types.AttributeValue{
 			"pk": &types.AttributeValueMemberS{Value: className},
 			"sk": &types.AttributeValueMemberS{Value: oldSK},
@@ -269,7 +267,7 @@ func (s *server) renameFileMetadata(className, oldSK, newSK, newName, newFullPat
 
 	// PUT the new item into the database (this creates the "renamed" file)
 	_, err = s.DB.PutItem(context.TODO(), &dynamodb.PutItemInput{
-		TableName: aws.String("classroom_metadata"),
+		TableName: aws.String(metadataTable),
 		Item:      newItem,
 	})
 	if err != nil {
@@ -279,7 +277,7 @@ func (s *server) renameFileMetadata(className, oldSK, newSK, newName, newFullPat
 
 	// DELETE the old item to clean up the original filename
 	_, err = s.DB.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
-		TableName: aws.String("classroom_metadata"),
+		TableName: aws.String(metadataTable),
 		Key: map[string]types.AttributeValue{
 			"pk": &types.AttributeValueMemberS{Value: className},
 			"sk": &types.AttributeValueMemberS{Value: oldSK},
@@ -299,7 +297,7 @@ func (s *server) renameFileMetadata(className, oldSK, newSK, newName, newFullPat
 func (s *server) renameDirectoryMetadata(ctx context.Context, className, oldPrefix, newPrefix string) error {
 	// QUERY all items that belong to this class AND start with the old folder path
 	queryInput := &dynamodb.QueryInput{
-		TableName:              aws.String("classroom_metadata"),
+		TableName:              aws.String(metadataTable),
 		KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :oldPrefix)"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":pk":        &types.AttributeValueMemberS{Value: className},
@@ -350,7 +348,7 @@ func (s *server) renameDirectoryMetadata(ctx context.Context, className, oldPref
 		}
 
 		_, err = s.DB.PutItem(ctx, &dynamodb.PutItemInput{
-			TableName: aws.String("classroom_metadata"),
+			TableName: aws.String(metadataTable),
 			Item:      newItem,
 		})
 		if err != nil {
@@ -360,7 +358,7 @@ func (s *server) renameDirectoryMetadata(ctx context.Context, className, oldPref
 
 		// DELETE the old item to clean up the database
 		_, err = s.DB.DeleteItem(ctx, &dynamodb.DeleteItemInput{
-			TableName: aws.String("classroom_metadata"),
+			TableName: aws.String(metadataTable),
 			Key: map[string]types.AttributeValue{
 				"pk": &types.AttributeValueMemberS{Value: className},
 				"sk": &types.AttributeValueMemberS{Value: oldSK},
@@ -386,7 +384,7 @@ func (s *server) updateFolderLists(callerEmail, collegeName, className, oldPrefi
 			if f == oldTarget || strings.HasPrefix(f, oldPrefix) {
 				newVal := strings.Replace(f, oldTarget, newTarget, 1)
 				_, err := s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
-					TableName: aws.String("classroom_metadata"),
+					TableName: aws.String(metadataTable),
 					Key: map[string]types.AttributeValue{
 						"pk": &types.AttributeValueMemberS{Value: className},
 						"sk": &types.AttributeValueMemberS{Value: "class_info"},
@@ -431,7 +429,7 @@ func (s *server) updateFolderLists(callerEmail, collegeName, className, oldPrefi
 			if f == oldTarget || strings.HasPrefix(f, oldPrefix) {
 				newVal := strings.Replace(f, oldTarget, newTarget, 1)
 				_, err := s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
-					TableName: aws.String("user"),
+					TableName: aws.String(userTable),
 					Key: map[string]types.AttributeValue{
 						"email": &types.AttributeValueMemberS{Value: emailToCheck},
 					},
@@ -453,7 +451,7 @@ func (s *server) updateFolderLists(callerEmail, collegeName, className, oldPrefi
 }
 func (s *server) DeleteS3File(s3Key string) error {
 	_, err := s.S3Client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
-		Bucket: aws.String("neudfs-storage-dev"),
+		Bucket: aws.String(s3Bucket),
 		Key:    aws.String(s3Key),
 	})
 	return err
@@ -490,7 +488,7 @@ func (s *server) removeFolderFromLists(collegeName, className, folderPath string
 		}
 
 		_, err = s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
-			TableName: aws.String("classroom_metadata"),
+			TableName: aws.String(metadataTable),
 			Key: map[string]types.AttributeValue{
 				"pk": &types.AttributeValueMemberS{Value: className},
 				"sk": &types.AttributeValueMemberS{Value: "class_info"},
@@ -553,7 +551,7 @@ func (s *server) removeFolderFromLists(collegeName, className, folderPath string
 			}
 
 			_, err = s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
-				TableName: aws.String("user"),
+				TableName: aws.String(userTable),
 				Key: map[string]types.AttributeValue{
 					"email": &types.AttributeValueMemberS{Value: memberEmail},
 				},
@@ -586,7 +584,7 @@ func (s *server) removeFolderFromLists(collegeName, className, folderPath string
 
 func (s *server) DownloadS3File(ctx context.Context, s3Url string) (*s3.GetObjectOutput, error) {
 	result, err := s.S3Client.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String("neudfs-storage-dev"),
+		Bucket: aws.String(s3Bucket),
 		Key:    aws.String(s3Url),
 	})
 	if err != nil {
@@ -599,7 +597,7 @@ func (s *server) DownloadS3File(ctx context.Context, s3Url string) (*s3.GetObjec
 func (s *server) uploadToS3(content []byte, filePath string) (string, error) {
 	s3Url := "https://s3.amazonaws.com/neudfs-storage-dev/" + filePath
 	_, err := s.S3Client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket: aws.String("neudfs-storage-dev"),
+		Bucket: aws.String(s3Bucket),
 		Key:    aws.String(filePath),
 		Body:   bytes.NewReader(content),
 	})
@@ -623,7 +621,7 @@ func (s *server) uploadFileMetadata(className, sk, name, owner, fullPath, s3Url 
 		return err
 	}
 	_, err = s.DB.PutItem(context.TODO(), &dynamodb.PutItemInput{
-		TableName: aws.String("classroom_metadata"),
+		TableName: aws.String(metadataTable),
 		Item:      item,
 	})
 	return err
@@ -632,7 +630,7 @@ func (s *server) uploadFileMetadata(className, sk, name, owner, fullPath, s3Url 
 func (s *server) SetCurrentDirectory(ctx context.Context, email string, expectedPrev string, dir string) error {
 	ttl := time.Now().Add(SessionTTL).Unix()
 	input := &dynamodb.UpdateItemInput{
-		TableName: aws.String("user"),
+		TableName: aws.String(userTable),
 		Key: map[string]types.AttributeValue{
 			"email": &types.AttributeValueMemberS{Value: email},
 		},
@@ -667,7 +665,7 @@ func (s *server) SetCurrentDirectory(ctx context.Context, email string, expected
 // Clears current directory of the user
 func (s *server) ClearCurrentDirectory(ctx context.Context, email string) error {
 	_, err := s.DB.UpdateItem(ctx, &dynamodb.UpdateItemInput{
-		TableName: aws.String("user"),
+		TableName: aws.String(userTable),
 		Key: map[string]types.AttributeValue{
 			"email": &types.AttributeValueMemberS{Value: email},
 		},

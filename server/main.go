@@ -35,7 +35,17 @@ var (
 	errMkdir                = status.Errorf(codes.Internal, "Unable to create a folder here")
 	errAlreadyExists        = status.Errorf(codes.Internal, "Folder already exists")
 	errFileCannotBeStreamed = status.Errorf(codes.InvalidArgument, "File cannot be streamed")
+	userTable               = envOrDefault("DYNAMODB_USER_TABLE", "user")
+	metadataTable           = envOrDefault("DYNAMODB_METADATA_TABLE", "classroom_metadata")
+	s3Bucket                = envOrDefault("S3_BUCKET", "neudfs-storage-dev")
 )
+
+func envOrDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
 
 type server struct {
 	proto.UnimplementedServerServer
@@ -198,7 +208,7 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 		exprValues[":prefix"] = &types.AttributeValueMemberS{Value: pathWithinClass}
 	}
 	input := &dynamodb.QueryInput{
-		TableName:                 aws.String("classroom_metadata"),
+		TableName:                 aws.String(metadataTable),
 		KeyConditionExpression:    aws.String(keyCondition),
 		ExpressionAttributeValues: exprValues,
 	}
@@ -272,7 +282,7 @@ func streamInterceptor(db *dynamodb.Client) grpc.StreamServerInterceptor {
 			return status.Error(codes.Unauthenticated, "no email provided in metadata")
 		}
 		result, err := db.GetItem(ctx, &dynamodb.GetItemInput{
-			TableName: aws.String("user"),
+			TableName: aws.String(userTable),
 			Key: map[string]types.AttributeValue{
 				"email": &types.AttributeValueMemberS{Value: emails[0]},
 			},
@@ -289,7 +299,7 @@ func streamInterceptor(db *dynamodb.Client) grpc.StreamServerInterceptor {
 		if foundUser.DirectoryTTL != 0 && time.Now().Unix() > foundUser.DirectoryTTL {
 			if foundUser.CurrentDirectory != "" {
 				db.UpdateItem(ctx, &dynamodb.UpdateItemInput{
-					TableName: aws.String("user"),
+					TableName: aws.String(userTable),
 					Key: map[string]types.AttributeValue{
 						"email": &types.AttributeValueMemberS{Value: emails[0]},
 					},
@@ -333,7 +343,7 @@ func unaryInterceptor(db *dynamodb.Client) grpc.UnaryServerInterceptor {
 		}
 		email := emails[0]
 		result, err := db.GetItem(ctx, &dynamodb.GetItemInput{
-			TableName: aws.String("user"),
+			TableName: aws.String(userTable),
 			Key: map[string]types.AttributeValue{
 				"email": &types.AttributeValueMemberS{Value: email},
 			},
@@ -350,7 +360,7 @@ func unaryInterceptor(db *dynamodb.Client) grpc.UnaryServerInterceptor {
 		if foundUser.DirectoryTTL != 0 && time.Now().Unix() > foundUser.DirectoryTTL {
 			if foundUser.CurrentDirectory != "" {
 				db.UpdateItem(ctx, &dynamodb.UpdateItemInput{
-					TableName: aws.String("user"),
+					TableName: aws.String(userTable),
 					Key: map[string]types.AttributeValue{
 						"email": &types.AttributeValueMemberS{Value: email},
 					},
@@ -554,7 +564,7 @@ func (s *server) queryClassEntries(ctx context.Context, className, pathWithinCla
 	}
 
 	results, err := s.DB.Query(ctx, &dynamodb.QueryInput{
-		TableName:                 aws.String("classroom_metadata"),
+		TableName:                 aws.String(metadataTable),
 		KeyConditionExpression:    aws.String(keyCondition),
 		ExpressionAttributeValues: exprValues,
 	})
@@ -718,7 +728,7 @@ func (s *server) Download(req *proto.DownloadRequest, stream proto.Server_Downlo
 	collegeName, className, pathWithinClass := parsePath(cd + "/")
 	fileSK := pathWithinClass + req.Name
 	result, err := s.DB.GetItem(ctx, &dynamodb.GetItemInput{
-		TableName: aws.String("classroom_metadata"),
+		TableName: aws.String(metadataTable),
 		Key: map[string]types.AttributeValue{
 			"pk": &types.AttributeValueMemberS{Value: className},
 			"sk": &types.AttributeValueMemberS{Value: fileSK},
@@ -931,7 +941,7 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 
 	// Check if target is a file (exact SK, no trailing slash)
 	fileResult, err := s.DB.GetItem(ctx, &dynamodb.GetItemInput{
-		TableName: aws.String("classroom_metadata"),
+		TableName: aws.String(metadataTable),
 		Key: map[string]types.AttributeValue{
 			"pk": &types.AttributeValueMemberS{Value: className},
 			"sk": &types.AttributeValueMemberS{Value: targetSK},
@@ -945,7 +955,7 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 	// Check if target is a folder (SK with trailing slash)
 	folderSK := targetSK + "/"
 	folderResult, err := s.DB.GetItem(ctx, &dynamodb.GetItemInput{
-		TableName: aws.String("classroom_metadata"),
+		TableName: aws.String(metadataTable),
 		Key: map[string]types.AttributeValue{
 			"pk": &types.AttributeValueMemberS{Value: className},
 			"sk": &types.AttributeValueMemberS{Value: folderSK},
@@ -967,7 +977,7 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 			logger("Failed to delete S3 file %s: %v", s3Key, err)
 		}
 		_, err = s.DB.DeleteItem(ctx, &dynamodb.DeleteItemInput{
-			TableName: aws.String("classroom_metadata"),
+			TableName: aws.String(metadataTable),
 			Key: map[string]types.AttributeValue{
 				"pk": &types.AttributeValueMemberS{Value: className},
 				"sk": &types.AttributeValueMemberS{Value: targetSK},
@@ -982,7 +992,7 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 
 	// Delete a folder: query all items with the folder prefix then delete them
 	input := &dynamodb.QueryInput{
-		TableName:              aws.String("classroom_metadata"),
+		TableName:              aws.String(metadataTable),
 		KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :prefix)"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":pk":     &types.AttributeValueMemberS{Value: className},
@@ -1008,7 +1018,7 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 			}
 		}
 		_, err = s.DB.DeleteItem(ctx, &dynamodb.DeleteItemInput{
-			TableName: aws.String("classroom_metadata"),
+			TableName: aws.String(metadataTable),
 			Key: map[string]types.AttributeValue{
 				"pk": &types.AttributeValueMemberS{Value: className},
 				"sk": &types.AttributeValueMemberS{Value: meta.SK},
