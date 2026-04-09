@@ -128,8 +128,8 @@ func parsePath(cd string) (collegeName, className, pathWithinClass string) {
 	return
 }
 
-func (s *server) getClassInfo(className string) (ClassInfo, error) {
-	result, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
+func (s *server) getClassInfo(ctx context.Context, className string) (ClassInfo, error) {
+	result, err := s.DB.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(metadataTable),
 		Key: map[string]types.AttributeValue{
 			"pk": &types.AttributeValueMemberS{Value: className},
@@ -150,8 +150,8 @@ func (s *server) getClassInfo(className string) (ClassInfo, error) {
 	return classInfo, nil
 }
 
-func (s *server) getUser(email string) (User, error) {
-	result, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
+func (s *server) getUser(ctx context.Context, email string) (User, error) {
+	result, err := s.DB.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(userTable),
 		Key: map[string]types.AttributeValue{
 			"email": &types.AttributeValueMemberS{Value: email},
@@ -373,12 +373,12 @@ func (s *server) renameDirectoryMetadata(ctx context.Context, className, oldPref
 }
 
 // updateFolderLists syncs renamed folder paths inside the User and ClassInfo permission arrays.
-func (s *server) updateFolderLists(callerEmail, collegeName, className, oldPrefix, newPrefix string) {
+func (s *server) updateFolderLists(ctx context.Context, callerEmail, collegeName, className, oldPrefix, newPrefix string) {
 	oldTarget := strings.TrimSuffix(oldPrefix, "/")
 	newTarget := strings.TrimSuffix(newPrefix, "/")
 
 	// Update ClassInfo (Shared Folders)
-	classInfo, err := s.getClassInfo(className)
+	classInfo, err := s.getClassInfo(ctx, className)
 	if err == nil {
 		for i, f := range classInfo.SharedFolders {
 			if f == oldTarget || strings.HasPrefix(f, oldPrefix) {
@@ -411,7 +411,7 @@ func (s *server) updateFolderLists(callerEmail, collegeName, className, oldPrefi
 
 	// Update User profiles
 	for emailToCheck := range emailsToCheck {
-		user, err := s.getUser(emailToCheck)
+		user, err := s.getUser(ctx, emailToCheck)
 		if err != nil {
 			continue
 		}
@@ -449,8 +449,8 @@ func (s *server) updateFolderLists(callerEmail, collegeName, className, oldPrefi
 		}
 	}
 }
-func (s *server) DeleteS3File(s3Key string) error {
-	_, err := s.S3Client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
+func (s *server) DeleteS3File(ctx context.Context, s3Key string) error {
+	_, err := s.S3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(s3Bucket),
 		Key:    aws.String(s3Key),
 	})
@@ -458,7 +458,7 @@ func (s *server) DeleteS3File(s3Key string) error {
 }
 
 // removeFolderFromLists removes a folder and all its subfolders from user and class permission arrays.
-func (s *server) removeFolderFromLists(collegeName, className, folderPath string) {
+func (s *server) removeFolderFromLists(ctx context.Context, collegeName, className, folderPath string) {
 	targetPath := strings.TrimSuffix(folderPath, "/")
 	prefix := targetPath + "/"
 
@@ -468,7 +468,7 @@ func (s *server) removeFolderFromLists(collegeName, className, folderPath string
 	//  I looped 8 times so this will still work if the list is being constantly modified
 	for attempt := 0; attempt < 8; attempt++ {
 		var err error
-		classInfo, err = s.getClassInfo(className)
+		classInfo, err = s.getClassInfo(ctx, className)
 		if err != nil {
 			logger("removeFolderFromLists: failed to get class info: %v", err)
 			return
@@ -523,7 +523,7 @@ func (s *server) removeFolderFromLists(collegeName, className, folderPath string
 	}
 	for _, memberEmail := range allEmails {
 		for attempt := 0; attempt < 8; attempt++ {
-			u, err := s.getUser(memberEmail)
+			u, err := s.getUser(ctx, memberEmail)
 			if err != nil {
 				break
 			}

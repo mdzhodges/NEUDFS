@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
@@ -111,7 +112,7 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 	// Depth >= 2: Entering a Subfolder (e.g. CS101 -> bob)
 	className := parts[1]
 	newCD := cd + in.Folder + "/"
-	classInfo, err := s.getClassInfo(className)
+	classInfo, err := s.getClassInfo(ctx, className)
 	if err != nil {
 		logger("Cannot query db for shared folders", err)
 		return nil, errDB
@@ -170,7 +171,7 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 
 	// Depth >= 2: Show Files/Folders in Class
 	className := parts[1]
-	classInfo, err := s.getClassInfo(className)
+	classInfo, err := s.getClassInfo(ctx, className)
 	if err != nil {
 		logger("Cannot query db for shared folders", err)
 		return nil, errDB
@@ -417,7 +418,7 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 			return nil, errMkdir
 		}
 		var classInfo ClassInfo
-		classInfo, err := s.getClassInfo(className)
+		classInfo, err := s.getClassInfo(ctx, className)
 		if err != nil {
 			logger("Unable to get class info", err)
 			return nil, errDB
@@ -469,7 +470,7 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 		}
 		return &proto.MakeDirectoryResponse{Message: "Added " + newFolder + " to directory"}, nil
 	}
-	classInfo, err := s.getClassInfo(className)
+	classInfo, err := s.getClassInfo(ctx, className)
 	if err != nil {
 		logger("Cannot query db for shared folders", err)
 		return nil, errDB
@@ -480,7 +481,7 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 	for _, studentEmail := range classInfo.Students {
 		if strings.Split(studentEmail, "@")[0] == studentName {
 			isStudentFolder = true
-			foundUser, err := s.getUser(studentEmail)
+			foundUser, err := s.getUser(ctx, studentEmail)
 			if err != nil {
 				logger("Unable to get student user", err)
 				return nil, errDB
@@ -562,18 +563,18 @@ func (s *server) queryClassEntries(ctx context.Context, className, pathWithinCla
 		keyCondition = "pk = :pk AND begins_with(sk, :prefix)"
 		exprValues[":prefix"] = &types.AttributeValueMemberS{Value: pathWithinClass}
 	}
-
-	results, err := s.DB.Query(ctx, &dynamodb.QueryInput{
+	input := &dynamodb.QueryInput{
 		TableName:                 aws.String(metadataTable),
 		KeyConditionExpression:    aws.String(keyCondition),
 		ExpressionAttributeValues: exprValues,
-	})
+	}
+	results, err := s.queryAllPages(ctx, input)
 	if err != nil {
 		return nil, err
 	}
 
 	var dbEntries []Metadata
-	attributevalue.UnmarshalListOfMaps(results.Items, &dbEntries)
+	attributevalue.UnmarshalListOfMaps(results, &dbEntries)
 
 	set := make(map[string]bool)
 	var entries []string
@@ -608,11 +609,11 @@ func (s *server) queryClassEntries(ctx context.Context, className, pathWithinCla
 
 // allowedFoldersForClass returns the folders a student may see in a class
 // (their own folders + shared folders). Returns nil for teachers (no filter).
-func (s *server) allowedFoldersForClass(user User, collegeName, className string) []string {
+func (s *server) allowedFoldersForClass(ctx context.Context, user User, collegeName, className string) []string {
 	if user.Role == "teacher" {
 		return nil
 	}
-	classInfo, err := s.getClassInfo(className)
+	classInfo, err := s.getClassInfo(ctx, className)
 	allowed := append([]string{}, user.Colleges[collegeName].Classes[className].Folders...)
 	if err == nil {
 		allowed = append(allowed, classInfo.SharedFolders...)
@@ -634,7 +635,7 @@ func (s *server) TreeDirectory(ctx context.Context, in *proto.TreeDirectoryReque
 			for className := range college.Classes {
 				classPrefix := collegeName + "/" + className + "/"
 				entries = append(entries, classPrefix)
-				classEntries, err := s.queryClassEntries(ctx, className, "", classPrefix, s.allowedFoldersForClass(user, collegeName, className))
+				classEntries, err := s.queryClassEntries(ctx, className, "", classPrefix, s.allowedFoldersForClass(ctx, user, collegeName, className))
 				if err != nil {
 					logger("Unable to query DB for class %s", className)
 					return nil, errDB
@@ -653,7 +654,7 @@ func (s *server) TreeDirectory(ctx context.Context, in *proto.TreeDirectoryReque
 		for className := range user.Colleges[collegeName].Classes {
 			classPrefix := className + "/"
 			entries = append(entries, classPrefix)
-			classEntries, err := s.queryClassEntries(ctx, className, "", classPrefix, s.allowedFoldersForClass(user, collegeName, className))
+			classEntries, err := s.queryClassEntries(ctx, className, "", classPrefix, s.allowedFoldersForClass(ctx, user, collegeName, className))
 			if err != nil {
 				logger("Unable to query DB for class %s", className)
 				return nil, errDB
@@ -666,7 +667,7 @@ func (s *server) TreeDirectory(ctx context.Context, in *proto.TreeDirectoryReque
 	// Depth >= 2: query DynamoDB for all items under the current path
 	className := parts[1]
 	pathWithinClass := strings.TrimPrefix(cd, collegeName+"/"+className+"/")
-	classEntries, err := s.queryClassEntries(ctx, className, pathWithinClass, "", s.allowedFoldersForClass(user, collegeName, className))
+	classEntries, err := s.queryClassEntries(ctx, className, pathWithinClass, "", s.allowedFoldersForClass(ctx, user, collegeName, className))
 	if err != nil {
 		logger("Unable to query DB", err)
 		return nil, errDB
@@ -709,7 +710,7 @@ func (s *server) RenameDirectory(ctx context.Context, in *proto.RenameRequest) (
 	}
 
 	// sync with permissions array
-	s.updateFolderLists(email, parts[0], className, oldPrefix, newPrefix)
+	s.updateFolderLists(ctx, email, parts[0], className, oldPrefix, newPrefix)
 
 	return &proto.RenameResponse{
 		Message: fmt.Sprintf("Successfully renamed directory %s to %s", in.Entry, in.Name),
@@ -900,13 +901,13 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 	// A student's root folder is any top-level class folder (no "/" in name) that
 	// appears in a student's personal folders list.
 	if depth == 2 && !strings.Contains(targetName, "/") {
-		classInfo, err := s.getClassInfo(className)
+		classInfo, err := s.getClassInfo(ctx, className)
 		if err != nil {
 			logger("Cannot query db for class info", err)
 			return nil, errDB
 		}
 		for _, studentEmail := range classInfo.Students {
-			studentUser, err := s.getUser(studentEmail)
+			studentUser, err := s.getUser(ctx, studentEmail)
 			if err != nil {
 				continue
 			}
@@ -973,7 +974,7 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 	// Delete a file
 	if fileResult.Item != nil {
 		s3Key := collegeName + "/" + className + "/" + targetSK
-		if err := s.DeleteS3File(s3Key); err != nil {
+		if err := s.DeleteS3File(ctx, s3Key); err != nil {
 			logger("Failed to delete S3 file %s: %v", s3Key, err)
 		}
 		_, err = s.DB.DeleteItem(ctx, &dynamodb.DeleteItemInput{
@@ -1013,7 +1014,7 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 		}
 		if meta.Type == "file" {
 			s3Key := collegeName + "/" + className + "/" + meta.SK
-			if err := s.DeleteS3File(s3Key); err != nil {
+			if err := s.DeleteS3File(ctx, s3Key); err != nil {
 				logger("Failed to delete S3 file %s: %v", s3Key, err)
 			}
 		}
@@ -1030,7 +1031,7 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 	}
 
 	// Remove deleted folder and its subfolders from permission arrays
-	s.removeFolderFromLists(collegeName, className, targetSK)
+	s.removeFolderFromLists(ctx, collegeName, className, targetSK)
 
 	return &proto.DeleteResponse{Message: fmt.Sprintf("Deleted folder %s", targetName)}, nil
 }
@@ -1076,8 +1077,14 @@ func main() {
 	//Init Server Object and gRPC server
 	s := NewServer(dbClient, s3Client)
 	//add interceptor ie middleware to validate user
-	g := grpc.NewServer(grpc.UnaryInterceptor(unaryInterceptor(dbClient)), grpc.StreamInterceptor(streamInterceptor(dbClient)))
-
+	g := grpc.NewServer(
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			MaxConnectionAge:      5 * time.Minute,
+			MaxConnectionAgeGrace: 30 * time.Second,
+		}),
+		grpc.UnaryInterceptor(unaryInterceptor(dbClient)),
+		grpc.StreamInterceptor(streamInterceptor(dbClient)),
+	)
 	//Register server object into gRPC server
 	proto.RegisterServerServer(g, s)
 	//Listen on TCP Port 5001
