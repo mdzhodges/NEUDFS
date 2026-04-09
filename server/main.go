@@ -197,12 +197,12 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 		keyCondition = "pk = :pk AND begins_with(sk, :prefix)"
 		exprValues[":prefix"] = &types.AttributeValueMemberS{Value: pathWithinClass}
 	}
-
-	results, err := s.DB.Query(context.TODO(), &dynamodb.QueryInput{
+	input := &dynamodb.QueryInput{
 		TableName:                 aws.String("classroom_metadata"),
 		KeyConditionExpression:    aws.String(keyCondition),
 		ExpressionAttributeValues: exprValues,
-	})
+	}
+	results, err := s.queryAllPages(ctx, input)
 
 	if err != nil {
 		logger("Unable to query DB", err)
@@ -210,8 +210,8 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 	}
 
 	var entries []Metadata
-	if len(results.Items) != 0 {
-		attributevalue.UnmarshalListOfMaps(results.Items, &entries)
+	if len(results) != 0 {
+		attributevalue.UnmarshalListOfMaps(results, &entries)
 		for _, entry := range entries {
 			if !strings.HasPrefix(entry.SK, pathWithinClass) {
 				continue
@@ -271,7 +271,7 @@ func streamInterceptor(db *dynamodb.Client) grpc.StreamServerInterceptor {
 		if len(emails) == 0 {
 			return status.Error(codes.Unauthenticated, "no email provided in metadata")
 		}
-		result, err := db.GetItem(context.TODO(), &dynamodb.GetItemInput{
+		result, err := db.GetItem(ctx, &dynamodb.GetItemInput{
 			TableName: aws.String("user"),
 			Key: map[string]types.AttributeValue{
 				"email": &types.AttributeValueMemberS{Value: emails[0]},
@@ -349,7 +349,7 @@ func unaryInterceptor(db *dynamodb.Client) grpc.UnaryServerInterceptor {
 		err = attributevalue.UnmarshalMap(result.Item, &foundUser)
 		if foundUser.DirectoryTTL != 0 && time.Now().Unix() > foundUser.DirectoryTTL {
 			if foundUser.CurrentDirectory != "" {
-				db.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+				db.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 					TableName: aws.String("user"),
 					Key: map[string]types.AttributeValue{
 						"email": &types.AttributeValueMemberS{Value: email},
@@ -689,7 +689,7 @@ func (s *server) RenameDirectory(ctx context.Context, in *proto.RenameRequest) (
 	newPrefix := pathWithinClass + in.Name
 
 	// Call our new DB helper
-	err := s.renameDirectoryMetadata(className, oldPrefix, newPrefix)
+	err := s.renameDirectoryMetadata(ctx, className, oldPrefix, newPrefix)
 	if err != nil {
 		if err.Error() == "directory not found" {
 			return nil, status.Errorf(codes.NotFound, "directory '%s' does not exist", in.Entry)
@@ -707,31 +707,63 @@ func (s *server) RenameDirectory(ctx context.Context, in *proto.RenameRequest) (
 }
 func (s *server) Download(req *proto.DownloadRequest, stream proto.Server_DownloadServer) error {
 	// Grab user from your interceptor context
-	user := stream.Context().Value("User").(User)
+	ctx := stream.Context()
+	user := ctx.Value("User").(User)
 	cd := user.CurrentDirectory
 	cd = strings.TrimSuffix(cd, "/")
 	depth := GetDepth(cd)
 	if depth < 2 {
 		return status.Errorf(codes.PermissionDenied, "must be inside a class to download files")
 	}
-	s3Key := cd + "/" + req.Name
-	result, err := s.DownloadS3File(s3Key)
+	collegeName, className, pathWithinClass := parsePath(cd + "/")
+	fileSK := pathWithinClass + req.Name
+	result, err := s.DB.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String("classroom_metadata"),
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: className},
+			"sk": &types.AttributeValueMemberS{Value: fileSK},
+		},
+	})
+	if err != nil {
+		logger("Failed to look up file metadata: %v", err)
+		return status.Errorf(codes.Internal, "failed to look up file")
+	}
+	if result.Item == nil {
+		return status.Errorf(codes.NotFound, "file %q not found", req.Name)
+	}
+	var meta Metadata
+	if err := attributevalue.UnmarshalMap(result.Item, &meta); err != nil {
+		logger("Failed to unmarshal file metadata: %v", err)
+		return status.Errorf(codes.Internal, "failed to read file metadata")
+	}
+	if meta.Type != "file" {
+		return status.Errorf(codes.InvalidArgument, "%q is not a file", req.Name)
+	}
+
+	s3Key := collegeName + "/" + className + "/" + fileSK
+	s3Result, err := s.DownloadS3File(ctx, s3Key)
 	if err != nil {
 		logger("Failed to download file from S3", err)
 		return status.Errorf(codes.Internal, "failed to download file")
 	}
-	if result == nil {
+	if s3Result == nil {
 		logger("S3 download returned nil result", fmt.Errorf("nil result"))
 		return status.Errorf(codes.Internal, "failed to download file")
 	}
-	defer result.Body.Close()
+	defer s3Result.Body.Close()
 	buf := make([]byte, 64*1024)
 	for {
-		n, err := result.Body.Read(buf)
+		// Check if client disconnected before each read
+		select {
+		case <-ctx.Done():
+			return status.Errorf(codes.Canceled, "client disconnected")
+		default:
+		}
+		n, err := s3Result.Body.Read(buf)
 		if n > 0 {
-			stream.Send(&proto.DownloadResponse{
-				Data: buf[:n],
-			})
+			if sendErr := stream.Send(&proto.DownloadResponse{Data: buf[:n]}); sendErr != nil {
+				return status.Errorf(codes.Internal, "failed to send chunk")
+			}
 		}
 		if err == io.EOF {
 			break
@@ -949,20 +981,21 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 	}
 
 	// Delete a folder: query all items with the folder prefix then delete them
-	queryResult, err := s.DB.Query(context.TODO(), &dynamodb.QueryInput{
+	input := &dynamodb.QueryInput{
 		TableName:              aws.String("classroom_metadata"),
 		KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :prefix)"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":pk":     &types.AttributeValueMemberS{Value: className},
 			":prefix": &types.AttributeValueMemberS{Value: folderSK},
 		},
-	})
+	}
+	queryResult, err := s.queryAllPages(ctx, input)
 	if err != nil {
 		logger("Failed to query folder contents: %v", err)
 		return nil, errDB
 	}
 
-	for _, item := range queryResult.Items {
+	for _, item := range queryResult {
 		var meta Metadata
 		if err := attributevalue.UnmarshalMap(item, &meta); err != nil {
 			logger("Failed to unmarshal item: %v", err)

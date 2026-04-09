@@ -296,7 +296,7 @@ func (s *server) renameFileMetadata(className, oldSK, newSK, newName, newFullPat
 // renameDirectoryMetadata finds all files/folders inside a directory and updates their paths.
 // In DynamoDB, we do this by querying for all items whose SK starts with the old directory prefix,
 // then creating new copies with the new prefix, and finally deleting the old copies.
-func (s *server) renameDirectoryMetadata(className, oldPrefix, newPrefix string) error {
+func (s *server) renameDirectoryMetadata(ctx context.Context, className, oldPrefix, newPrefix string) error {
 	// QUERY all items that belong to this class AND start with the old folder path
 	queryInput := &dynamodb.QueryInput{
 		TableName:              aws.String("classroom_metadata"),
@@ -307,18 +307,18 @@ func (s *server) renameDirectoryMetadata(className, oldPrefix, newPrefix string)
 		},
 	}
 
-	result, err := s.DB.Query(context.TODO(), queryInput)
+	result, err := s.queryAllPages(ctx, queryInput)
 	if err != nil {
 		logger("Failed to query directory items: %v", err)
 		return err
 	}
 
-	if len(result.Items) == 0 {
+	if len(result) == 0 {
 		return fmt.Errorf("directory not found")
 	}
 
 	// LOOP through every single item we found inside the directory
-	for _, dynamodbItem := range result.Items {
+	for _, dynamodbItem := range result {
 		var item Metadata
 		if err := attributevalue.UnmarshalMap(dynamodbItem, &item); err != nil {
 			logger("Error unmarshaling item in directory: %v", err)
@@ -349,7 +349,7 @@ func (s *server) renameDirectoryMetadata(className, oldPrefix, newPrefix string)
 			continue
 		}
 
-		_, err = s.DB.PutItem(context.TODO(), &dynamodb.PutItemInput{
+		_, err = s.DB.PutItem(ctx, &dynamodb.PutItemInput{
 			TableName: aws.String("classroom_metadata"),
 			Item:      newItem,
 		})
@@ -359,7 +359,7 @@ func (s *server) renameDirectoryMetadata(className, oldPrefix, newPrefix string)
 		}
 
 		// DELETE the old item to clean up the database
-		_, err = s.DB.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
+		_, err = s.DB.DeleteItem(ctx, &dynamodb.DeleteItemInput{
 			TableName: aws.String("classroom_metadata"),
 			Key: map[string]types.AttributeValue{
 				"pk": &types.AttributeValueMemberS{Value: className},
@@ -584,8 +584,8 @@ func (s *server) removeFolderFromLists(collegeName, className, folderPath string
 	}
 }
 
-func (s *server) DownloadS3File(s3Url string) (*s3.GetObjectOutput, error) {
-	result, err := s.S3Client.GetObject(context.TODO(), &s3.GetObjectInput{
+func (s *server) DownloadS3File(ctx context.Context, s3Url string) (*s3.GetObjectOutput, error) {
+	result, err := s.S3Client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String("neudfs-storage-dev"),
 		Key:    aws.String(s3Url),
 	})
@@ -685,4 +685,20 @@ func (u *User) GetCurrentDirectory() string {
 		return ""
 	}
 	return u.CurrentDirectory
+}
+
+func (s *server) queryAllPages(ctx context.Context, input *dynamodb.QueryInput) ([]map[string]types.AttributeValue, error) {
+	var allItems []map[string]types.AttributeValue
+	for {
+		result, err := s.DB.Query(ctx, input)
+		if err != nil {
+			return nil, err
+		}
+		allItems = append(allItems, result.Items...)
+		if result.LastEvaluatedKey == nil {
+			break
+		}
+		input.ExclusiveStartKey = result.LastEvaluatedKey
+	}
+	return allItems, nil
 }
