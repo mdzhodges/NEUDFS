@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -18,6 +19,13 @@ import (
 )
 
 const SessionTTL = 2 * time.Hour
+
+func (s *server) s3Bucket() string {
+	if b := strings.TrimSpace(os.Getenv("S3_BUCKET")); b != "" {
+		return b
+	}
+	return "neudfs-storage-dev"
+}
 
 func logger(format string, a ...any) {
 	fmt.Printf("LOG:\t"+format+"\n", a...)
@@ -363,7 +371,7 @@ func (s *server) updateFolderLists(callerEmail, collegeName, className, oldPrefi
 }
 func (s *server) DeleteS3File(s3Key string) error {
 	_, err := s.S3Client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
-		Bucket: aws.String("neudfs-storage-dev"),
+		Bucket: aws.String(s.s3Bucket()),
 		Key:    aws.String(s3Key),
 	})
 	return err
@@ -496,7 +504,7 @@ func (s *server) removeFolderFromLists(collegeName, className, folderPath string
 
 func (s *server) DownloadS3File(s3Url string) (*s3.GetObjectOutput, error) {
 	result, err := s.S3Client.GetObject(context.TODO(), &s3.GetObjectInput{
-		Bucket: aws.String("neudfs-storage-dev"),
+		Bucket: aws.String(s.s3Bucket()),
 		Key:    aws.String(s3Url),
 	})
 	if err != nil {
@@ -507,9 +515,10 @@ func (s *server) DownloadS3File(s3Url string) (*s3.GetObjectOutput, error) {
 
 // Need to implement S3
 func (s *server) uploadToS3(content []byte, filePath string) (string, error) {
-	s3Url := "https://s3.amazonaws.com/neudfs-storage-dev/" + filePath
+	s3Bucket := s.s3Bucket()
+	s3Url := "https://s3.amazonaws.com/" + s3Bucket + "/" + filePath
 	_, err := s.S3Client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket: aws.String("neudfs-storage-dev"),
+		Bucket: aws.String(s3Bucket),
 		Key:    aws.String(filePath),
 		Body:   bytes.NewReader(content),
 	})

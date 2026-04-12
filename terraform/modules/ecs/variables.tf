@@ -77,6 +77,11 @@ variable "metadata_table_name" {
   description = "DynamoDB metadata table name"
 }
 
+variable "s3_bucket_name" {
+  type        = string
+  description = "S3 bucket name for file storage"
+}
+
 variable "target_group_arn" {
   type        = string
   description = "ARN of the NLB target group to register ECS tasks with"
