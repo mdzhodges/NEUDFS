@@ -1047,7 +1047,9 @@ func main() {
 	endpoint := os.Getenv("DYNAMODB_ENDPOINT")
 	endpointS3 := os.Getenv("S3_ENDPOINT")
 	isDev := endpoint != "" || endpointS3 != ""
+	env := os.Getenv("ENVIRONMENT")
 	var cfg aws.Config
+	var cwm *CloudWatchMetrics
 	if isDev {
 		cfg, err = config.LoadDefaultConfig(context.TODO(),
 			config.WithRegion("us-east-1"),
@@ -1055,6 +1057,7 @@ func main() {
 		)
 	} else {
 		cfg, err = config.LoadDefaultConfig(context.TODO(), config.WithRegion("us-east-1"))
+		cwm = NewCloudWatchMetrics(cfg, env)
 	}
 	if err != nil {
 		log.Fatal(err)
@@ -1078,13 +1081,25 @@ func main() {
 	//Init Server Object and gRPC server
 	s := NewServer(dbClient, s3Client)
 	//add interceptor ie middleware to validate user
+
+	var unaryInt grpc.UnaryServerInterceptor
+	var streamInt grpc.StreamServerInterceptor
+
+	if cwm != nil {
+		unaryInt = cloudwatchUnaryInterceptor(cwm, unaryInterceptor(dbClient))
+		streamInt = cloudwatchStreamInterceptor(cwm, streamInterceptor(dbClient))
+	} else {
+		unaryInt = unaryInterceptor(dbClient)
+		streamInt = streamInterceptor(dbClient)
+	}
+
 	g := grpc.NewServer(
 		grpc.KeepaliveParams(keepalive.ServerParameters{
 			MaxConnectionAge:      5 * time.Minute,
 			MaxConnectionAgeGrace: 30 * time.Second,
 		}),
-		grpc.UnaryInterceptor(unaryInterceptor(dbClient)),
-		grpc.StreamInterceptor(streamInterceptor(dbClient)),
+		grpc.UnaryInterceptor(unaryInt),
+		grpc.StreamInterceptor(streamInt),
 	)
 	//Register server object into gRPC server
 	proto.RegisterServerServer(g, s)

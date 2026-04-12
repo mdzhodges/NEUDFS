@@ -47,8 +47,8 @@ func NewS3Client(cfg aws.Config, endpoint string) *s3.Client {
 func TestMain(m *testing.M) {
 	var cfg aws.Config
 	var err error
-
-	if os.Getenv("TEST_ENV") == "aws" {
+	testEnv := os.Getenv("TEST_ENV")
+	if testEnv == "aws" || testEnv == "aws-remote" {
 		// Use real AWS credentials and endpoints
 		cfg, err = config.LoadDefaultConfig(context.TODO(),
 			config.WithRegion("us-east-1"),
@@ -220,14 +220,33 @@ func downloadFile(t *testing.T, email, filename string) (string, error) {
 }
 
 func setupTest(t *testing.T) func() {
-	lis := bufconn.Listen(1024 * 1024)
+	if os.Getenv("TEST_ENV") == "aws-remote" {
+		// Connect to real Fargate server through NLB
+		addr := os.Getenv("NLB_ADDR")
+		if addr == "" {
+			t.Fatal("NLB_ADDR env var required for aws-remote tests")
+		}
+		conn, err := grpc.DialContext(context.Background(), addr,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		testClient = proto.NewServerClient(conn)
+		testConn = conn
 
+		return func() {
+			conn.Close()
+		}
+	}
+
+	// Existing local bufconn setup
+	lis := bufconn.Listen(1024 * 1024)
 	srv := grpc.NewServer(
 		grpc.UnaryInterceptor(unaryInterceptor(dbClient)),
 		grpc.StreamInterceptor(streamInterceptor(dbClient)),
 	)
 	proto.RegisterServerServer(srv, NewServer(dbClient, s3Client))
-
 	go srv.Serve(lis)
 
 	conn, err := grpc.DialContext(context.Background(), "bufnet",
@@ -239,7 +258,6 @@ func setupTest(t *testing.T) func() {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	testClient = proto.NewServerClient(conn)
 	testConn = conn
 
