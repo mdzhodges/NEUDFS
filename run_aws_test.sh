@@ -78,18 +78,13 @@ else
   echo ""
   echo "==> Tests complete."
 fi
-
 # ─────────────────────────────────────────────────────
-# Print connection info
+# Create Current Student Json file
 # ─────────────────────────────────────────────────────
-echo ""
-echo "==> Deployment ready!"
-echo "    Connect with:"
-echo "    ./grpc-client -addr \"$NLB_DNS\""
-echo ""
-
+aws dynamodb get-item --table-name classroom_metadata --key '{"pk":{"S":"CS5010"},"sk":{"S":"class_info"}}' --query 'Item.students.L[*].S' --output json > k6/students.json
 # Print sample emails
 echo "==> Sample login emails:"
+PROFESSOR_EMAIL=""
 for role in professor student; do
   EMAIL=$(aws dynamodb scan \
     --table-name "$USER_TABLE" \
@@ -102,6 +97,16 @@ for role in professor student; do
     --output text 2>/dev/null)
   if [ "$EMAIL" != "None" ] && [ -n "$EMAIL" ]; then
     echo "    [$role] $EMAIL"
+        if ["$role" = "professor"]
+            PROFESSOR_EMAIL=$EMAIL
   fi
 done
 echo ""
+# Run or SKIP K6 Test
+# ─────────────────────────────────────────────────────
+if ["$SKIP_TEST" = true]; then
+    echo "==> Skipping K6 Test (--skip-test flag)."
+else
+    k6 run --out json=results.json -e NLB_ADDR=$NLB_DNS -e PROFESSOR_EMAIL=$PROFESSOR_EMAIL k6/load_test.js
+
+
