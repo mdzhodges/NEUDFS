@@ -26,6 +26,7 @@ func main() {
 	}
 
 	a := app.New()
+	a.Settings().SetTheme(newNEUTheme())
 	w := a.NewWindow("NEUDFS GUI")
 	w.Resize(fyne.NewSize(980, 680))
 

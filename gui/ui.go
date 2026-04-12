@@ -79,7 +79,7 @@ func (s *state) buildLoginView() fyne.CanvasObject {
 
 	card := widget.NewCard(
 		"NEUDFS Login",
-		"Enter server address and your email (like the CLI client prompts).",
+		"",
 		container.NewVBox(
 			container.NewGridWithColumns(2,
 				widget.NewLabel("Server (host:port)"),
@@ -88,8 +88,6 @@ func (s *state) buildLoginView() fyne.CanvasObject {
 				s.emailEntry,
 			),
 			container.NewHBox(loginBtn, layout.NewSpacer(), s.status),
-			widget.NewSeparator(),
-			widget.NewLabel("Tip: for the deployed AWS stack, use the Terraform output `server_address` (NLB DNS + :8080)."),
 		),
 	)
 

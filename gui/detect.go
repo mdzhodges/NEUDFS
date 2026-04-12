@@ -1,13 +1,19 @@
 package main
 
 import (
+	"bytes"
+	"context"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 func detectDefaultServerAddr() string {
+	const fallback = "127.0.0.1:50051"
+
 	if v := strings.TrimSpace(os.Getenv("NEUDFS_SERVER_ADDR")); v != "" {
 		return v
 	}
@@ -17,21 +23,47 @@ func detectDefaultServerAddr() string {
 
 	tfDir := findTerraformDir()
 	if tfDir == "" {
-		return "127.0.0.1:50051"
+		return fallback
 	}
 	if _, err := os.Stat(filepath.Join(tfDir, "terraform.tfstate")); err != nil {
-		return "127.0.0.1:50051"
+		return fallback
 	}
 
-	out, err := exec.Command("terraform", "-chdir="+tfDir, "output", "-raw", "server_address").Output()
-	if err != nil {
-		return "127.0.0.1:50051"
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "terraform", "-chdir="+tfDir, "output", "-no-color", "-raw", "server_address")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return fallback
 	}
-	addr := strings.TrimSpace(string(out))
-	if addr == "" {
-		return "127.0.0.1:50051"
+	addr := strings.TrimSpace(stdout.String())
+	if !isLikelyServerAddr(addr) {
+		return fallback
 	}
 	return addr
+}
+
+func isLikelyServerAddr(addr string) bool {
+	if addr == "" {
+		return false
+	}
+	if strings.Contains(addr, "://") {
+		return false
+	}
+	if strings.Contains(addr, "Warning:") || strings.Contains(addr, "No outputs found") {
+		return false
+	}
+	if strings.ContainsAny(addr, " \t\r\n") {
+		return false
+	}
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return false
+	}
+	return host != "" && port != ""
 }
 
 func findTerraformDir() string {
