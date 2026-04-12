@@ -90,5 +90,8 @@ variable "max_capacity" {
 }
 variable "s3_bucket_name" {
   type=string
-  default = "neudfs-storage-dev"
+}
+
+variable "image" {
+  type=string
 }

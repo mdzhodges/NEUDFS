@@ -45,19 +45,33 @@ func NewS3Client(cfg aws.Config, endpoint string) *s3.Client {
 }
 
 func TestMain(m *testing.M) {
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion("us-east-1"),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("fake", "fake", "fake")),
-	)
-	if err != nil {
-		log.Fatal(err)
+	var cfg aws.Config
+	var err error
+
+	if os.Getenv("TEST_ENV") == "aws" {
+		// Use real AWS credentials and endpoints
+		cfg, err = config.LoadDefaultConfig(context.TODO(),
+			config.WithRegion("us-east-1"),
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
+		dbClient = dynamodb.NewFromConfig(cfg)
+		s3Client = s3.NewFromConfig(cfg)
+	} else {
+		// Local setup
+		cfg, err = config.LoadDefaultConfig(context.TODO(),
+			config.WithRegion("us-east-1"),
+			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("fake", "fake", "fake")),
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
+		dbClient = dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
+			o.BaseEndpoint = aws.String("http://localhost:8000")
+		})
+		s3Client = NewS3Client(cfg, "http://localhost:4566")
 	}
-
-	dbClient = dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
-		o.BaseEndpoint = aws.String("http://localhost:8000")
-	})
-
-	s3Client = NewS3Client(cfg, "http://localhost:4566")
 
 	os.Exit(m.Run())
 }
@@ -141,6 +155,12 @@ func getStudentEmails(t *testing.T, className string) []string {
 	var classInfo ClassInfo
 	attributevalue.UnmarshalMap(result.Item, &classInfo)
 	return classInfo.Students
+}
+
+func resetUserDirectory(t *testing.T, email string) {
+	t.Helper()
+	ctx := ctxForUser(email)
+	testClient.ChangeDirectory(ctx, &proto.ChangeDirectoryRequest{Folder: ""})
 }
 
 // uploadFile sends a file via the gRPC upload stream.
@@ -237,7 +257,14 @@ func TestConcurrentUploads(t *testing.T) {
 	cleanup := setupTest(t)
 	defer cleanup()
 
+	// Reset all users to root first
+	teacherEmail := getProfessorEmail(t, "CS5010")
+	resetUserDirectory(t, teacherEmail)
 	students := getStudentEmails(t, "CS5010")
+	for _, email := range students {
+		resetUserDirectory(t, email)
+	}
+
 	var wg sync.WaitGroup
 	errs := make(chan error, len(students))
 
@@ -286,7 +313,13 @@ func TestReadWhileWriting(t *testing.T) {
 	cleanup := setupTest(t)
 	defer cleanup()
 
+	// Reset all users to root first
 	teacherEmail := getProfessorEmail(t, "CS5010")
+	resetUserDirectory(t, teacherEmail)
+	students := getStudentEmails(t, "CS5010")
+	for _, email := range students {
+		resetUserDirectory(t, email)
+	}
 	navigateTo(t, teacherEmail, "Khoury")
 	navigateTo(t, teacherEmail, "CS5010")
 	navigateTo(t, teacherEmail, "announcements")
@@ -325,7 +358,6 @@ func TestReadWhileWriting(t *testing.T) {
 	}()
 
 	// Students download concurrently
-	students := getStudentEmails(t, "CS5010")
 	for _, email := range students {
 		navigateTo(t, email, "Khoury")
 		navigateTo(t, email, "CS5010")
@@ -367,6 +399,7 @@ func TestReadWhileWriting(t *testing.T) {
 	if successCount < expectedMin {
 		t.Errorf("only %d successful downloads, expected at least %d", successCount, expectedMin)
 	}
+
 }
 
 // ─────────────────────────────────────────────────────
@@ -377,7 +410,14 @@ func TestDeleteDuringDownload(t *testing.T) {
 	cleanup := setupTest(t)
 	defer cleanup()
 
+	// Reset all users to root first
 	teacherEmail := getProfessorEmail(t, "CS5010")
+	resetUserDirectory(t, teacherEmail)
+	students := getStudentEmails(t, "CS5010")
+	for _, email := range students {
+		resetUserDirectory(t, email)
+	}
+
 	navigateTo(t, teacherEmail, "Khoury")
 	navigateTo(t, teacherEmail, "CS5010")
 	navigateTo(t, teacherEmail, "announcements")
@@ -391,7 +431,6 @@ func TestDeleteDuringDownload(t *testing.T) {
 		t.Fatalf("seed upload failed: %v", err)
 	}
 
-	students := getStudentEmails(t, "CS5010")
 	for _, email := range students {
 		navigateTo(t, email, "Khoury")
 		navigateTo(t, email, "CS5010")
@@ -485,7 +524,13 @@ func TestDeleteFolderDuringDownload(t *testing.T) {
 	cleanup := setupTest(t)
 	defer cleanup()
 
+	// Reset all users to root first
 	teacherEmail := getProfessorEmail(t, "CS5010")
+	resetUserDirectory(t, teacherEmail)
+	students := getStudentEmails(t, "CS5010")
+	for _, email := range students {
+		resetUserDirectory(t, email)
+	}
 	navigateTo(t, teacherEmail, "Khoury")
 	navigateTo(t, teacherEmail, "CS5010")
 	navigateTo(t, teacherEmail, "announcements")
@@ -499,7 +544,6 @@ func TestDeleteFolderDuringDownload(t *testing.T) {
 		}
 	}
 
-	students := getStudentEmails(t, "CS5010")
 	for _, email := range students {
 		navigateTo(t, email, "Khoury")
 		navigateTo(t, email, "CS5010")
@@ -588,7 +632,12 @@ func TestStudentPermissions(t *testing.T) {
 	cleanup := setupTest(t)
 	defer cleanup()
 
+	teacherEmail := getProfessorEmail(t, "CS5010")
+	resetUserDirectory(t, teacherEmail)
 	students := getStudentEmails(t, "CS5010")
+	for _, email := range students {
+		resetUserDirectory(t, email)
+	}
 	student1 := students[0]
 	student2 := students[1]
 

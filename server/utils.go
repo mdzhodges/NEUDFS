@@ -228,10 +228,10 @@ func (s *server) createFolderMetadata(className, sk, name, owner, fullPath strin
 // renameFileMetadata replaces a file's metadata in DynamoDB to simulate a rename.
 // Because the file path is the Sort Key (SK), we cannot simply use UpdateItem.
 // We must Get the old item, Put a new item with the new SK, and Delete the old item.
-func (s *server) renameFileMetadata(className, oldSK, newSK, newName, newFullPath string) error {
+func (s *server) renameFileMetadata(ctx context.Context, className, oldSK, newSK, newName, newFullPath string) error {
 
 	// GET the existing file metadata using the old SK
-	getResult, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
+	getResult, err := s.DB.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(metadataTable),
 		Key: map[string]types.AttributeValue{
 			"pk": &types.AttributeValueMemberS{Value: className},
@@ -607,7 +607,7 @@ func (s *server) uploadToS3(content []byte, filePath string) (string, error) {
 	return s3Url, nil
 }
 
-func (s *server) uploadFileMetadata(className, sk, name, owner, fullPath, s3Url string) error {
+func (s *server) uploadFileMetadata(ctx context.Context, className, sk, name, owner, fullPath, s3Url string) error {
 	item, err := attributevalue.MarshalMap(Metadata{
 		PK:       className,
 		SK:       sk,
@@ -620,7 +620,7 @@ func (s *server) uploadFileMetadata(className, sk, name, owner, fullPath, s3Url 
 	if err != nil {
 		return err
 	}
-	_, err = s.DB.PutItem(context.TODO(), &dynamodb.PutItemInput{
+	_, err = s.DB.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: aws.String(metadataTable),
 		Item:      item,
 	})

@@ -535,7 +535,7 @@ func (s *server) Rename(ctx context.Context, in *proto.RenameRequest) (*proto.Re
 	newSK := pathWithinClass + in.Name
 
 	// Update DynamoDB using the helpe
-	err := s.renameFileMetadata(className, oldSK, newSK, in.Name, cd+in.Name)
+	err := s.renameFileMetadata(ctx, className, oldSK, newSK, in.Name, cd+in.Name)
 	if err != nil {
 		if err.Error() == "file not found" {
 			return nil, status.Errorf(codes.NotFound, "file '%s' does not exist or is a directory", in.Entry)
@@ -872,7 +872,7 @@ func (s *server) Upload(stream proto.Server_UploadServer) error {
 	}
 
 	// Save metadata to DynamoDB
-	err = s.uploadFileMetadata(className, pathWithinClass+"/"+meta.Name, meta.Name, email, cd+"/"+meta.Name, url)
+	err = s.uploadFileMetadata(ctx, className, pathWithinClass+meta.Name, meta.Name, email, cd+"/"+meta.Name, url)
 	if err != nil {
 		logger("Failed to save file metadata to DynamoDB", err)
 		return status.Errorf(codes.Internal, "failed to save file metadata")
@@ -1072,6 +1072,7 @@ func main() {
 		if endpointS3 != "" {
 			o.BaseEndpoint = aws.String(endpointS3)
 			o.UsePathStyle = true
+			o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
 		}
 	})
 	//Init Server Object and gRPC server
