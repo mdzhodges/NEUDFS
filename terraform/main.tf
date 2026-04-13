@@ -49,6 +49,7 @@ module "dynamodb" {
 module "s3_storage" {
   source      = "./modules/s3_storage"
   environment = var.environment
+  lab_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/LabRole"
 }
 
 module "ecr" {
@@ -91,9 +92,9 @@ module "ecs" {
   log_group_name      = module.logging.log_group_name
   user_table_name     = module.dynamodb.user_table_name
   metadata_table_name = module.dynamodb.metadata_table_name
+  s3_bucket_name      = module.s3_storage.bucket_id
 
   target_group_arn = module.nlb.target_group_arn
-  s3_bucket_name = module.s3_storage.bucket_name
 }
 
 resource "docker_image" "server" {
@@ -102,7 +103,7 @@ resource "docker_image" "server" {
 
   build {
     context    = "${path.module}/.."
-    dockerfile = "server/Dockerfile"
+    dockerfile = "Dockerfile"
   }
 }
 

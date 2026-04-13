@@ -14,6 +14,6 @@ WORKDIR /app
 
 COPY --from=builder /app/server .
 
-EXPOSE 8080
+EXPOSE 50051
 
-CMD ["./server", "-port", "8080"]
+CMD ["./server", "-port", "50051"]

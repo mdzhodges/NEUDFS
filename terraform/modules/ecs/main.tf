@@ -41,6 +41,10 @@ resource "aws_ecs_task_definition" "app" {
           value = var.environment
         },
         {
+          name  = "S3_BUCKET"
+          value = var.s3_bucket_name
+        },
+        {
           name  = "DYNAMODB_USER_TABLE"
           value = var.user_table_name
         },

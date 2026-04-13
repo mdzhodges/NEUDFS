@@ -26,3 +26,40 @@ resource "aws_s3_bucket_versioning" "versioning" {
     status = "Enabled"
   }
 }
+
+data "aws_iam_policy_document" "bucket_access" {
+  statement {
+    sid     = "AllowEcsTaskRoleList"
+    effect  = "Allow"
+    actions = ["s3:ListBucket"]
+
+    resources = [aws_s3_bucket.neudfs_bucket.arn]
+
+    principals {
+      type        = "AWS"
+      identifiers = [var.lab_role_arn]
+    }
+  }
+
+  statement {
+    sid    = "AllowEcsTaskRoleObjects"
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject",
+    ]
+
+    resources = ["${aws_s3_bucket.neudfs_bucket.arn}/*"]
+
+    principals {
+      type        = "AWS"
+      identifiers = [var.lab_role_arn]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "neudfs_bucket_policy" {
+  bucket = aws_s3_bucket.neudfs_bucket.id
+  policy = data.aws_iam_policy_document.bucket_access.json
+}

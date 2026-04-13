@@ -595,9 +595,10 @@ func (s *server) DownloadS3File(ctx context.Context, s3Url string) (*s3.GetObjec
 
 // Need to implement S3
 func (s *server) uploadToS3(content []byte, filePath string) (string, error) {
-	s3Url := "https://s3.amazonaws.com/neudfs-storage-dev/" + filePath
+	bucket := s3Bucket
+	s3Url := "https://s3.amazonaws.com/" + bucket + "/" + filePath
 	_, err := s.S3Client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket: aws.String(s3Bucket),
+		Bucket: aws.String(bucket),
 		Key:    aws.String(filePath),
 		Body:   bytes.NewReader(content),
 	})
