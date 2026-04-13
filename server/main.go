@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -23,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
@@ -36,7 +36,17 @@ var (
 	errMkdir                = status.Errorf(codes.Internal, "Unable to create a folder here")
 	errAlreadyExists        = status.Errorf(codes.Internal, "Folder already exists")
 	errFileCannotBeStreamed = status.Errorf(codes.InvalidArgument, "File cannot be streamed")
+	userTable               = envOrDefault("DYNAMODB_USER_TABLE", "user")
+	metadataTable           = envOrDefault("DYNAMODB_METADATA_TABLE", "classroom_metadata")
+	s3Bucket                = envOrDefault("S3_BUCKET", "neudfs-storage-dev")
 )
+
+func envOrDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
 
 type server struct {
 	proto.UnimplementedServerServer
@@ -102,7 +112,7 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 	// Depth >= 2: Entering a Subfolder (e.g. CS101 -> bob)
 	className := parts[1]
 	newCD := cd + in.Folder + "/"
-	classInfo, err := s.getClassInfo(className)
+	classInfo, err := s.getClassInfo(ctx, className)
 	if err != nil {
 		logger("Cannot query db for shared folders", err)
 		return nil, errDB
@@ -161,7 +171,7 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 
 	// Depth >= 2: Show Files/Folders in Class
 	className := parts[1]
-	classInfo, err := s.getClassInfo(className)
+	classInfo, err := s.getClassInfo(ctx, className)
 	if err != nil {
 		logger("Cannot query db for shared folders", err)
 		return nil, errDB
@@ -198,12 +208,12 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 		keyCondition = "pk = :pk AND begins_with(sk, :prefix)"
 		exprValues[":prefix"] = &types.AttributeValueMemberS{Value: pathWithinClass}
 	}
-
-	results, err := s.DB.Query(context.TODO(), &dynamodb.QueryInput{
-		TableName:                 aws.String("classroom_metadata"),
+	input := &dynamodb.QueryInput{
+		TableName:                 aws.String(metadataTable),
 		KeyConditionExpression:    aws.String(keyCondition),
 		ExpressionAttributeValues: exprValues,
-	})
+	}
+	results, err := s.queryAllPages(ctx, input)
 
 	if err != nil {
 		logger("Unable to query DB", err)
@@ -211,8 +221,8 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 	}
 
 	var entries []Metadata
-	if len(results.Items) != 0 {
-		attributevalue.UnmarshalListOfMaps(results.Items, &entries)
+	if len(results) != 0 {
+		attributevalue.UnmarshalListOfMaps(results, &entries)
 		for _, entry := range entries {
 			if !strings.HasPrefix(entry.SK, pathWithinClass) {
 				continue
@@ -272,8 +282,8 @@ func streamInterceptor(db *dynamodb.Client) grpc.StreamServerInterceptor {
 		if len(emails) == 0 {
 			return status.Error(codes.Unauthenticated, "no email provided in metadata")
 		}
-		result, err := db.GetItem(context.TODO(), &dynamodb.GetItemInput{
-			TableName: aws.String("user"),
+		result, err := db.GetItem(ctx, &dynamodb.GetItemInput{
+			TableName: aws.String(userTable),
 			Key: map[string]types.AttributeValue{
 				"email": &types.AttributeValueMemberS{Value: emails[0]},
 			},
@@ -289,8 +299,8 @@ func streamInterceptor(db *dynamodb.Client) grpc.StreamServerInterceptor {
 		err = attributevalue.UnmarshalMap(result.Item, &foundUser)
 		if foundUser.DirectoryTTL != 0 && time.Now().Unix() > foundUser.DirectoryTTL {
 			if foundUser.CurrentDirectory != "" {
-				db.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
-					TableName: aws.String("user"),
+				db.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+					TableName: aws.String(userTable),
 					Key: map[string]types.AttributeValue{
 						"email": &types.AttributeValueMemberS{Value: emails[0]},
 					},
@@ -333,8 +343,8 @@ func unaryInterceptor(db *dynamodb.Client) grpc.UnaryServerInterceptor {
 			return nil, status.Error(codes.Unauthenticated, "no email provided in metadata")
 		}
 		email := emails[0]
-		result, err := db.GetItem(context.TODO(), &dynamodb.GetItemInput{
-			TableName: aws.String("user"),
+		result, err := db.GetItem(ctx, &dynamodb.GetItemInput{
+			TableName: aws.String(userTable),
 			Key: map[string]types.AttributeValue{
 				"email": &types.AttributeValueMemberS{Value: email},
 			},
@@ -350,8 +360,8 @@ func unaryInterceptor(db *dynamodb.Client) grpc.UnaryServerInterceptor {
 		err = attributevalue.UnmarshalMap(result.Item, &foundUser)
 		if foundUser.DirectoryTTL != 0 && time.Now().Unix() > foundUser.DirectoryTTL {
 			if foundUser.CurrentDirectory != "" {
-				db.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
-					TableName: aws.String("user"),
+				db.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+					TableName: aws.String(userTable),
 					Key: map[string]types.AttributeValue{
 						"email": &types.AttributeValueMemberS{Value: email},
 					},
@@ -408,7 +418,7 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 			return nil, errMkdir
 		}
 		var classInfo ClassInfo
-		classInfo, err := s.getClassInfo(className)
+		classInfo, err := s.getClassInfo(ctx, className)
 		if err != nil {
 			logger("Unable to get class info", err)
 			return nil, errDB
@@ -432,12 +442,12 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 	if user.Role == "student" {
 		isAllowed := false
 		userFolders := user.Colleges[collegeName].Classes[className].Folders
-		
+
 		// Look through the folders the student already owns in this class
 		for _, ownedFolder := range userFolders {
 			// Extract their base root directory ("victor" from "victor/notes")
 			baseFolder := strings.Split(ownedFolder, "/")[0]
-			
+
 			// check if their current path falls under their base folder
 			if strings.HasPrefix(pathWithinClass, baseFolder+"/") || pathWithinClass == baseFolder {
 				isAllowed = true
@@ -460,7 +470,7 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 		}
 		return &proto.MakeDirectoryResponse{Message: "Added " + newFolder + " to directory"}, nil
 	}
-	classInfo, err := s.getClassInfo(className)
+	classInfo, err := s.getClassInfo(ctx, className)
 	if err != nil {
 		logger("Cannot query db for shared folders", err)
 		return nil, errDB
@@ -471,7 +481,7 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 	for _, studentEmail := range classInfo.Students {
 		if strings.Split(studentEmail, "@")[0] == studentName {
 			isStudentFolder = true
-			foundUser, err := s.getUser(studentEmail)
+			foundUser, err := s.getUser(ctx, studentEmail)
 			if err != nil {
 				logger("Unable to get student user", err)
 				return nil, errDB
@@ -525,7 +535,7 @@ func (s *server) Rename(ctx context.Context, in *proto.RenameRequest) (*proto.Re
 	newSK := pathWithinClass + in.Name
 
 	// Update DynamoDB using the helpe
-	err := s.renameFileMetadata(className, oldSK, newSK, in.Name, cd+in.Name)
+	err := s.renameFileMetadata(ctx, className, oldSK, newSK, in.Name, cd+in.Name)
 	if err != nil {
 		if err.Error() == "file not found" {
 			return nil, status.Errorf(codes.NotFound, "file '%s' does not exist or is a directory", in.Entry)
@@ -544,7 +554,7 @@ func (s *server) Rename(ctx context.Context, in *proto.RenameRequest) (*proto.Re
 // starting at pathWithinClass, and returns their SKs relative to pathWithinClass
 // with entryPrefix prepended. If allowedFolders is non-nil, only entries whose
 // SK falls within one of those folders are returned (student access control).
-func (s *server) queryClassEntries(className, pathWithinClass, entryPrefix string, allowedFolders []string) ([]string, error) {
+func (s *server) queryClassEntries(ctx context.Context, className, pathWithinClass, entryPrefix string, allowedFolders []string) ([]string, error) {
 	keyCondition := "pk = :pk"
 	exprValues := map[string]types.AttributeValue{
 		":pk": &types.AttributeValueMemberS{Value: className},
@@ -553,18 +563,18 @@ func (s *server) queryClassEntries(className, pathWithinClass, entryPrefix strin
 		keyCondition = "pk = :pk AND begins_with(sk, :prefix)"
 		exprValues[":prefix"] = &types.AttributeValueMemberS{Value: pathWithinClass}
 	}
-
-	results, err := s.DB.Query(context.TODO(), &dynamodb.QueryInput{
-		TableName:                 aws.String("classroom_metadata"),
+	input := &dynamodb.QueryInput{
+		TableName:                 aws.String(metadataTable),
 		KeyConditionExpression:    aws.String(keyCondition),
 		ExpressionAttributeValues: exprValues,
-	})
+	}
+	results, err := s.queryAllPages(ctx, input)
 	if err != nil {
 		return nil, err
 	}
 
 	var dbEntries []Metadata
-	attributevalue.UnmarshalListOfMaps(results.Items, &dbEntries)
+	attributevalue.UnmarshalListOfMaps(results, &dbEntries)
 
 	set := make(map[string]bool)
 	var entries []string
@@ -599,11 +609,11 @@ func (s *server) queryClassEntries(className, pathWithinClass, entryPrefix strin
 
 // allowedFoldersForClass returns the folders a student may see in a class
 // (their own folders + shared folders). Returns nil for teachers (no filter).
-func (s *server) allowedFoldersForClass(user User, collegeName, className string) []string {
+func (s *server) allowedFoldersForClass(ctx context.Context, user User, collegeName, className string) []string {
 	if user.Role == "teacher" {
 		return nil
 	}
-	classInfo, err := s.getClassInfo(className)
+	classInfo, err := s.getClassInfo(ctx, className)
 	allowed := append([]string{}, user.Colleges[collegeName].Classes[className].Folders...)
 	if err == nil {
 		allowed = append(allowed, classInfo.SharedFolders...)
@@ -625,7 +635,7 @@ func (s *server) TreeDirectory(ctx context.Context, in *proto.TreeDirectoryReque
 			for className := range college.Classes {
 				classPrefix := collegeName + "/" + className + "/"
 				entries = append(entries, classPrefix)
-				classEntries, err := s.queryClassEntries(className, "", classPrefix, s.allowedFoldersForClass(user, collegeName, className))
+				classEntries, err := s.queryClassEntries(ctx, className, "", classPrefix, s.allowedFoldersForClass(ctx, user, collegeName, className))
 				if err != nil {
 					logger("Unable to query DB for class %s", className)
 					return nil, errDB
@@ -644,7 +654,7 @@ func (s *server) TreeDirectory(ctx context.Context, in *proto.TreeDirectoryReque
 		for className := range user.Colleges[collegeName].Classes {
 			classPrefix := className + "/"
 			entries = append(entries, classPrefix)
-			classEntries, err := s.queryClassEntries(className, "", classPrefix, s.allowedFoldersForClass(user, collegeName, className))
+			classEntries, err := s.queryClassEntries(ctx, className, "", classPrefix, s.allowedFoldersForClass(ctx, user, collegeName, className))
 			if err != nil {
 				logger("Unable to query DB for class %s", className)
 				return nil, errDB
@@ -657,7 +667,7 @@ func (s *server) TreeDirectory(ctx context.Context, in *proto.TreeDirectoryReque
 	// Depth >= 2: query DynamoDB for all items under the current path
 	className := parts[1]
 	pathWithinClass := strings.TrimPrefix(cd, collegeName+"/"+className+"/")
-	classEntries, err := s.queryClassEntries(className, pathWithinClass, "", s.allowedFoldersForClass(user, collegeName, className))
+	classEntries, err := s.queryClassEntries(ctx, className, pathWithinClass, "", s.allowedFoldersForClass(ctx, user, collegeName, className))
 	if err != nil {
 		logger("Unable to query DB", err)
 		return nil, errDB
@@ -690,7 +700,7 @@ func (s *server) RenameDirectory(ctx context.Context, in *proto.RenameRequest) (
 	newPrefix := pathWithinClass + in.Name
 
 	// Call our new DB helper
-	err := s.renameDirectoryMetadata(className, oldPrefix, newPrefix)
+	err := s.renameDirectoryMetadata(ctx, className, oldPrefix, newPrefix)
 	if err != nil {
 		if err.Error() == "directory not found" {
 			return nil, status.Errorf(codes.NotFound, "directory '%s' does not exist", in.Entry)
@@ -700,7 +710,7 @@ func (s *server) RenameDirectory(ctx context.Context, in *proto.RenameRequest) (
 	}
 
 	// sync with permissions array
-	s.updateFolderLists(email, parts[0], className, oldPrefix, newPrefix)
+	s.updateFolderLists(ctx, email, parts[0], className, oldPrefix, newPrefix)
 
 	return &proto.RenameResponse{
 		Message: fmt.Sprintf("Successfully renamed directory %s to %s", in.Entry, in.Name),
@@ -708,31 +718,63 @@ func (s *server) RenameDirectory(ctx context.Context, in *proto.RenameRequest) (
 }
 func (s *server) Download(req *proto.DownloadRequest, stream proto.Server_DownloadServer) error {
 	// Grab user from your interceptor context
-	user := stream.Context().Value("User").(User)
+	ctx := stream.Context()
+	user := ctx.Value("User").(User)
 	cd := user.CurrentDirectory
 	cd = strings.TrimSuffix(cd, "/")
 	depth := GetDepth(cd)
 	if depth < 2 {
 		return status.Errorf(codes.PermissionDenied, "must be inside a class to download files")
 	}
-	s3Key := cd + "/" + req.Name
-	result, err := s.DownloadS3File(s3Key)
+	collegeName, className, pathWithinClass := parsePath(cd + "/")
+	fileSK := pathWithinClass + req.Name
+	result, err := s.DB.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(metadataTable),
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: className},
+			"sk": &types.AttributeValueMemberS{Value: fileSK},
+		},
+	})
+	if err != nil {
+		logger("Failed to look up file metadata: %v", err)
+		return status.Errorf(codes.Internal, "failed to look up file")
+	}
+	if result.Item == nil {
+		return status.Errorf(codes.NotFound, "file %q not found", req.Name)
+	}
+	var meta Metadata
+	if err := attributevalue.UnmarshalMap(result.Item, &meta); err != nil {
+		logger("Failed to unmarshal file metadata: %v", err)
+		return status.Errorf(codes.Internal, "failed to read file metadata")
+	}
+	if meta.Type != "file" {
+		return status.Errorf(codes.InvalidArgument, "%q is not a file", req.Name)
+	}
+
+	s3Key := collegeName + "/" + className + "/" + fileSK
+	s3Result, err := s.DownloadS3File(ctx, s3Key)
 	if err != nil {
 		logger("Failed to download file from S3", err)
 		return status.Errorf(codes.Internal, "failed to download file")
 	}
-	if result == nil {
+	if s3Result == nil {
 		logger("S3 download returned nil result", fmt.Errorf("nil result"))
 		return status.Errorf(codes.Internal, "failed to download file")
 	}
-	defer result.Body.Close()
+	defer s3Result.Body.Close()
 	buf := make([]byte, 64*1024)
 	for {
-		n, err := result.Body.Read(buf)
+		// Check if client disconnected before each read
+		select {
+		case <-ctx.Done():
+			return status.Errorf(codes.Canceled, "client disconnected")
+		default:
+		}
+		n, err := s3Result.Body.Read(buf)
 		if n > 0 {
-			stream.Send(&proto.DownloadResponse{
-				Data: buf[:n],
-			})
+			if sendErr := stream.Send(&proto.DownloadResponse{Data: buf[:n]}); sendErr != nil {
+				return status.Errorf(codes.Internal, "failed to send chunk")
+			}
 		}
 		if err == io.EOF {
 			break
@@ -754,13 +796,13 @@ Save the metadata to DynamoDB — the file's path relative to the user's current
 Return the response via stream.SendAndClose() with whatever info the client needs (success/failure, the file path, etc.).
 */
 func (s *server) Upload(stream proto.Server_UploadServer) error {
-	// Grab user from your interceptor context
-	user := stream.Context().Value("User").(User)
+	ctx := stream.Context()
+	user := ctx.Value("User").(User)
 	email := user.Email
-	cd := user.CurrentDirectory
-	cd = strings.TrimSuffix(cd, "/")
+	cd := strings.TrimSuffix(user.CurrentDirectory, "/")
 	depth := GetDepth(cd)
 	role := user.Role
+
 	if depth < 2 {
 		return status.Errorf(codes.PermissionDenied, "must be inside a class to upload files")
 	}
@@ -768,11 +810,8 @@ func (s *server) Upload(stream proto.Server_UploadServer) error {
 		return status.Errorf(codes.PermissionDenied, "students must be inside their personal folder to upload files")
 	}
 
-	parts := strings.Split(cd, "/")
-	collegeName := parts[0]
-	className := parts[1]
-	pathWithinClass := strings.TrimPrefix(cd, collegeName+"/"+className+"/")
-	//Checks for a student if they are trying to upload outside of their personal folder
+	collegeName, className, pathWithinClass := parsePath(cd + "/")
+
 	if role == "student" {
 		personalFolders := user.Colleges[collegeName].Classes[className].Folders
 		isAllowed := false
@@ -786,49 +825,59 @@ func (s *server) Upload(stream proto.Server_UploadServer) error {
 			return status.Errorf(codes.PermissionDenied, "you do not have permission to upload files to this directory")
 		}
 	}
+
+	// First message must contain metadata
 	req, err := stream.Recv()
 	if err != nil {
 		logger("Failed to receive upload metadata", err)
 		return errFileCannotBeStreamed
 	}
 	meta := req.GetMetadata()
-	if meta == nil {
+	if meta == nil || meta.Name == "" || meta.ContentType == "" {
 		return errFileCannotBeStreamed
 	}
-	filename := meta.Name
-	contentType := meta.ContentType
-	if filename == "" || contentType == "" {
-		return errFileCannotBeStreamed
+
+	s3Key := cd + "/" + meta.Name
+
+	mp, err := s.NewMultipartUpload(ctx, s3Key, meta.ContentType)
+	if err != nil {
+		logger("Failed to initiate multipart upload", err)
+		return status.Errorf(codes.Internal, "failed to start upload")
 	}
-	var buf bytes.Buffer
+
+	// Stream chunks directly to S3
 	for {
 		req, err = stream.Recv()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			return err
+			mp.Abort(ctx)
+			return status.Errorf(codes.Internal, "error receiving chunk")
 		}
-		buf.Write(req.GetChunk())
+		if chunk := req.GetChunk(); len(chunk) > 0 {
+			if err := mp.Write(ctx, chunk); err != nil {
+				mp.Abort(ctx)
+				logger("Failed to upload part", err)
+				return status.Errorf(codes.Internal, "failed to upload file part")
+			}
+		}
 	}
-	s3Key := cd + "/" + filename
-	url, err := s.uploadToS3(buf.Bytes(), s3Key)
+
+	url, err := mp.Complete(ctx)
 	if err != nil {
-		logger("Failed to upload file to S3", err)
-		return status.Errorf(codes.Internal, "failed to upload file")
+		mp.Abort(ctx)
+		logger("Failed to complete multipart upload", err)
+		return status.Errorf(codes.Internal, "failed to complete upload")
 	}
-	if url == "" {
-		logger("S3 upload returned empty URL", fmt.Errorf("empty URL"))
-		return status.Errorf(codes.Internal, "failed to upload file")
-	}
-	err = s.uploadFileMetadata(className, pathWithinClass+"/"+filename, filename, email, cd+"/"+filename, url)
+
+	// Save metadata to DynamoDB
+	err = s.uploadFileMetadata(ctx, className, pathWithinClass+meta.Name, meta.Name, email, cd+"/"+meta.Name, url)
 	if err != nil {
 		logger("Failed to save file metadata to DynamoDB", err)
 		return status.Errorf(codes.Internal, "failed to save file metadata")
 	}
-	fmt.Println("cd:", cd)
-	fmt.Println("pathWithinClass:", pathWithinClass)
-	fmt.Println("s3Key:", s3Key)
+
 	return stream.SendAndClose(&proto.UploadResponse{Message: "uploaded"})
 }
 func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.DeleteResponse, error) {
@@ -852,13 +901,13 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 	// A student's root folder is any top-level class folder (no "/" in name) that
 	// appears in a student's personal folders list.
 	if depth == 2 && !strings.Contains(targetName, "/") {
-		classInfo, err := s.getClassInfo(className)
+		classInfo, err := s.getClassInfo(ctx, className)
 		if err != nil {
 			logger("Cannot query db for class info", err)
 			return nil, errDB
 		}
 		for _, studentEmail := range classInfo.Students {
-			studentUser, err := s.getUser(studentEmail)
+			studentUser, err := s.getUser(ctx, studentEmail)
 			if err != nil {
 				continue
 			}
@@ -892,8 +941,8 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 	}
 
 	// Check if target is a file (exact SK, no trailing slash)
-	fileResult, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
-		TableName: aws.String("classroom_metadata"),
+	fileResult, err := s.DB.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(metadataTable),
 		Key: map[string]types.AttributeValue{
 			"pk": &types.AttributeValueMemberS{Value: className},
 			"sk": &types.AttributeValueMemberS{Value: targetSK},
@@ -906,8 +955,8 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 
 	// Check if target is a folder (SK with trailing slash)
 	folderSK := targetSK + "/"
-	folderResult, err := s.DB.GetItem(context.TODO(), &dynamodb.GetItemInput{
-		TableName: aws.String("classroom_metadata"),
+	folderResult, err := s.DB.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(metadataTable),
 		Key: map[string]types.AttributeValue{
 			"pk": &types.AttributeValueMemberS{Value: className},
 			"sk": &types.AttributeValueMemberS{Value: folderSK},
@@ -925,11 +974,11 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 	// Delete a file
 	if fileResult.Item != nil {
 		s3Key := collegeName + "/" + className + "/" + targetSK
-		if err := s.DeleteS3File(s3Key); err != nil {
+		if err := s.DeleteS3File(ctx, s3Key); err != nil {
 			logger("Failed to delete S3 file %s: %v", s3Key, err)
 		}
-		_, err = s.DB.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
-			TableName: aws.String("classroom_metadata"),
+		_, err = s.DB.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+			TableName: aws.String(metadataTable),
 			Key: map[string]types.AttributeValue{
 				"pk": &types.AttributeValueMemberS{Value: className},
 				"sk": &types.AttributeValueMemberS{Value: targetSK},
@@ -943,20 +992,21 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 	}
 
 	// Delete a folder: query all items with the folder prefix then delete them
-	queryResult, err := s.DB.Query(context.TODO(), &dynamodb.QueryInput{
-		TableName:              aws.String("classroom_metadata"),
+	input := &dynamodb.QueryInput{
+		TableName:              aws.String(metadataTable),
 		KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :prefix)"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":pk":     &types.AttributeValueMemberS{Value: className},
 			":prefix": &types.AttributeValueMemberS{Value: folderSK},
 		},
-	})
+	}
+	queryResult, err := s.queryAllPages(ctx, input)
 	if err != nil {
 		logger("Failed to query folder contents: %v", err)
 		return nil, errDB
 	}
 
-	for _, item := range queryResult.Items {
+	for _, item := range queryResult {
 		var meta Metadata
 		if err := attributevalue.UnmarshalMap(item, &meta); err != nil {
 			logger("Failed to unmarshal item: %v", err)
@@ -964,12 +1014,12 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 		}
 		if meta.Type == "file" {
 			s3Key := collegeName + "/" + className + "/" + meta.SK
-			if err := s.DeleteS3File(s3Key); err != nil {
+			if err := s.DeleteS3File(ctx, s3Key); err != nil {
 				logger("Failed to delete S3 file %s: %v", s3Key, err)
 			}
 		}
-		_, err = s.DB.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
-			TableName: aws.String("classroom_metadata"),
+		_, err = s.DB.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+			TableName: aws.String(metadataTable),
 			Key: map[string]types.AttributeValue{
 				"pk": &types.AttributeValueMemberS{Value: className},
 				"sk": &types.AttributeValueMemberS{Value: meta.SK},
@@ -981,7 +1031,7 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 	}
 
 	// Remove deleted folder and its subfolders from permission arrays
-	s.removeFolderFromLists(collegeName, className, targetSK)
+	s.removeFolderFromLists(ctx, collegeName, className, targetSK)
 
 	return &proto.DeleteResponse{Message: fmt.Sprintf("Deleted folder %s", targetName)}, nil
 }
@@ -997,7 +1047,9 @@ func main() {
 	endpoint := os.Getenv("DYNAMODB_ENDPOINT")
 	endpointS3 := os.Getenv("S3_ENDPOINT")
 	isDev := endpoint != "" || endpointS3 != ""
+	env := os.Getenv("ENVIRONMENT")
 	var cfg aws.Config
+	var cwm *CloudWatchMetrics
 	if isDev {
 		cfg, err = config.LoadDefaultConfig(context.TODO(),
 			config.WithRegion("us-east-1"),
@@ -1005,6 +1057,7 @@ func main() {
 		)
 	} else {
 		cfg, err = config.LoadDefaultConfig(context.TODO(), config.WithRegion("us-east-1"))
+		cwm = NewCloudWatchMetrics(cfg, env)
 	}
 	if err != nil {
 		log.Fatal(err)
@@ -1022,13 +1075,32 @@ func main() {
 		if endpointS3 != "" {
 			o.BaseEndpoint = aws.String(endpointS3)
 			o.UsePathStyle = true
+			o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
 		}
 	})
 	//Init Server Object and gRPC server
 	s := NewServer(dbClient, s3Client)
 	//add interceptor ie middleware to validate user
-	g := grpc.NewServer(grpc.UnaryInterceptor(unaryInterceptor(dbClient)), grpc.StreamInterceptor(streamInterceptor(dbClient)))
 
+	var unaryInt grpc.UnaryServerInterceptor
+	var streamInt grpc.StreamServerInterceptor
+
+	if cwm != nil {
+		unaryInt = cloudwatchUnaryInterceptor(cwm, unaryInterceptor(dbClient))
+		streamInt = cloudwatchStreamInterceptor(cwm, streamInterceptor(dbClient))
+	} else {
+		unaryInt = unaryInterceptor(dbClient)
+		streamInt = streamInterceptor(dbClient)
+	}
+
+	g := grpc.NewServer(
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			MaxConnectionAge:      5 * time.Minute,
+			MaxConnectionAgeGrace: 30 * time.Second,
+		}),
+		grpc.UnaryInterceptor(unaryInt),
+		grpc.StreamInterceptor(streamInt),
+	)
 	//Register server object into gRPC server
 	proto.RegisterServerServer(g, s)
 	//Listen on TCP Port 5001

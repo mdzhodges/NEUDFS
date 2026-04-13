@@ -12,14 +12,14 @@ resource "aws_lb" "nlb" {
 
 resource "aws_lb_target_group" "grpc" {
   name        = "${var.app_name}-tg-${var.environment}"
-  port        = var.container_port
+  port        = 50051
   protocol    = "TCP"
   vpc_id      = var.vpc_id
   target_type = "ip"
 
   health_check {
     protocol            = "TCP"
-    port                = var.container_port
+    port                = 50051
     healthy_threshold   = 2
     unhealthy_threshold = 2
     interval            = 30
@@ -33,7 +33,7 @@ resource "aws_lb_target_group" "grpc" {
 
 resource "aws_lb_listener" "grpc" {
   load_balancer_arn = aws_lb.nlb.arn
-  port              = var.container_port
+  port              = 50051
   protocol          = "TCP"
 
   default_action {

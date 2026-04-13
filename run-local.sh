@@ -10,6 +10,7 @@ export AWS_SESSION_TOKEN="fake"
 export AWS_DEFAULT_REGION="us-east-1"
 export DYNAMODB_ENDPOINT="http://localhost:8000"
 export S3_ENDPOINT="http://localhost:4566"
+export S3_BUCKET="neudfs-storage-dev"
 
 # Parse flags
 KEEP_DATA=false
@@ -80,6 +81,7 @@ if [ "$KEEP_DATA" = true ]; then
   echo "==> Keeping existing data (--keep-data flag)."
 else
   echo "==> Wiping and re-seeding tables..."
+    aws --endpoint-url http://localhost:4566 s3 rm "s3://$S3_BUCKET" --recursive > /dev/null 2>&1 || true
   for table in user classroom_metadata; do
     aws dynamodb delete-table \
       --endpoint-url http://localhost:8000 \
@@ -159,6 +161,10 @@ for i in $(seq 1 40); do
   if nc -z localhost 50051 2>/dev/null; then
     echo "    Server ready."
     break
+  fi
+  if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+    echo "    ERROR: Server process died."
+    exit 1
   fi
   sleep 0.5
 done

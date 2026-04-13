@@ -1,6 +1,12 @@
 package main
 
-import "time"
+import (
+	"sync"
+	"time"
+
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
+	cwtypes "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+)
 
 type ClassInfo struct {
 	PK            string   `dynamodbav:"pk"`
@@ -34,4 +40,13 @@ type User struct {
 	Colleges         map[string]Classroom `dynamodbav:"colleges"`
 	CurrentDirectory string               `dynamodbav:"currentDirectory"`
 	DirectoryTTL     int64                `dynamodbav:"directoryTTL"`
+}
+
+type CloudWatchMetrics struct {
+	client    *cloudwatch.Client
+	namespace string
+	env       string
+
+	mu     sync.Mutex
+	buffer []cwtypes.MetricDatum
 }
