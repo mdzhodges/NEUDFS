@@ -36,7 +36,7 @@ func (c *CommandMap) change_dir(args []string) {
 	//request gRPC server for Changing Directory
 	message, err := c.Client.ChangeDirectory(ctx, &in)
 	if err != nil {
-		fmt.Errorf(err.Error())
+		fmt.Println(err.Error())
 		fmt.Println("Please try again")
 		return
 	}

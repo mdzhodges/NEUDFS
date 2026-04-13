@@ -93,9 +93,6 @@ variable "min_capacity" {
 variable "max_capacity" {
   default = 6
 }
-variable "s3_bucket_name" {
-  type=string
-}
 
 variable "image" {
   type=string

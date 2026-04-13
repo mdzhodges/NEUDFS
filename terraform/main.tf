@@ -95,7 +95,6 @@ module "ecs" {
   s3_bucket_name      = module.s3_storage.bucket_id
 
   target_group_arn = module.nlb.target_group_arn
-  s3_bucket_name = module.s3_storage.bucket_name
 }
 
 resource "docker_image" "server" {
@@ -104,7 +103,7 @@ resource "docker_image" "server" {
 
   build {
     context    = "${path.module}/.."
-    dockerfile = "server/Dockerfile"
+    dockerfile = "Dockerfile"
   }
 }
 
