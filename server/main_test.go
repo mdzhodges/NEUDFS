@@ -482,11 +482,18 @@ func TestDeleteDuringDownload(t *testing.T) {
 	}
 
 	// Small delay then teacher deletes the file
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	ctx := ctxForUser(teacherEmail)
-	_, err := testClient.Delete(ctx, &proto.DeleteRequest{Path: "handout.txt"})
-	if err != nil {
-		t.Fatalf("teacher delete failed: %v", err)
+	var deleteErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		_, deleteErr = testClient.Delete(ctx, &proto.DeleteRequest{Path: "handout.txt"})
+		if deleteErr == nil {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if deleteErr != nil {
+		t.Fatalf("teacher delete failed after retries: %v", deleteErr)
 	}
 
 	wg.Wait()

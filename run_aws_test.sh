@@ -11,7 +11,7 @@ unset S3_ENDPOINT
 echo "==> Reading Terraform outputs..."
 cd "$ROOT/terraform"
 S3_BUCKET=$(terraform output -raw s3_bucket_id)
-NLB_DNS=$(terraform output -raw server_address)
+NLB_DNS=$(terraform output -raw server_address | sed 's|https\?://||')
 USER_TABLE=$(terraform output -raw user_table_name)
 METADATA_TABLE=$(terraform output -raw metadata_table_name)
 
@@ -28,10 +28,12 @@ cd "$ROOT"
 # Parse flags
 SKIP_SEED=false
 SKIP_TEST=false
+SKIP_K6=false
 for arg in "$@"; do
   case $arg in
     --skip-seed) SKIP_SEED=true ;;
     --skip-test) SKIP_TEST=true ;;
+    --skip-k6) SKIP_K6=true ;;
   esac
 done
 
@@ -60,6 +62,10 @@ for i in $(seq 1 20); do
     break
   fi
   echo "    Target state: $HEALTH (attempt $i/20)..."
+  if ! kill -0 "$$" 2>/dev/null; then
+    echo "    ERROR: Script interrupted."
+    exit 1
+  fi
   if [ "$i" = "20" ]; then
     echo "    ERROR: Targets not healthy after 60 seconds."
     exit 1
@@ -74,39 +80,51 @@ if [ "$SKIP_TEST" = true ]; then
   echo "==> Skipping tests (--skip-test flag)."
 else
   echo "==> Running tests against AWS..."
-  NLB_ADDR=$NLB_DNS TEST_ENV=aws-remote go test ./server -v -count=1 -timeout 120s
+  NLB_ADDR="$NLB_DNS" TEST_ENV=aws-remote go test ./server -v -count=1 -timeout 120s
   echo ""
   echo "==> Tests complete."
 fi
+
 # ─────────────────────────────────────────────────────
-# Create Current Student Json file
+# Gather emails for k6
 # ─────────────────────────────────────────────────────
-aws dynamodb get-item --table-name classroom_metadata --key '{"pk":{"S":"CS5010"},"sk":{"S":"class_info"}}' --query 'Item.students.L[*].S' --output json > k6/students.json
-# Print sample emails
+echo "==> Gathering student and professor emails..."
+aws dynamodb get-item \
+  --table-name "$METADATA_TABLE" \
+  --key '{"pk":{"S":"CS5010"},"sk":{"S":"class_info"}}' \
+  --query 'Item.students.L[*].S' \
+  --output json > k6/students.json
+
+PROFESSOR_EMAIL=$(aws dynamodb scan \
+  --table-name "$USER_TABLE" \
+  --filter-expression "#r = :role" \
+  --expression-attribute-names '{"#r":"role"}' \
+  --expression-attribute-values '{":role":{"S":"professor"}}' \
+  --projection-expression "email" \
+  --query 'Items[0].email.S' \
+  --output json | tr -d '" \n\r\t')
+
 echo "==> Sample login emails:"
-PROFESSOR_EMAIL=""
-for role in professor student; do
-  EMAIL=$(aws dynamodb scan \
-    --table-name "$USER_TABLE" \
-    --filter-expression "#r = :role" \
-    --expression-attribute-names '{"#r":"role"}' \
-    --expression-attribute-values "{\":role\":{\"S\":\"$role\"}}" \
-    --projection-expression "email" \
-    --max-items 1 \
-    --query 'Items[0].email.S' \
-    --output text 2>/dev/null)
-  if [ "$EMAIL" != "None" ] && [ -n "$EMAIL" ]; then
-    echo "    [$role] $EMAIL"
-        if ["$role" = "professor"]
-            PROFESSOR_EMAIL=$EMAIL
-  fi
-done
+echo "    [professor] $PROFESSOR_EMAIL"
+FIRST_STUDENT=$(cat k6/students.json | python3 -c "import sys,json; print(json.load(sys.stdin)[0])" 2>/dev/null || echo "unknown")
+echo "    [student]   $FIRST_STUDENT"
 echo ""
-# Run or SKIP K6 Test
+
 # ─────────────────────────────────────────────────────
-if ["$SKIP_TEST" = true]; then
-    echo "==> Skipping K6 Test (--skip-test flag)."
+# Run K6 load test
+# ─────────────────────────────────────────────────────
+if [ "$SKIP_K6" = true ]; then
+  echo "==> Skipping K6 Test (--skip-k6 flag)."
 else
-    k6 run --out json=results.json -e NLB_ADDR=$NLB_DNS -e PROFESSOR_EMAIL=$PROFESSOR_EMAIL k6/load_test.js
+  echo "==> Running K6 load test..."
+  echo "    NLB:       $NLB_DNS"
+  echo "    Professor: $PROFESSOR_EMAIL"
+  k6 run --out json=k6_results.json \
+    -e NLB_ADDR="$NLB_DNS" \
+    -e PROFESSOR_EMAIL="$PROFESSOR_EMAIL" \
+    k6/load_test.js
+fi
 
-
+echo ""
+echo "==> Done! Connect with:"
+echo "    ./grpc-client -addr \"$NLB_DNS\""

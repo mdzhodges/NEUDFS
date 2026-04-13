@@ -114,7 +114,7 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 	newCD := cd + in.Folder + "/"
 	classInfo, err := s.getClassInfo(ctx, className)
 	if err != nil {
-		logger("Cannot query db for shared folders", err)
+		logger("Cannot query db for shared folders: %v", err)
 		return nil, errDB
 	}
 	// Calculate the relative path expected by the DB (e.g., "Khoury/CS101/bob/" -> "bob")
@@ -173,7 +173,7 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 	className := parts[1]
 	classInfo, err := s.getClassInfo(ctx, className)
 	if err != nil {
-		logger("Cannot query db for shared folders", err)
+		logger("Cannot query db for shared folders: %v", err)
 		return nil, errDB
 	}
 	set := make(map[string]bool)
@@ -216,7 +216,7 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 	results, err := s.queryAllPages(ctx, input)
 
 	if err != nil {
-		logger("Unable to query DB", err)
+		logger("Unable to query DB: %v", err)
 		return nil, errDB
 	}
 
@@ -289,7 +289,7 @@ func streamInterceptor(db *dynamodb.Client) grpc.StreamServerInterceptor {
 			},
 		})
 		if err != nil {
-			logger("Database error", err)
+			logger("Database error: %v", err)
 			return err
 		}
 		if result.Item == nil {
@@ -350,7 +350,7 @@ func unaryInterceptor(db *dynamodb.Client) grpc.UnaryServerInterceptor {
 			},
 		})
 		if err != nil {
-			logger("Database error", err)
+			logger("Database error: %v", err)
 			return nil, err
 		}
 		if result.Item == nil {
@@ -420,7 +420,7 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 		var classInfo ClassInfo
 		classInfo, err := s.getClassInfo(ctx, className)
 		if err != nil {
-			logger("Unable to get class info", err)
+			logger("Unable to get class info: %v", err)
 			return nil, errDB
 		}
 
@@ -428,11 +428,11 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 			return nil, errAlreadyExists
 		}
 		if err := s.updateSharedFolders(className, newFolderPath); err != nil {
-			logger("Unable to update shared folders", err)
+			logger("Unable to update shared folders: %v", err)
 			return nil, errDB
 		}
 		if err := s.createFolderMetadata(className, newFolderPath+"/", newFolder, email, cd+newFolder+"/"); err != nil {
-			logger("Unable to create folder metadata", err)
+			logger("Unable to create folder metadata: %v", err)
 			return nil, errDB
 		}
 		return &proto.MakeDirectoryResponse{Message: "Added " + newFolder + " to directory"}, nil
@@ -461,18 +461,18 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 			return nil, errAlreadyExists
 		}
 		if err := s.updateUserFolders(email, collegeName, className, newFolderPath); err != nil {
-			logger("Unable to update user folders", err)
+			logger("Unable to update user folders: %v", err)
 			return nil, errDB
 		}
 		if err := s.createFolderMetadata(className, newFolderPath+"/", newFolder, email, cd+newFolder+"/"); err != nil {
-			logger("Unable to create folder metadata", err)
+			logger("Unable to create folder metadata: %v", err)
 			return nil, errDB
 		}
 		return &proto.MakeDirectoryResponse{Message: "Added " + newFolder + " to directory"}, nil
 	}
 	classInfo, err := s.getClassInfo(ctx, className)
 	if err != nil {
-		logger("Cannot query db for shared folders", err)
+		logger("Cannot query db for shared folders: %v", err)
 		return nil, errDB
 	}
 
@@ -483,14 +483,14 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 			isStudentFolder = true
 			foundUser, err := s.getUser(ctx, studentEmail)
 			if err != nil {
-				logger("Unable to get student user", err)
+				logger("Unable to get student user: %v", err)
 				return nil, errDB
 			}
 			if slices.Contains(foundUser.Colleges[collegeName].Classes[className].Folders, newFolderPath) {
 				return nil, errAlreadyExists
 			}
 			if err := s.updateUserFolders(studentEmail, collegeName, className, newFolderPath); err != nil {
-				logger("Unable to update user folders", err)
+				logger("Unable to update user folders: %v", err)
 				return nil, errDB
 			}
 			break
@@ -501,13 +501,13 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 			return nil, errAlreadyExists
 		}
 		if err := s.updateSharedFolders(className, newFolderPath); err != nil {
-			logger("Unable to update shared folders", err)
+			logger("Unable to update shared folders: %v", err)
 			return nil, errDB
 		}
 	}
 
 	if err := s.createFolderMetadata(className, newFolderPath+"/", newFolder, email, cd+newFolder+"/"); err != nil {
-		logger("Unable to create folder metadata", err)
+		logger("Unable to create folder metadata: %v", err)
 		return nil, errDB
 	}
 
@@ -524,18 +524,30 @@ func (s *server) Rename(ctx context.Context, in *proto.RenameRequest) (*proto.Re
 	if depth < 2 {
 		return nil, status.Errorf(codes.PermissionDenied, "must be inside a class to rename files")
 	}
-
+	if depth == 2 && user.Role == "student" {
+		return nil, status.Errorf(codes.PermissionDenied, "must be a teacher to rename a file in class directory")
+	}
 	parts := strings.Split(cd, "/")
 	className := parts[1]
-
+	classInfo, err := s.getClassInfo(ctx, className)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to retrieve classroom info")
+	}
+	sharedFolders := classInfo.SharedFolders
 	// Calculate the file's SK based on current directory
 	pathWithinClass := strings.TrimPrefix(cd, parts[0]+"/"+className+"/")
-
+	if user.Role == "student" {
+		for _, folder := range sharedFolders {
+			if strings.HasPrefix(pathWithinClass, folder+"/") || pathWithinClass == folder+"/" {
+				return nil, status.Errorf(codes.PermissionDenied, "must be a teacher to rename a folder in shared directory")
+			}
+		}
+	}
 	oldSK := pathWithinClass + in.Entry
 	newSK := pathWithinClass + in.Name
 
 	// Update DynamoDB using the helpe
-	err := s.renameFileMetadata(ctx, className, oldSK, newSK, in.Name, cd+in.Name)
+	err = s.renameFileMetadata(ctx, className, oldSK, newSK, in.Name, cd+in.Name)
 	if err != nil {
 		if err.Error() == "file not found" {
 			return nil, status.Errorf(codes.NotFound, "file '%s' does not exist or is a directory", in.Entry)
@@ -669,7 +681,7 @@ func (s *server) TreeDirectory(ctx context.Context, in *proto.TreeDirectoryReque
 	pathWithinClass := strings.TrimPrefix(cd, collegeName+"/"+className+"/")
 	classEntries, err := s.queryClassEntries(ctx, className, pathWithinClass, "", s.allowedFoldersForClass(ctx, user, collegeName, className))
 	if err != nil {
-		logger("Unable to query DB", err)
+		logger("Unable to query DB: %v", err)
 		return nil, errDB
 	}
 	entries = append(entries, classEntries...)
@@ -684,23 +696,37 @@ func (s *server) RenameDirectory(ctx context.Context, in *proto.RenameRequest) (
 
 	// Get current directory context
 	cd := user.CurrentDirectory
-
 	depth := GetDepth(cd)
 	if depth < 2 {
 		return nil, status.Errorf(codes.PermissionDenied, "must be inside a class to rename directories")
 	}
+	if depth == 2 && user.Role == "student" {
+		return nil, status.Errorf(codes.PermissionDenied, "must be a teacher to rename a folder in class directory")
+	}
 
 	parts := strings.Split(cd, "/")
 	className := parts[1]
-
+	classInfo, err := s.getClassInfo(ctx, className)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to retrieve classroom info")
+	}
+	sharedFolders := classInfo.SharedFolders
 	// Calculate the exact string prefixes we need to search for in the database
 	pathWithinClass := strings.TrimPrefix(cd, parts[0]+"/"+className+"/")
+	//ensures a student cannot rename a folder inside shared folder
+	if user.Role == "student" {
+		for _, folder := range sharedFolders {
+			if strings.HasPrefix(pathWithinClass, folder+"/") || pathWithinClass == folder+"/" {
+				return nil, status.Errorf(codes.PermissionDenied, "must be a teacher to rename a folder in shared directory")
+			}
+		}
+	}
 
 	oldPrefix := pathWithinClass + in.Entry
 	newPrefix := pathWithinClass + in.Name
 
 	// Call our new DB helper
-	err := s.renameDirectoryMetadata(ctx, className, oldPrefix, newPrefix)
+	err = s.renameDirectoryMetadata(ctx, className, oldPrefix, newPrefix)
 	if err != nil {
 		if err.Error() == "directory not found" {
 			return nil, status.Errorf(codes.NotFound, "directory '%s' does not exist", in.Entry)
@@ -754,7 +780,7 @@ func (s *server) Download(req *proto.DownloadRequest, stream proto.Server_Downlo
 	s3Key := collegeName + "/" + className + "/" + fileSK
 	s3Result, err := s.DownloadS3File(ctx, s3Key)
 	if err != nil {
-		logger("Failed to download file from S3", err)
+		logger("Failed to download file from S3: %v", err)
 		return status.Errorf(codes.Internal, "failed to download file")
 	}
 	if s3Result == nil {
@@ -829,7 +855,7 @@ func (s *server) Upload(stream proto.Server_UploadServer) error {
 	// First message must contain metadata
 	req, err := stream.Recv()
 	if err != nil {
-		logger("Failed to receive upload metadata", err)
+		logger("Failed to receive upload metadata: %v", err)
 		return errFileCannotBeStreamed
 	}
 	meta := req.GetMetadata()
@@ -841,7 +867,7 @@ func (s *server) Upload(stream proto.Server_UploadServer) error {
 
 	mp, err := s.NewMultipartUpload(ctx, s3Key, meta.ContentType)
 	if err != nil {
-		logger("Failed to initiate multipart upload", err)
+		logger("Failed to initiate multipart upload: %v", err)
 		return status.Errorf(codes.Internal, "failed to start upload")
 	}
 
@@ -858,7 +884,7 @@ func (s *server) Upload(stream proto.Server_UploadServer) error {
 		if chunk := req.GetChunk(); len(chunk) > 0 {
 			if err := mp.Write(ctx, chunk); err != nil {
 				mp.Abort(ctx)
-				logger("Failed to upload part", err)
+				logger("Failed to upload part: %v", err)
 				return status.Errorf(codes.Internal, "failed to upload file part")
 			}
 		}
@@ -867,14 +893,14 @@ func (s *server) Upload(stream proto.Server_UploadServer) error {
 	url, err := mp.Complete(ctx)
 	if err != nil {
 		mp.Abort(ctx)
-		logger("Failed to complete multipart upload", err)
+		logger("Failed to complete multipart upload: %v", err)
 		return status.Errorf(codes.Internal, "failed to complete upload")
 	}
 
 	// Save metadata to DynamoDB
 	err = s.uploadFileMetadata(ctx, className, pathWithinClass+meta.Name, meta.Name, email, cd+"/"+meta.Name, url)
 	if err != nil {
-		logger("Failed to save file metadata to DynamoDB", err)
+		logger("Failed to save file metadata to DynamoDB: %v", err)
 		return status.Errorf(codes.Internal, "failed to save file metadata")
 	}
 
@@ -903,7 +929,7 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 	if depth == 2 && !strings.Contains(targetName, "/") {
 		classInfo, err := s.getClassInfo(ctx, className)
 		if err != nil {
-			logger("Cannot query db for class info", err)
+			logger("Cannot query db for class info: %v", err)
 			return nil, errDB
 		}
 		for _, studentEmail := range classInfo.Students {
