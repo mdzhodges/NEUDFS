@@ -4,12 +4,26 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "~> 3.0"
+    }
   }
 
 }
 
 provider "aws" {
   region = var.aws_region
+}
+data "aws_ecr_authorization_token" "registry" {}
+
+# Configure Docker provider to authenticate against ECR automatically
+provider "docker" {
+  registry_auth {
+    address  = data.aws_ecr_authorization_token.registry.proxy_endpoint
+    username = data.aws_ecr_authorization_token.registry.user_name
+    password = data.aws_ecr_authorization_token.registry.password
+  }
 }
 
 data "aws_caller_identity" "current" {}
@@ -55,10 +69,13 @@ module "nlb" {
   environment    = var.environment
   vpc_id         = data.aws_vpc.default.id
   subnet_ids     = data.aws_subnets.default.ids
+  container_port = 50051
 }
 
 module "ecs" {
   source = "./modules/ecs"
+  container_port = 50051
+  image = "${module.ecr.repository_url}:latest"
 
   app_name    = var.service_name
   environment = var.environment
@@ -76,4 +93,20 @@ module "ecs" {
   metadata_table_name = module.dynamodb.metadata_table_name
 
   target_group_arn = module.nlb.target_group_arn
+  s3_bucket_name = module.s3_storage.bucket_name
+}
+
+resource "docker_image" "server" {
+  # Use the URL from the ecr module, and tag it "latest"
+  name = "${module.ecr.repository_url}:latest"
+
+  build {
+    context    = "${path.module}/.."
+    dockerfile = "server/Dockerfile"
+  }
+}
+
+resource "docker_registry_image" "server" {
+  # this will push :latest → ECR
+  name = docker_image.server.name
 }

@@ -2,11 +2,9 @@ package main
 
 import (
 	"bufio"
-	"context"
 	"flag"
 	"fmt"
 	"grpc-server/client/commands"
-	"grpc-server/internal/storage"
 	"grpc-server/proto"
 	"log"
 	"os"
@@ -16,6 +14,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+/*
 func testS3Connection() {
 	fmt.Println("--- STARTING S3 CHECK ---")
 
@@ -51,7 +50,7 @@ func testS3Connection() {
 	}
 
 	fmt.Println("--- S3 CHECK PASSED! ---")
-}
+}*/
 
 func main() {
 	//CLI client will grab address of gRPC server during compile time, or default to localhost

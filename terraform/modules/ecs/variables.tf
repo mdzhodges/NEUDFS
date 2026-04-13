@@ -81,3 +81,17 @@ variable "target_group_arn" {
   type        = string
   description = "ARN of the NLB target group to register ECS tasks with"
 }
+
+variable "min_capacity" {
+  default = 2
+}
+variable "max_capacity" {
+  default = 6
+}
+variable "s3_bucket_name" {
+  type=string
+}
+
+variable "image" {
+  type=string
+}

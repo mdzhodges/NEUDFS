@@ -31,6 +31,6 @@ output "s3_bucket_arn" {
 }
 
 output "server_address" {
-  value       = "${module.nlb.dns_name}:8080"
+  value       = "${module.nlb.dns_name}:50051"
   description = "gRPC server address — use this in the client"
 }
