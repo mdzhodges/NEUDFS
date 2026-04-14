@@ -16,9 +16,7 @@ import (
 )
 
 func (s *state) buildUI() {
-	s.addrEntry = widget.NewEntry()
-	s.addrEntry.SetText(detectDefaultServerAddr())
-	s.addrEntry.SetPlaceHolder("host:port")
+	s.serverAddr = detectDefaultServerAddr()
 
 	s.emailEntry = widget.NewEntry()
 	s.emailEntry.SetPlaceHolder("user email (required)")
@@ -82,8 +80,8 @@ func (s *state) buildLoginView() fyne.CanvasObject {
 		"",
 		container.NewVBox(
 			container.NewGridWithColumns(2,
-				widget.NewLabel("Server (host:port)"),
-				s.addrEntry,
+				widget.NewLabel("Server"),
+				widget.NewLabel(strings.TrimSpace(s.serverAddr)),
 				widget.NewLabel("Email"),
 				s.emailEntry,
 			),
@@ -95,8 +93,8 @@ func (s *state) buildLoginView() fyne.CanvasObject {
 }
 
 func (s *state) buildMainView() fyne.CanvasObject {
-	serverLabel := widget.NewLabel(strings.TrimSpace(s.addrEntry.Text))
-	emailLabel := widget.NewLabel(strings.TrimSpace(s.emailEntry.Text))
+	s.serverLabel = widget.NewLabel(strings.TrimSpace(s.serverAddr))
+	s.emailLabel = widget.NewLabel("")
 	dirLabel := widget.NewLabelWithData(s.currentDirData)
 	dirLabel.Truncation = fyne.TextTruncateEllipsis
 	dirLabel.Wrapping = fyne.TextWrapOff
@@ -112,9 +110,9 @@ func (s *state) buildMainView() fyne.CanvasObject {
 	topRow := container.NewHBox(
 		widget.NewLabelWithStyle("Connected", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		layout.NewSpacer(),
-		serverLabel,
+		s.serverLabel,
 		widget.NewLabel("|"),
-		emailLabel,
+		s.emailLabel,
 		logoutBtn,
 	)
 	dirPrefix := widget.NewLabelWithStyle("Dir:", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})

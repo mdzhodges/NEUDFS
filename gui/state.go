@@ -22,7 +22,8 @@ import (
 type state struct {
 	win fyne.Window
 
-	addrEntry  *widget.Entry
+	serverAddr string
+
 	emailEntry *widget.Entry
 	status     *widget.Label
 
@@ -32,6 +33,9 @@ type state struct {
 
 	loginView fyne.CanvasObject
 	mainView  fyne.CanvasObject
+
+	serverLabel *widget.Label
+	emailLabel  *widget.Label
 
 	output       *widget.Entry
 	outputScroll *container.Scroll
@@ -60,6 +64,16 @@ type state struct {
 
 func newState(w fyne.Window) *state {
 	return &state{win: w, selectedIndex: -1}
+}
+
+func (s *state) queueUI(fn func()) {
+	// Many Fyne window implementations support QueueEvent() to safely run code on the UI thread.
+	// Use it when available; otherwise fall back to direct execution.
+	if w, ok := s.win.(interface{ QueueEvent(func()) }); ok {
+		w.QueueEvent(fn)
+		return
+	}
+	fn()
 }
 
 func (s *state) runAction(action string, fn func() error) {
@@ -111,11 +125,8 @@ func (s *state) rpcCtx(timeout time.Duration) (context.Context, context.CancelFu
 
 func (s *state) login() error {
 	_ = s.disconnect()
-	addr := strings.TrimSpace(s.addrEntry.Text)
+	addr := strings.TrimSpace(s.serverAddr)
 	email := strings.TrimSpace(s.emailEntry.Text)
-	if addr == "" {
-		return errors.New("server address required")
-	}
 	if email == "" {
 		return errors.New("email required (sent as gRPC metadata key \"email\")")
 	}
@@ -142,6 +153,12 @@ func (s *state) login() error {
 	}
 
 	s.logf("Logged in: %s @ %s", email, addr)
+	if s.serverLabel != nil {
+		s.serverLabel.SetText(addr)
+	}
+	if s.emailLabel != nil {
+		s.emailLabel.SetText(email)
+	}
 	s.win.SetContent(s.mainView)
 	_ = s.refreshAll()
 	return nil

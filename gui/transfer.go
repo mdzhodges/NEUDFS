@@ -134,6 +134,24 @@ func (s *state) uploadWithDialog(remoteOverride string) error {
 				return
 			}
 			s.logf("uploaded %q (%d bytes): %s", remote, total, strings.TrimSpace(res.GetMessage()))
+
+			// Auto-refresh listing so the upload shows up immediately.
+			if s.client == nil {
+				return
+			}
+			lsCtx, lsCancel := s.rpcCtx(15 * time.Second)
+			defer lsCancel()
+			lsRes, err := s.client.ListDirectory(lsCtx, &proto.ListDirectoryRequest{})
+			if err != nil {
+				s.logf("ls after upload error: %v", err)
+				return
+			}
+			entries := append([]string(nil), lsRes.GetEntries()...)
+			s.queueUI(func() {
+				s.entries = entries
+				s.refreshEntriesUI()
+				s.logf("ls: %d entries", len(entries))
+			})
 		}()
 	}, s.win)
 	open.Show()
@@ -318,11 +336,10 @@ func (s *state) viewFileInApp(path string, title string) {
 	})
 	closeBtn := widget.NewButton("Close", func() { w.Close() })
 
-	entry := widget.NewMultiLineEntry()
-	entry.Wrapping = fyne.TextWrapWord
-	entry.SetText(string(data))
-	entry.Disable()
-	w.SetContent(container.NewBorder(container.NewHBox(closeBtn), nil, nil, nil, container.NewVScroll(entry)))
+	// Use TextGrid (not a disabled Entry) so text uses normal foreground color
+	// and remains readable with our theme.
+	grid := widget.NewTextGridFromString(string(data))
+	w.SetContent(container.NewBorder(container.NewHBox(closeBtn), nil, nil, nil, container.NewScroll(grid)))
 	w.Show()
 }
 
