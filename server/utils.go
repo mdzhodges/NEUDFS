@@ -265,26 +265,35 @@ func (s *server) renameFileMetadata(ctx context.Context, className, oldSK, newSK
 		return err
 	}
 
-	// PUT the new item into the database (this creates the "renamed" file)
-	_, err = s.DB.PutItem(context.TODO(), &dynamodb.PutItemInput{
-		TableName: aws.String(metadataTable),
-		Item:      newItem,
-	})
-	if err != nil {
-		logger("Cannot save new file metadata: %v", err)
-		return err
-	}
-
-	// DELETE the old item to clean up the original filename
-	_, err = s.DB.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
-		TableName: aws.String(metadataTable),
-		Key: map[string]types.AttributeValue{
-			"pk": &types.AttributeValueMemberS{Value: className},
-			"sk": &types.AttributeValueMemberS{Value: oldSK},
+	// Atomically delete the old item and put the new one.
+	// The condition on Delete ensures we fail (not silently succeed) if another
+	// concurrent operation (e.g. Delete) already removed the original file.
+	_, err = s.DB.TransactWriteItems(context.TODO(), &dynamodb.TransactWriteItemsInput{
+		TransactItems: []types.TransactWriteItem{
+			{
+				Delete: &types.Delete{
+					TableName: aws.String(metadataTable),
+					Key: map[string]types.AttributeValue{
+						"pk": &types.AttributeValueMemberS{Value: className},
+						"sk": &types.AttributeValueMemberS{Value: oldSK},
+					},
+					ConditionExpression: aws.String("attribute_exists(pk)"),
+				},
+			},
+			{
+				Put: &types.Put{
+					TableName: aws.String(metadataTable),
+					Item:      newItem,
+				},
+			},
 		},
 	})
 	if err != nil {
-		logger("Cannot delete old file metadata: %v", err)
+		var txErr *types.TransactionCanceledException
+		if errors.As(err, &txErr) {
+			return fmt.Errorf("file not found")
+		}
+		logger("Cannot atomically rename file metadata: %v", err)
 		return err
 	}
 

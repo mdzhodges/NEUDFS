@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"grpc-server/proto"
@@ -129,6 +130,25 @@ func (s *server) ChangeDirectory(ctx context.Context, in *proto.ChangeDirectoryR
 		return &proto.ChangeDirectoryResponse{
 			Message: fmt.Sprintf("Changed directory to %q\n", newCD),
 		}, nil
+	}
+
+	// Professors and TAs can navigate to any folder that exists in the class metadata.
+	if user.Role == "professor" || user.Role == "TA" {
+		folderResult, err := s.DB.GetItem(ctx, &dynamodb.GetItemInput{
+			TableName: aws.String(metadataTable),
+			Key: map[string]types.AttributeValue{
+				"pk": &types.AttributeValueMemberS{Value: className},
+				"sk": &types.AttributeValueMemberS{Value: relPath + "/"},
+			},
+		})
+		if err == nil && folderResult.Item != nil {
+			if err := s.SetCurrentDirectory(ctx, email, cd, newCD); err != nil {
+				return nil, err
+			}
+			return &proto.ChangeDirectoryResponse{
+				Message: fmt.Sprintf("Changed directory to %q\n", newCD),
+			}, nil
+		}
 	}
 
 	return nil, errInvalidPath
@@ -479,7 +499,7 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 	studentName := strings.Split(pathWithinClass, "/")[0]
 	isStudentFolder := false
 	for _, studentEmail := range classInfo.Students {
-		if strings.Split(studentEmail, "@")[0] == studentName {
+		if strings.ReplaceAll(strings.Split(studentEmail, "@")[0], ".", "_") == studentName {
 			isStudentFolder = true
 			foundUser, err := s.getUser(ctx, studentEmail)
 			if err != nil {
@@ -1009,8 +1029,13 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 				"pk": &types.AttributeValueMemberS{Value: className},
 				"sk": &types.AttributeValueMemberS{Value: targetSK},
 			},
+			ConditionExpression: aws.String("attribute_exists(pk)"),
 		})
 		if err != nil {
+			var condErr *types.ConditionalCheckFailedException
+			if errors.As(err, &condErr) {
+				return nil, status.Errorf(codes.NotFound, "%s not found", targetName)
+			}
 			logger("Failed to delete file metadata: %v", err)
 			return nil, errDB
 		}

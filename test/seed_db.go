@@ -300,7 +300,8 @@ func seedLargeData(client *dynamodb.Client) {
 				}
 			}
 			studentEmail := randomEmail(studentName)
-			fmt.Printf("  Student: %s (%s) folder: %s\n", studentName, studentEmail, firstName)
+			folderName := strings.ToLower(strings.ReplaceAll(studentName, " ", "_"))
+			fmt.Printf("  Student: %s (%s) folder: %s\n", studentName, studentEmail, folderName)
 			students[i*10+j] = User{
 				Email:            studentEmail,
 				Role:             "student",
@@ -311,7 +312,7 @@ func seedLargeData(client *dynamodb.Client) {
 						Classes: map[string]Class{
 							class.name: {
 								Role:          "student",
-								Folders:       []string{firstName, firstName + "/homework", firstName + "/notes"},
+								Folders:       []string{folderName, folderName + "/homework", folderName + "/notes"},
 								SharedFolders: []string{"announcements", "assignments"},
 							},
 						},
@@ -320,30 +321,30 @@ func seedLargeData(client *dynamodb.Client) {
 			}
 			mdFolders = append(mdFolders, Metadata{
 				PK:           class.name,
-				SK:           firstName + "/",
-				Name:         firstName,
+				SK:           folderName + "/",
+				Name:         folderName,
 				Owner:        studentEmail,
 				LastModified: time.Now(),
 				Type:         "folder",
-				FullPath:     fmt.Sprintf("%s/%s/%s/", class.college, class.name, firstName),
+				FullPath:     fmt.Sprintf("%s/%s/%s/", class.college, class.name, folderName),
 			})
 			mdFolders = append(mdFolders, Metadata{
 				PK:           class.name,
-				SK:           firstName + "/homework/",
+				SK:           folderName + "/homework/",
 				Name:         "homework",
 				Owner:        studentEmail,
 				LastModified: time.Now(),
 				Type:         "folder",
-				FullPath:     fmt.Sprintf("%s/%s/%s/homework/", class.college, class.name, firstName),
+				FullPath:     fmt.Sprintf("%s/%s/%s/homework/", class.college, class.name, folderName),
 			})
 			mdFolders = append(mdFolders, Metadata{
 				PK:           class.name,
-				SK:           firstName + "/notes/",
+				SK:           folderName + "/notes/",
 				Name:         "notes",
 				Owner:        studentEmail,
 				LastModified: time.Now(),
 				Type:         "folder",
-				FullPath:     fmt.Sprintf("%s/%s/%s/notes/", class.college, class.name, firstName),
+				FullPath:     fmt.Sprintf("%s/%s/%s/notes/", class.college, class.name, folderName),
 			})
 			studentEmails = append(studentEmails, studentEmail)
 		}

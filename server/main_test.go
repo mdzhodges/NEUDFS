@@ -558,7 +558,14 @@ func TestDeleteFolderDuringDownload(t *testing.T) {
 	}
 	navigateTo(t, teacherEmail, "Khoury")
 	navigateTo(t, teacherEmail, "CS5010")
-	navigateTo(t, teacherEmail, "announcements")
+
+	// Create a temporary folder for this test so we don't destroy the shared "announcements" folder
+	// that other tests depend on.
+	ctx := ctxForUser(teacherEmail)
+	if _, err := testClient.MakeDirectory(ctx, &proto.MakeDirectoryRequest{Name: "temp_delete_test"}); err != nil {
+		t.Fatalf("failed to create temp_delete_test folder: %v", err)
+	}
+	navigateTo(t, teacherEmail, "temp_delete_test")
 
 	// Seed multiple files in the folder
 	for i := 0; i < 3; i++ {
@@ -572,7 +579,7 @@ func TestDeleteFolderDuringDownload(t *testing.T) {
 	for _, email := range students {
 		navigateTo(t, email, "Khoury")
 		navigateTo(t, email, "CS5010")
-		navigateTo(t, email, "announcements")
+		navigateTo(t, email, "temp_delete_test")
 	}
 
 	type downloadResult struct {
@@ -609,9 +616,7 @@ func TestDeleteFolderDuringDownload(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 	// Navigate teacher back to class root to delete the folder
 	navigateTo(t, teacherEmail, "..")
-	ctx := ctxForUser(teacherEmail)
-	_, err := testClient.Delete(ctx, &proto.DeleteRequest{Path: "announcements/"})
-	if err != nil {
+	if _, err := testClient.Delete(ctx, &proto.DeleteRequest{Path: "temp_delete_test/"}); err != nil {
 		t.Fatalf("teacher folder delete failed: %v", err)
 	}
 
@@ -653,7 +658,7 @@ func TestDeleteFolderDuringDownload(t *testing.T) {
 // ─────────────────────────────────────────────────────
 // Test: student can't upload to another student's folder
 // ─────────────────────────────────────────────────────
-func TestStudentPermissions(t *testing.T) {
+func TestStudentCdPermissions(t *testing.T) {
 	cleanup := setupTest(t)
 	defer cleanup()
 
@@ -676,5 +681,330 @@ func TestStudentPermissions(t *testing.T) {
 	_, err := testClient.ChangeDirectory(ctx, &proto.ChangeDirectoryRequest{Folder: folder2})
 	if err == nil {
 		t.Error("student1 should not be able to cd into student2's folder")
+	}
+}
+
+func TestStudentPermissions(t *testing.T) {
+	cleanup := setupTest(t)
+	defer cleanup()
+	students := getStudentEmails(t, "CS5010")
+	for _, email := range students {
+		resetUserDirectory(t, email)
+	}
+	teacherEmail := getProfessorEmail(t, "CS5010")
+	resetUserDirectory(t, teacherEmail)
+
+	navigateTo(t, teacherEmail, "Khoury")
+	navigateTo(t, teacherEmail, "CS5010")
+	if err := uploadFile(t, teacherEmail, "class_lecture.txt", "version 1"); err != nil {
+		t.Fatalf("seed upload failed: %v", err)
+	}
+	navigateTo(t, teacherEmail, "announcements")
+
+	if err := uploadFile(t, teacherEmail, "shared_lecture.txt", "version 1"); err != nil {
+		t.Fatalf("seed upload failed: %v", err)
+	}
+	student1 := students[0]
+	user := getUser(t, student1)
+	folder := user.Colleges["Khoury"].Classes["CS5010"].Folders[0]
+	navigateTo(t, student1, "Khoury")
+	navigateTo(t, student1, "CS5010")
+	ctx := ctxForUser(student1)
+	_, err := testClient.RenameDirectory(ctx, &proto.RenameRequest{Entry: "announcements", Name: "unauth_announcements"})
+	if err == nil {
+		t.Error("student should not be able to rename a directory at the class level")
+	}
+	_, err = testClient.MakeDirectory(ctx, &proto.MakeDirectoryRequest{Name: "unauth_class_folder"})
+	if err == nil {
+		t.Error("student should not be able to create a directory at class level")
+	}
+	_, err = testClient.Rename(ctx, &proto.RenameRequest{Entry: "class_lecture.txt", Name: "unauth_lecture.txt"})
+	if err == nil {
+		t.Error("student should not be able to rename file in class directory")
+	}
+	navigateTo(t, student1, "announcements")
+	_, err = testClient.Rename(ctx, &proto.RenameRequest{Entry: "shared_lecture.txt", Name: "unauth_lecture.txt"})
+	if err == nil {
+		t.Error("student should not be able to rename a file in the shared folder")
+	}
+	_, err = testClient.MakeDirectory(ctx, &proto.MakeDirectoryRequest{Name: "unauth_shared_class_folder"})
+	if err == nil {
+		t.Error("student should not be able to create a directory at class shared folder level")
+	}
+	// student cannot delete files in shared folder
+	_, err = testClient.Delete(ctx, &proto.DeleteRequest{Path: "shared_lecture.txt"})
+	if err == nil {
+		t.Error("student should not be able to delete a file in the shared folder")
+	}
+
+	// student cannot upload to shared folder
+	if err = uploadFile(t, student1, "unauth_shared_upload.txt", "bad"); err == nil {
+		t.Error("student should not be able to upload to the shared folder")
+	}
+
+	navigateTo(t, student1, "..")
+
+	// student cannot delete files at class level
+	_, err = testClient.Delete(ctx, &proto.DeleteRequest{Path: "class_lecture.txt"})
+	if err == nil {
+		t.Error("student should not be able to delete a file at the class level")
+	}
+
+	// student cannot upload to class root
+	if err = uploadFile(t, student1, "unauth_class_upload.txt", "bad"); err == nil {
+		t.Error("student should not be able to upload to the class root")
+	}
+
+	// student cannot rename another student's personal folder
+	if len(students) > 1 {
+		user2 := getUser(t, students[1])
+		folder2 := user2.Colleges["Khoury"].Classes["CS5010"].Folders[0]
+		_, err = testClient.RenameDirectory(ctx, &proto.RenameRequest{Entry: folder2, Name: "unauth_steal_folder"})
+		if err == nil {
+			t.Error("student should not be able to rename another student's personal folder")
+		}
+	}
+
+	navigateTo(t, student1, folder)
+
+	// student can upload, rename, and delete their own file
+	if err = uploadFile(t, student1, "my_file.txt", "my content"); err != nil {
+		t.Errorf("student should be able to upload to their own folder: %v", err)
+	}
+	_, err = testClient.Rename(ctx, &proto.RenameRequest{Entry: "my_file.txt", Name: "my_renamed_file.txt"})
+	if err != nil {
+		t.Errorf("student should be able to rename their own file: %v", err)
+	}
+	_, err = testClient.Delete(ctx, &proto.DeleteRequest{Path: "my_renamed_file.txt"})
+	if err != nil {
+		t.Errorf("student should be able to delete their own file: %v", err)
+	}
+
+	_, err = testClient.MakeDirectory(ctx, &proto.MakeDirectoryRequest{Name: "personal_folder"})
+	if err != nil {
+		t.Errorf("student should be able to create a folder in their personal directory: %v", err)
+	}
+	_, err = testClient.RenameDirectory(ctx, &proto.RenameRequest{Entry: "personal_folder", Name: "rename_personal_folder"})
+	if err != nil {
+		t.Errorf("student should be able to rename a folder in their personal directory: %v", err)
+	}
+}
+
+// ─────────────────────────────────────────────────────
+// Test: CurrentDirectory reflects session state correctly
+// after navigating through the hierarchy
+// ─────────────────────────────────────────────────────
+func TestCurrentDirectory(t *testing.T) {
+	cleanup := setupTest(t)
+	defer cleanup()
+
+	teacherEmail := getProfessorEmail(t, "CS5010")
+	resetUserDirectory(t, teacherEmail)
+	students := getStudentEmails(t, "CS5010")
+	student := students[0]
+	resetUserDirectory(t, student)
+
+	ctx := ctxForUser(student)
+
+	// at root, current directory should be empty or "/"
+	resp, err := testClient.CurrentDirectory(ctx, &proto.CurrentDirectoryRequest{})
+	if err != nil {
+		t.Fatalf("CurrentDirectory at root failed: %v", err)
+	}
+	t.Logf("root cwd: %q", resp.Directory)
+
+	navigateTo(t, student, "Khoury")
+	resp, err = testClient.CurrentDirectory(ctx, &proto.CurrentDirectoryRequest{})
+	if err != nil {
+		t.Fatalf("CurrentDirectory after cd Khoury failed: %v", err)
+	}
+	if resp.Directory == "" {
+		t.Error("expected non-empty path after navigating to Khoury")
+	}
+	t.Logf("after cd Khoury: %q", resp.Directory)
+
+	navigateTo(t, student, "CS5010")
+	resp, err = testClient.CurrentDirectory(ctx, &proto.CurrentDirectoryRequest{})
+	if err != nil {
+		t.Fatalf("CurrentDirectory after cd CS5010 failed: %v", err)
+	}
+	t.Logf("after cd CS5010: %q", resp.Directory)
+
+	user := getUser(t, student)
+	folder := user.Colleges["Khoury"].Classes["CS5010"].Folders[0]
+	navigateTo(t, student, folder)
+	resp, err = testClient.CurrentDirectory(ctx, &proto.CurrentDirectoryRequest{})
+	if err != nil {
+		t.Fatalf("CurrentDirectory after cd personal folder failed: %v", err)
+	}
+	t.Logf("after cd personal folder: %q", resp.Directory)
+
+	// navigate back to root and verify state resets
+	resetUserDirectory(t, student)
+	resp, err = testClient.CurrentDirectory(ctx, &proto.CurrentDirectoryRequest{})
+	if err != nil {
+		t.Fatalf("CurrentDirectory after reset failed: %v", err)
+	}
+	t.Logf("after reset: %q", resp.Directory)
+
+	// two users navigating independently should not affect each other's cwd
+	teacherCtx := ctxForUser(teacherEmail)
+	navigateTo(t, teacherEmail, "Khoury")
+	navigateTo(t, teacherEmail, "CS5010")
+	navigateTo(t, teacherEmail, "announcements")
+
+	studentResp, err := testClient.CurrentDirectory(ctx, &proto.CurrentDirectoryRequest{})
+	if err != nil {
+		t.Fatalf("student CurrentDirectory failed after teacher navigation: %v", err)
+	}
+	teacherResp, err := testClient.CurrentDirectory(teacherCtx, &proto.CurrentDirectoryRequest{})
+	if err != nil {
+		t.Fatalf("teacher CurrentDirectory failed: %v", err)
+	}
+	if studentResp.Directory == teacherResp.Directory {
+		t.Errorf("student and teacher cwd should differ: both got %q", studentResp.Directory)
+	}
+}
+
+// ─────────────────────────────────────────────────────
+// Test: rename and delete race on the same file
+// One must win cleanly; no corruption or deadlock
+// ─────────────────────────────────────────────────────
+func TestConcurrentRenameDelete(t *testing.T) {
+	cleanup := setupTest(t)
+	defer cleanup()
+
+	teacherEmail := getProfessorEmail(t, "CS5010")
+	resetUserDirectory(t, teacherEmail)
+
+	navigateTo(t, teacherEmail, "Khoury")
+	navigateTo(t, teacherEmail, "CS5010")
+	navigateTo(t, teacherEmail, "announcements")
+
+	if err := uploadFile(t, teacherEmail, "race_target.txt", "content"); err != nil {
+		t.Fatalf("seed upload failed: %v", err)
+	}
+
+	ctx := ctxForUser(teacherEmail)
+
+	var wg sync.WaitGroup
+	renameErr := make(chan error, 1)
+	deleteErr := make(chan error, 1)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, err := testClient.Rename(ctx, &proto.RenameRequest{Entry: "race_target.txt", Name: "race_renamed.txt"})
+		renameErr <- err
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, err := testClient.Delete(ctx, &proto.DeleteRequest{Path: "race_target.txt"})
+		deleteErr <- err
+	}()
+
+	wg.Wait()
+	close(renameErr)
+	close(deleteErr)
+
+	rErr := <-renameErr
+	dErr := <-deleteErr
+
+	// exactly one should succeed; the other gets a not-found or conflict error
+	if rErr == nil && dErr == nil {
+		t.Error("rename and delete both succeeded on the same file — one should have lost the race")
+	}
+	if rErr != nil && dErr != nil {
+		t.Errorf("both rename and delete failed: rename=%v delete=%v", rErr, dErr)
+	}
+
+	t.Logf("rename err: %v | delete err: %v", rErr, dErr)
+
+	// cleanup whichever name survived
+	testClient.Delete(ctx, &proto.DeleteRequest{Path: "race_target.txt"})
+	testClient.Delete(ctx, &proto.DeleteRequest{Path: "race_renamed.txt"})
+}
+
+// ─────────────────────────────────────────────────────
+// Test: professor can perform all privileged operations
+// ─────────────────────────────────────────────────────
+func TestProfessorPermissions(t *testing.T) {
+	cleanup := setupTest(t)
+	defer cleanup()
+
+	teacherEmail := getProfessorEmail(t, "CS5010")
+	resetUserDirectory(t, teacherEmail)
+	students := getStudentEmails(t, "CS5010")
+	for _, email := range students {
+		resetUserDirectory(t, email)
+	}
+
+	ctx := ctxForUser(teacherEmail)
+
+	// professor can upload to class root
+	navigateTo(t, teacherEmail, "Khoury")
+	navigateTo(t, teacherEmail, "CS5010")
+	if err := uploadFile(t, teacherEmail, "prof_class_file.txt", "class content"); err != nil {
+		t.Errorf("professor should be able to upload to class root: %v", err)
+	}
+
+	// professor can rename a file at class root
+	_, err := testClient.Rename(ctx, &proto.RenameRequest{Entry: "prof_class_file.txt", Name: "prof_class_file_renamed.txt"})
+	if err != nil {
+		t.Errorf("professor should be able to rename a file at class root: %v", err)
+	}
+
+	// professor can delete a file at class root
+	_, err = testClient.Delete(ctx, &proto.DeleteRequest{Path: "prof_class_file_renamed.txt"})
+	if err != nil {
+		t.Errorf("professor should be able to delete a file at class root: %v", err)
+	}
+
+	// professor can create and rename a directory at class root
+	_, err = testClient.MakeDirectory(ctx, &proto.MakeDirectoryRequest{Name: "prof_shared_dir"})
+	if err != nil {
+		t.Errorf("professor should be able to mkdir at class root: %v", err)
+	}
+	_, err = testClient.RenameDirectory(ctx, &proto.RenameRequest{Entry: "prof_shared_dir", Name: "prof_shared_dir_renamed"})
+	if err != nil {
+		t.Errorf("professor should be able to rename a directory at class root: %v", err)
+	}
+	_, err = testClient.Delete(ctx, &proto.DeleteRequest{Path: "prof_shared_dir_renamed"})
+	if err != nil {
+		t.Errorf("professor should be able to delete a directory at class root: %v", err)
+	}
+
+	// professor can upload and delete in shared folder
+	navigateTo(t, teacherEmail, "announcements")
+	if err = uploadFile(t, teacherEmail, "prof_shared_file.txt", "shared content"); err != nil {
+		t.Errorf("professor should be able to upload to shared folder: %v", err)
+	}
+	_, err = testClient.Delete(ctx, &proto.DeleteRequest{Path: "prof_shared_file.txt"})
+	if err != nil {
+		t.Errorf("professor should be able to delete from shared folder: %v", err)
+	}
+
+	// professor can upload, rename, and delete files in a student's personal folder
+	if len(students) > 0 {
+		student := students[0]
+		user := getUser(t, student)
+		studentFolder := user.Colleges["Khoury"].Classes["CS5010"].Folders[0]
+
+		navigateTo(t, teacherEmail, "..")
+		navigateTo(t, teacherEmail, studentFolder)
+
+		if err = uploadFile(t, teacherEmail, "prof_in_student_folder.txt", "content"); err != nil {
+			t.Errorf("professor should be able to upload into a student folder: %v", err)
+		}
+		_, err = testClient.Rename(ctx, &proto.RenameRequest{Entry: "prof_in_student_folder.txt", Name: "prof_in_student_folder_renamed.txt"})
+		if err != nil {
+			t.Errorf("professor should be able to rename a file in a student folder: %v", err)
+		}
+		_, err = testClient.Delete(ctx, &proto.DeleteRequest{Path: "prof_in_student_folder_renamed.txt"})
+		if err != nil {
+			t.Errorf("professor should be able to delete a file in a student folder: %v", err)
+		}
 	}
 }

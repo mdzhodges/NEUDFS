@@ -95,14 +95,11 @@ aws dynamodb get-item \
   --query 'Item.students.L[*].S' \
   --output json > k6/students.json
 
-PROFESSOR_EMAIL=$(aws dynamodb scan \
-  --table-name "$USER_TABLE" \
-  --filter-expression "#r = :role" \
-  --expression-attribute-names '{"#r":"role"}' \
-  --expression-attribute-values '{":role":{"S":"professor"}}' \
-  --projection-expression "email" \
-  --query 'Items[0].email.S' \
-  --output json | tr -d '" \n\r\t')
+PROFESSOR_EMAIL=$(aws dynamodb get-item \
+  --table-name "$METADATA_TABLE" \
+  --key '{"pk":{"S":"CS5010"},"sk":{"S":"class_info"}}' \
+  --query 'Item.professor.S' \
+  --output text)
 
 echo "==> Sample login emails:"
 echo "    [professor] $PROFESSOR_EMAIL"

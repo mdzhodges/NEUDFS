@@ -104,6 +104,7 @@ resource "docker_image" "server" {
   build {
     context    = "${path.module}/.."
     dockerfile = "Dockerfile"
+    platform   = "linux/amd64"
   }
 }
 

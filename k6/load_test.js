@@ -146,7 +146,39 @@ export const options = {
         startTime: '30m',
         exec: 'mkdirWorkflow',
         tags: {scenario:'mkdirWorkflow'}
-    }
+    },
+    renameDirWorkflow: {
+        executor: 'per-vu-iterations',
+        vus: 1,
+        iterations: 1,
+        startTime: '31m',
+        exec: 'renameDirWorkflow',
+        tags: { scenario: 'renameDirWorkflow' },
+    },
+    renameFileWorkflow: {
+        executor: 'per-vu-iterations',
+        vus: 1,
+        iterations: 1,
+        startTime: '32m',
+        exec: 'renameFileWorkflow',
+        tags: { scenario: 'renameFileWorkflow' },
+    },
+    concurrentRenameStress: {
+        executor: 'per-vu-iterations',
+        vus: 5,
+        iterations: 10,
+        startTime: '33m',
+        exec: 'concurrentRenameStress',
+        tags: { scenario: 'concurrentRenameStress' },
+    },
+    concurrentCdRaceStress: {
+        executor: 'per-vu-iterations',
+        vus: 5,
+        iterations: 10,
+        startTime: '33m',
+        exec: 'concurrentCdRaceStress',
+        tags: { scenario: 'concurrentCdRaceStress' },
+    },
   },
 
   thresholds: {
@@ -201,15 +233,18 @@ function uploadBytes(email, filename, data) {
   const start = Date.now();
   const stream = new grpc.Stream(client, 'main.Server/Upload', meta(email));
 
+  let done = false;
   let success = false;
-  let uploadErr = null;
 
   stream.on('data', (resp) => {
     success = true;
   });
   stream.on('error', (err) => {
-    uploadErr = err;
     rpcErrors.add(1);
+    done = true;
+  });
+  stream.on('end', () => {
+    done = true;
   });
 
   stream.write({ metadata: { name: filename, content_type: 'text/plain' } });
@@ -221,6 +256,12 @@ function uploadBytes(email, filename, data) {
   }
 
   stream.end();
+
+  const deadline = Date.now() + 30000;
+  while (!done && Date.now() < deadline) {
+    sleep(0.05);
+  }
+
   uploadLatency.add(Date.now() - start);
   return success;
 }
@@ -284,8 +325,21 @@ export function seedTestData() {
     const folder = getStudentFolder(email);
     if (!navigate(email, ['Khoury', 'CS5010', folder])) continue;
     uploadBytes(email, 'rename_file_personal.txt', data);
-    if (navigate(email, ['Khoury', 'CS5010', folder, 'rename_dir_personal'])) {
+    if (navigate(email, ['Khoury', 'CS5010', folder, 'notes'])) {
       uploadBytes(email, 'rename_file_in_subfolder.txt', data);
+    }
+  }
+
+  // --- concurrentRenameStress seed ---
+  // Each student gets 3 subdirs and 3 files in their personal folder to race against
+  const smallData = new Uint8Array(512);
+  for (let i = 0; i < STUDENTS.length; i++) {
+    const email = STUDENTS[i];
+    const folder = getStudentFolder(email);
+    if (!navigate(email, ['Khoury', 'CS5010', folder])) continue;
+    for (let j = 0; j < 3; j++) {
+      client.invoke('main.Server/MakeDirectory', { name: `stress_subdir_${j}` }, meta(email));
+      uploadBytes(email, `stress_file_${j}.txt`, smallData);
     }
   }
 
@@ -301,7 +355,9 @@ export function studentWorkflow() {
   group('navigate', () => {
     navigate(email, ['Khoury', 'CS5010', folder]);
   });
-
+    group('current directory', () => {                                                                                                               
+        client.invoke('main.Server/CurrentDirectory', {}, meta(email));
+    });   
   group('list', () => {
     timedInvoke(lsLatency, 'main.Server/ListDirectory', {}, email);
   });
@@ -453,6 +509,49 @@ export function permissionBoundary() {
     if (!blocked) {
       permissionBypass.add(1);
       console.error(`SECURITY: ${attacker} created folder in shared dir`);
+    }
+  });
+
+  group('delete file in shared folder as student', () => {
+    navigate(attacker, ['Khoury', 'CS5010', 'announcements']);
+    const resp = client.invoke('main.Server/Delete',
+      { path: 'lecture.txt' }, meta(attacker));
+    const blocked = !resp || resp.status !== grpc.StatusOK;
+    check(blocked, { 'shared delete blocked': (v) => v === true });
+    if (!blocked) {
+      permissionBypass.add(1);
+      console.error(`SECURITY: ${attacker} deleted file in shared folder`);
+    }
+  });
+
+  group('delete file at class root as student', () => {
+    navigate(attacker, ['Khoury', 'CS5010']);
+    const resp = client.invoke('main.Server/Delete',
+      { path: 'proff_rename_test.txt' }, meta(attacker));
+    const blocked = !resp || resp.status !== grpc.StatusOK;
+    check(blocked, { 'class root delete blocked': (v) => v === true });
+    if (!blocked) {
+      permissionBypass.add(1);
+      console.error(`SECURITY: ${attacker} deleted file at class root`);
+    }
+  });
+
+  group('upload to shared folder as student', () => {
+    navigate(attacker, ['Khoury', 'CS5010', 'announcements']);
+
+    const stream = new grpc.Stream(client, 'main.Server/Upload', meta(attacker));
+    let blocked = true;
+    stream.on('data', () => { blocked = false; });
+    stream.on('error', () => {});
+
+    stream.write({ metadata: { name: 'malicious_shared.txt', content_type: 'text/plain' } });
+    stream.write({ chunk: new Uint8Array([65, 66, 67]) });
+    stream.end();
+
+    check(blocked, { 'shared upload blocked': (v) => v === true });
+    if (!blocked) {
+      permissionBypass.add(1);
+      console.error(`SECURITY: ${attacker} uploaded to shared folder`);
     }
   });
 
@@ -676,37 +775,177 @@ export function mkdirWorkflow() {
 export function renameDirWorkflow(){
     connect()
     group('professors can rename their shared folders',()=>{
-
+        navigate(PROFESSOR,['Khoury','CS5010'])
+        for (let i = 0; i < 3; i++) {
+            const resp= client.invoke('main.Server/RenameDirectory',{entry: `rename_dir_shared_${i}`, name:`new_name_dir_shared_${i}`},meta(PROFESSOR))
+            check(resp,{'teach rename dir ok':(r) => r && r.status === grpc.StatusOK});
+        }
     })
     group('students can rename subfolders in their personal folders',()=>{
-
+        for (let i = 0; i < STUDENTS.length; i++) {
+            const email = STUDENTS[i];
+            const folder = getStudentFolder(email);
+            if (!navigate(email, ['Khoury', 'CS5010', folder])) continue;
+            const resp = client.invoke('main.Server/RenameDirectory',{entry:`rename_dir_personal`,name:`new_rename_dir_personal_${i}`},meta(email))
+            check(resp,{'student renamed dir ok':(r) => r && r.status === grpc.StatusOK})
+        }
     })
     group('students cannot rename folders that are shared in class directory',()=>{
-
+        for(let i=0;i < STUDENTS.length;i++) {
+            const email = STUDENTS[i]
+            navigate(email,['Khoury','CS5010'])
+            const resp = client.invoke('main.Server/RenameDirectory',{entry:'announcements',name:'unauthorized_user_renamedir'},meta(email))
+            const blocked = !resp || resp.status !== grpc.StatusOK;
+            check(blocked,{'student renamedir is blocked!':(v) => v === true})
+            if (!blocked) {
+                permissionBypass.add(1);
+                console.error('SECURITY: student renamed folder at class level');
+            }
+        }
     })
+    group('cleanup renamed shared folders',()=>{
+        navigate(PROFESSOR,['Khoury','CS5010'])
+        for (let i = 0; i < 3; i++) {
+            client.invoke('main.Server/Delete',{path:`new_name_dir_shared_${i}`},meta(PROFESSOR));
+        }
+    })
+    group('cleanup renamed student personal folders',()=>{
+        for (let i = 0; i < STUDENTS.length; i++) {
+            const email = STUDENTS[i];
+            const folder = getStudentFolder(email);
+            navigate(PROFESSOR, ['Khoury', 'CS5010', folder]);
+            client.invoke('main.Server/Delete',{path:`new_rename_dir_personal_${i}`},meta(PROFESSOR));
+        }
+    })
+    client.close()
 }
 //renameFile is also entry and name, todo
 export function renameFileWorkflow(){
     connect()
     group('professors can rename their files anywhere in class',()=>{
-
+        navigate(PROFESSOR, ['Khoury', 'CS5010']);
+        const resp = client.invoke('main.Server/Rename',{entry:'rename_file_class.txt',name:'file_class.txt'},meta(PROFESSOR))
+        check(resp,{'teacher can rename a file in class dir ok':(r) => r && r.status === grpc.StatusOK})
     })
     group('professors can rename their files anywhere in a shared folder',()=>{
-
+        navigate(PROFESSOR, ['Khoury', 'CS5010','announcements']);
+        const resp = client.invoke('main.Server/Rename',{entry:'rename_file_shared.txt',name:'file_shared.txt'},meta(PROFESSOR))
+        check(resp,{'teacher can rename a file in shared sub dir ok':(r) => r && r.status === grpc.StatusOK})
     })
     group('professors can rename files in student folders',()=>{
-
+        for(let i=0;i<STUDENTS.length;i++){
+            const email = STUDENTS[i]
+            const folder = getStudentFolder(email)
+            if (!navigate(PROFESSOR,['Khoury','CS5010',folder])) continue
+            const resp = client.invoke('main.Server/Rename',{entry:'rename_file_by_prof.txt',name:'file_by_prof.txt'},meta(PROFESSOR))
+            check(resp,{'teacher can rename a file in a student personal folder':(r)=> r && r.status === grpc.StatusOK})
+        }
     })
     group('students can rename files in their personal folders',()=>{
-
+        for(let i=0;i< STUDENTS.length;i++){
+            const email = STUDENTS[i]
+            const folder = getStudentFolder(email)
+            if (!navigate(email,['Khoury','CS5010',folder])) continue
+            const resp = client.invoke('main.Server/Rename',{entry:'rename_file_personal.txt',name:'file_personal.txt'},meta(email))
+            check(resp,{'student can rename a file in their personal folder':(r)=> r && r.status === grpc.StatusOK})
+        }
     })
     group('students can rename files in sub folders of their personal folder',()=>{
-
+        for(let i=0;i<STUDENTS.length;i++){
+            const email = STUDENTS[i]
+            const folder = getStudentFolder(email)
+            if (!navigate(email, ['Khoury', 'CS5010', folder, 'notes'])) continue
+            const resp = client.invoke('main.Server/Rename',{entry:'rename_file_in_subfolder.txt',name:'file_in_subfolder.txt'},meta(email))
+            check(resp,{'student can rename a file in their personal sub folder':(r)=> r && r.status === grpc.StatusOK})
+        }
     })
     group('students cannot rename files in class directory',()=>{
-
+        for(let i=0;i<STUDENTS.length;i++){
+            const email = STUDENTS[i]
+            if (!navigate(email,['Khoury','CS5010']))continue
+            const resp = client.invoke('main.Server/Rename',{entry:'file_class.txt',name:'unauth_file_class.txt'},meta(email))
+            const blocked = !resp || resp.status !== grpc.StatusOK;
+            check(blocked,{'student rename file is blocked!':(v) => v === true})
+            if (!blocked) {
+                permissionBypass.add(1);
+                console.error('SECURITY: student renamed file at class level');
+            }
+        }
     })
     group('students cannot rename files in shared folders',()=>{
-
+        for(let i=0;i<STUDENTS.length;i++){
+            const email = STUDENTS[i]
+            if (!navigate(email,['Khoury','CS5010','announcements']))continue
+            const resp = client.invoke('main.Server/Rename',{entry:'file_shared.txt',name:'unauth_file_shared.txt'},meta(email))
+            const blocked = !resp || resp.status !== grpc.StatusOK;
+            check(blocked,{'student rename file is blocked!':(v) => v === true})
+            if (!blocked) {
+                permissionBypass.add(1);
+                console.error('SECURITY: student renamed file at shared folder level');
+            }
+        }
     })
+}
+
+export function concurrentRenameStress() {
+    connect();
+    const email = getStudentEmail();
+    const folder = getStudentFolder(email);
+    const idx = __ITER % 3;
+
+    group('concurrent file rename', () => {
+        if (!navigate(email, ['Khoury', 'CS5010', folder])) return;
+        const from = `stress_file_${idx}.txt`;
+        const to = `stress_file_${idx}_renamed.txt`;
+        const resp = client.invoke('main.Server/Rename', { entry: from, name: to }, meta(email));
+        check(resp, { 'concurrent file rename ok': (r) => r && r.status === grpc.StatusOK });
+        if (resp && resp.status === grpc.StatusOK) {
+            navigate(email, ['Khoury', 'CS5010', folder]);
+            client.invoke('main.Server/Rename', { entry: to, name: from }, meta(email));
+        }
+    });
+
+    group('concurrent dir rename', () => {
+        if (!navigate(email, ['Khoury', 'CS5010', folder])) return;
+        const from = `stress_subdir_${idx}`;
+        const to = `stress_subdir_${idx}_renamed`;
+        const resp = client.invoke('main.Server/RenameDirectory', { entry: from, name: to }, meta(email));
+        check(resp, { 'concurrent dir rename ok': (r) => r && r.status === grpc.StatusOK });
+        if (resp && resp.status === grpc.StatusOK) {
+            navigate(email, ['Khoury', 'CS5010', folder]);
+            client.invoke('main.Server/RenameDirectory', { entry: to, name: from }, meta(email));
+        }
+    });
+
+    client.close();
+}
+
+export function concurrentCdRaceStress() {
+    connect();
+    const email = getStudentEmail();
+    const folder = getStudentFolder(email);
+    const idx = __ITER % 3;
+
+    group('cd into dir being concurrently renamed', () => {
+        if (!navigate(email, ['Khoury', 'CS5010', folder])) return;
+
+        // try the original name — may succeed or fail depending on rename timing
+        const oldResp = client.invoke('main.Server/ChangeDirectory',
+            { folder: `stress_subdir_${idx}` }, meta(email));
+        const oldOk = oldResp && oldResp.status === grpc.StatusOK;
+
+        // navigate back and try the renamed version
+        navigate(email, ['Khoury', 'CS5010', folder]);
+        const newResp = client.invoke('main.Server/ChangeDirectory',
+            { folder: `stress_subdir_${idx}_renamed` }, meta(email));
+        const newOk = newResp && newResp.status === grpc.StatusOK;
+
+        // both failing means dir is in neither state — flag it
+        if (!oldOk && !newOk) {
+            rpcErrors.add(1);
+            console.warn(`cd race: stress_subdir_${idx} found in neither state for ${email}`);
+        }
+    });
+
+    client.close();
 }
