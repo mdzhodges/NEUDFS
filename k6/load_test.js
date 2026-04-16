@@ -59,6 +59,14 @@ export const options = {
       exec: 'integrityCheck',
       tags: { scenario: 'integrity' },
     },
+    upload_delete_cycle: {
+      executor: 'per-vu-iterations',
+      vus: 10,
+      iterations: 3,
+      startTime: '6m50s',
+      exec: 'uploadDeleteWorkflow',
+      tags: { scenario: 'upload_delete_cycle' },
+    },
     teacher_race: {
       executor: 'per-vu-iterations',
       vus: 1,
@@ -434,6 +442,93 @@ export function integrityCheck() {
   });
 
   client.invoke('main.Server/Delete', { path: filename }, meta(email));
+  client.close();
+}
+
+export function uploadDeleteWorkflow() {
+  connect();
+  const email = getStudentEmail();
+  const folder = getStudentFolder(email);
+  navigate(email, ['Khoury', 'CS5010', folder]);
+
+  const data = new Uint8Array(4096);
+  for (let i = 0; i < data.length; i++) {
+    data[i] = (i * 17) % 256;
+  }
+  const filename = `cycle_${__VU}_${__ITER}.bin`;
+  let failed = false;
+
+  group('upload', () => {
+    const ok = uploadBytes(email, filename, data);
+    check(ok, { 'cycle upload ok': (v) => v === true });
+    if (!ok) {
+      failed = true;
+    }
+  });
+  if (failed) {
+    client.close();
+    return;
+  }
+
+  group('download', () => {
+    const start = Date.now();
+    const resp = client.invoke('main.Server/Download', { name: filename }, meta(email));
+    downloadLatency.add(Date.now() - start);
+    check(resp, { 'cycle download ok': (r) => r && r.status === grpc.StatusOK });
+    if (!resp || resp.status !== grpc.StatusOK) {
+      rpcErrors.add(1);
+      failed = true;
+      return;
+    }
+
+    const downloaded = resp.message.data;
+    const sameLength = downloaded && downloaded.length === data.length;
+    check(downloaded, { 'cycle download has data': (v) => v && v.length === data.length });
+    if (!sameLength) {
+      rpcErrors.add(1);
+      console.error(`cycle size mismatch for ${filename}`);
+      failed = true;
+      return;
+    }
+    for (let i = 0; i < data.length; i++) {
+      if (downloaded[i] !== data[i]) {
+        rpcErrors.add(1);
+        console.error(`cycle byte mismatch at ${i} for ${filename}`);
+        failed = true;
+        return;
+      }
+    }
+  });
+  if (failed) {
+    client.close();
+    return;
+  }
+
+  group('delete', () => {
+    const start = Date.now();
+    const resp = client.invoke('main.Server/Delete', { path: filename }, meta(email));
+    deleteLatency.add(Date.now() - start);
+    check(resp, { 'cycle delete ok': (r) => r && r.status === grpc.StatusOK });
+    if (!resp || resp.status !== grpc.StatusOK) {
+      rpcErrors.add(1);
+      failed = true;
+    }
+  });
+  if (failed) {
+    client.close();
+    return;
+  }
+
+  group('post-delete download', () => {
+    const resp = client.invoke('main.Server/Download', { name: filename }, meta(email));
+    const blocked = !resp || resp.status === grpc.StatusNotFound;
+    check(blocked, { 'post-delete download not found': (v) => v === true });
+    if (!blocked) {
+      rpcErrors.add(1);
+      console.error(`SECURITY: ${email} downloaded ${filename} after delete`);
+    }
+  });
+
   client.close();
 }
 

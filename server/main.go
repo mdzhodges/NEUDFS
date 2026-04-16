@@ -1022,6 +1022,7 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 		s3Key := collegeName + "/" + className + "/" + targetSK
 		if err := s.DeleteS3File(ctx, s3Key); err != nil {
 			logger("Failed to delete S3 file %s: %v", s3Key, err)
+			return nil, errDB
 		}
 		_, err = s.DB.DeleteItem(ctx, &dynamodb.DeleteItemInput{
 			TableName: aws.String(metadataTable),
@@ -1061,12 +1062,13 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 		var meta Metadata
 		if err := attributevalue.UnmarshalMap(item, &meta); err != nil {
 			logger("Failed to unmarshal item: %v", err)
-			continue
+			return nil, errDB
 		}
 		if meta.Type == "file" {
 			s3Key := collegeName + "/" + className + "/" + meta.SK
 			if err := s.DeleteS3File(ctx, s3Key); err != nil {
 				logger("Failed to delete S3 file %s: %v", s3Key, err)
+				return nil, errDB
 			}
 		}
 		_, err = s.DB.DeleteItem(ctx, &dynamodb.DeleteItemInput{
@@ -1078,11 +1080,15 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 		})
 		if err != nil {
 			logger("Failed to delete item %s: %v", meta.SK, err)
+			return nil, errDB
 		}
 	}
 
 	// Remove deleted folder and its subfolders from permission arrays
-	s.removeFolderFromLists(ctx, collegeName, className, targetSK)
+	if err := s.removeFolderFromLists(ctx, collegeName, className, targetSK); err != nil {
+		logger("Failed to update folder permissions after delete: %v", err)
+		return nil, errDB
+	}
 
 	return &proto.DeleteResponse{Message: fmt.Sprintf("Deleted folder %s", targetName)}, nil
 }

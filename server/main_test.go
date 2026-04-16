@@ -219,6 +219,35 @@ func downloadFile(t *testing.T, email, filename string) (string, error) {
 	return string(data), nil
 }
 
+// downloadFileWithCode is like downloadFile, but also captures the gRPC status code.
+func downloadFileWithCode(t *testing.T, email, filename string) (string, codes.Code, error) {
+	t.Helper()
+	ctx := ctxForUser(email)
+	stream, err := testClient.Download(ctx, &proto.DownloadRequest{Name: filename})
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			return "", st.Code(), err
+		}
+		return "", codes.Unknown, err
+	}
+
+	var data []byte
+	for {
+		res, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			if st, ok := status.FromError(err); ok {
+				return string(data), st.Code(), err
+			}
+			return string(data), codes.Unknown, err
+		}
+		data = append(data, res.Data...)
+	}
+	return string(data), codes.OK, nil
+}
+
 func setupTest(t *testing.T) func() {
 	if os.Getenv("TEST_ENV") == "aws-remote" {
 		// Connect to real Fargate server through NLB
@@ -324,6 +353,115 @@ func TestConcurrentUploads(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────
+// Test: concurrent uploads followed by concurrent deletes
+// This verifies the file lifecycle for many students, not just access control.
+// ─────────────────────────────────────────────────────
+func TestConcurrentUploadsAndDeletes(t *testing.T) {
+	cleanup := setupTest(t)
+	defer cleanup()
+
+	teacherEmail := getProfessorEmail(t, "CS5010")
+	resetUserDirectory(t, teacherEmail)
+	students := getStudentEmails(t, "CS5010")
+	for _, email := range students {
+		resetUserDirectory(t, email)
+	}
+
+	type uploadResult struct {
+		email    string
+		filename string
+		content  string
+		err      error
+	}
+
+	uploadResults := make(chan uploadResult, len(students))
+	var wg sync.WaitGroup
+
+	for i, email := range students {
+		user := getUser(t, email)
+		folder := user.Colleges["Khoury"].Classes["CS5010"].Folders[0]
+		navigateTo(t, email, "Khoury")
+		navigateTo(t, email, "CS5010")
+		navigateTo(t, email, folder)
+
+		wg.Add(1)
+		go func(i int, email, folder string) {
+			defer wg.Done()
+			filename := fmt.Sprintf("hw_delete_%d.txt", i)
+			content := fmt.Sprintf("homework to delete from student %d", i)
+			err := uploadFile(t, email, filename, content)
+			uploadResults <- uploadResult{
+				email:    email,
+				filename: filename,
+				content:  content,
+				err:      err,
+			}
+		}(i, email, folder)
+	}
+
+	wg.Wait()
+	close(uploadResults)
+
+	var uploaded []uploadResult
+	for r := range uploadResults {
+		if r.err != nil {
+			t.Errorf("%s upload failed: %v", r.email, r.err)
+			continue
+		}
+		uploaded = append(uploaded, r)
+	}
+
+	for _, r := range uploaded {
+		content, err := downloadFile(t, r.email, r.filename)
+		if err != nil {
+			t.Errorf("%s download after upload failed: %v", r.email, err)
+			continue
+		}
+		if content != r.content {
+			t.Errorf("%s download mismatch: got %q want %q", r.email, content, r.content)
+		}
+	}
+
+	deleteResults := make(chan error, len(uploaded))
+	wg = sync.WaitGroup{}
+	for _, r := range uploaded {
+		user := getUser(t, r.email)
+		folder := user.Colleges["Khoury"].Classes["CS5010"].Folders[0]
+		navigateTo(t, r.email, "Khoury")
+		navigateTo(t, r.email, "CS5010")
+		navigateTo(t, r.email, folder)
+
+		wg.Add(1)
+		go func(email, filename string) {
+			defer wg.Done()
+			ctx := ctxForUser(email)
+			_, err := testClient.Delete(ctx, &proto.DeleteRequest{Path: filename})
+			deleteResults <- err
+		}(r.email, r.filename)
+	}
+
+	wg.Wait()
+	close(deleteResults)
+
+	for err := range deleteResults {
+		if err != nil {
+			t.Errorf("delete failed: %v", err)
+		}
+	}
+
+	for _, r := range uploaded {
+		_, code, err := downloadFileWithCode(t, r.email, r.filename)
+		if err == nil {
+			t.Errorf("%s: expected file %s to be gone after delete", r.email, r.filename)
+			continue
+		}
+		if code != codes.NotFound {
+			t.Errorf("%s: expected NotFound after delete, got %s: %v", r.email, code, err)
+		}
+	}
+}
+
+// ─────────────────────────────────────────────────────
 // Test: teacher overwrites file while students download concurrently
 // Every student must get a complete valid version, never partial/corrupt
 // ─────────────────────────────────────────────────────
@@ -356,6 +494,7 @@ func TestReadWhileWriting(t *testing.T) {
 		student string
 		content string
 		err     error
+		code    codes.Code
 	}
 
 	var wg sync.WaitGroup
@@ -375,7 +514,7 @@ func TestReadWhileWriting(t *testing.T) {
 		}
 	}()
 
-	// Students download concurrently
+	// Students download concurrently.
 	for _, email := range students {
 		navigateTo(t, email, "Khoury")
 		navigateTo(t, email, "CS5010")
@@ -385,8 +524,8 @@ func TestReadWhileWriting(t *testing.T) {
 		go func(email string) {
 			defer wg.Done()
 			for i := 0; i < 5; i++ {
-				content, err := downloadFile(t, email, "lecture.txt")
-				results <- downloadResult{student: email, content: content, err: err}
+				content, code, err := downloadFileWithCode(t, email, "lecture.txt")
+				results <- downloadResult{student: email, content: content, err: err, code: code}
 				time.Sleep(30 * time.Millisecond)
 			}
 		}(email)
@@ -462,38 +601,61 @@ func TestDeleteDuringDownload(t *testing.T) {
 		code    codes.Code
 	}
 
-	// Phase 1: start downloads from all students concurrently
+	// Phase 1: start downloads from all students concurrently.
 	var wg sync.WaitGroup
 	phase1 := make(chan downloadResult, len(students))
+	started := make(chan struct{}, len(students))
 
 	for _, email := range students {
 		wg.Add(1)
 		go func(email string) {
 			defer wg.Done()
-			content, err := downloadFile(t, email, "handout.txt")
-			r := downloadResult{student: email, size: len(content), err: err}
+			ctx := ctxForUser(email)
+			stream, err := testClient.Download(ctx, &proto.DownloadRequest{Name: "handout.txt"})
 			if err != nil {
+				r := downloadResult{student: email, err: err}
 				if st, ok := status.FromError(err); ok {
 					r.code = st.Code()
 				}
+				started <- struct{}{}
+				phase1 <- r
+				return
 			}
+			started <- struct{}{}
+
+			var data []byte
+			for {
+				res, err := stream.Recv()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					r := downloadResult{student: email, size: len(data), err: err}
+					if st, ok := status.FromError(err); ok {
+						r.code = st.Code()
+					}
+					phase1 <- r
+					return
+				}
+				data = append(data, res.Data...)
+			}
+
+			r := downloadResult{student: email, size: len(data)}
 			phase1 <- r
 		}(email)
 	}
 
-	// Small delay then teacher deletes the file
-	time.Sleep(100 * time.Millisecond)
-	ctx := ctxForUser(teacherEmail)
-	var deleteErr error
-	for attempt := 0; attempt < 3; attempt++ {
-		_, deleteErr = testClient.Delete(ctx, &proto.DeleteRequest{Path: "handout.txt"})
-		if deleteErr == nil {
-			break
+	for i := 0; i < len(students); i++ {
+		select {
+		case <-started:
+		case <-time.After(5 * time.Second):
+			t.Fatal("timed out waiting for downloads to start")
 		}
-		time.Sleep(50 * time.Millisecond)
 	}
-	if deleteErr != nil {
-		t.Fatalf("teacher delete failed after retries: %v", deleteErr)
+
+	ctx := ctxForUser(teacherEmail)
+	if _, deleteErr := testClient.Delete(ctx, &proto.DeleteRequest{Path: "handout.txt"}); deleteErr != nil {
+		t.Fatalf("teacher delete failed: %v", deleteErr)
 	}
 
 	wg.Wait()
@@ -501,13 +663,13 @@ func TestDeleteDuringDownload(t *testing.T) {
 
 	for r := range phase1 {
 		if r.err != nil {
-			// NotFound or Internal are acceptable — depends on whether the delete
-			// landed before the student's metadata lookup or S3 GetObject
-			if r.code == codes.NotFound || r.code == codes.Internal {
-				t.Logf("student %s: got %s during race (acceptable)", r.student, r.code)
-			} else {
-				t.Errorf("student %s: unexpected error: %v", r.student, r.err)
+			// If the delete won the race, the request should fail with NotFound.
+			// Anything else points to a transport or consistency bug.
+			if r.code == codes.NotFound {
+				t.Logf("student %s: got NotFound during race (acceptable)", r.student)
+				continue
 			}
+			t.Errorf("student %s: unexpected race error: %v", r.student, r.err)
 		} else {
 			// If download succeeded, must have gotten the complete file
 			if r.size != len(bigContent) {
@@ -592,6 +754,7 @@ func TestDeleteFolderDuringDownload(t *testing.T) {
 
 	var wg sync.WaitGroup
 	results := make(chan downloadResult, len(students)*3)
+	started := make(chan struct{}, len(students)*3)
 
 	// Each student downloads all 3 files concurrently
 	for _, email := range students {
@@ -600,21 +763,50 @@ func TestDeleteFolderDuringDownload(t *testing.T) {
 			go func(email string, fileIdx int) {
 				defer wg.Done()
 				filename := fmt.Sprintf("notes_%d.txt", fileIdx)
-				content, err := downloadFile(t, email, filename)
-				r := downloadResult{student: email, filename: filename, size: len(content), err: err}
+				ctx := ctxForUser(email)
+				stream, err := testClient.Download(ctx, &proto.DownloadRequest{Name: filename})
 				if err != nil {
+					r := downloadResult{student: email, filename: filename, err: err}
 					if st, ok := status.FromError(err); ok {
 						r.code = st.Code()
 					}
+					started <- struct{}{}
+					results <- r
+					return
 				}
-				results <- r
+				started <- struct{}{}
+
+				var data []byte
+				for {
+					res, err := stream.Recv()
+					if err == io.EOF {
+						break
+					}
+					if err != nil {
+						r := downloadResult{student: email, filename: filename, size: len(data), err: err}
+						if st, ok := status.FromError(err); ok {
+							r.code = st.Code()
+						}
+						results <- r
+						return
+					}
+					data = append(data, res.Data...)
+				}
+				results <- downloadResult{student: email, filename: filename, size: len(data)}
 			}(email, i)
 		}
 	}
 
-	// Teacher deletes the entire folder while downloads are in flight
-	time.Sleep(10 * time.Millisecond)
-	// Navigate teacher back to class root to delete the folder
+	for i := 0; i < len(students)*3; i++ {
+		select {
+		case <-started:
+		case <-time.After(5 * time.Second):
+			t.Fatal("timed out waiting for folder downloads to start")
+		}
+	}
+
+	// Teacher deletes the entire folder while downloads are in flight.
+	// Navigate teacher back to class root to delete the folder.
 	navigateTo(t, teacherEmail, "..")
 	if _, err := testClient.Delete(ctx, &proto.DeleteRequest{Path: "temp_delete_test/"}); err != nil {
 		t.Fatalf("teacher folder delete failed: %v", err)
@@ -627,9 +819,9 @@ func TestDeleteFolderDuringDownload(t *testing.T) {
 	failCount := 0
 	for r := range results {
 		if r.err != nil {
-			if r.code == codes.NotFound || r.code == codes.Internal {
+			if r.code == codes.NotFound {
 				failCount++
-				t.Logf("student %s file %s: %s during race (acceptable)", r.student, r.filename, r.code)
+				t.Logf("student %s file %s: NotFound during race (acceptable)", r.student, r.filename)
 			} else {
 				t.Errorf("student %s file %s: unexpected error: %v", r.student, r.filename, r.err)
 			}

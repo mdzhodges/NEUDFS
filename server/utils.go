@@ -467,7 +467,8 @@ func (s *server) DeleteS3File(ctx context.Context, s3Key string) error {
 }
 
 // removeFolderFromLists removes a folder and all its subfolders from user and class permission arrays.
-func (s *server) removeFolderFromLists(ctx context.Context, collegeName, className, folderPath string) {
+// It returns an error if cleanup cannot be completed after retries.
+func (s *server) removeFolderFromLists(ctx context.Context, collegeName, className, folderPath string) error {
 	targetPath := strings.TrimSuffix(folderPath, "/")
 	prefix := targetPath + "/"
 
@@ -480,7 +481,7 @@ func (s *server) removeFolderFromLists(ctx context.Context, collegeName, classNa
 		classInfo, err = s.getClassInfo(ctx, className)
 		if err != nil {
 			logger("removeFolderFromLists: failed to get class info: %v", err)
-			return
+			return err
 		}
 
 		newSharedStr := make([]string, 0, len(classInfo.SharedFolders))
@@ -520,7 +521,7 @@ func (s *server) removeFolderFromLists(ctx context.Context, collegeName, classNa
 			continue
 		}
 		logger("removeFolderFromLists: failed to update shared folders: %v", err)
-		break
+		return err
 	}
 
 	// Rebuild every class member's (students, TAs, professor) folders list.
@@ -534,15 +535,16 @@ func (s *server) removeFolderFromLists(ctx context.Context, collegeName, classNa
 		for attempt := 0; attempt < 8; attempt++ {
 			u, err := s.getUser(ctx, memberEmail)
 			if err != nil {
-				break
+				logger("removeFolderFromLists: failed to get user %s: %v", memberEmail, err)
+				return err
 			}
 			college, ok := u.Colleges[collegeName]
 			if !ok {
-				break
+				return fmt.Errorf("removeFolderFromLists: missing college %s for %s", collegeName, memberEmail)
 			}
 			classData, ok := college.Classes[className]
 			if !ok {
-				break
+				return fmt.Errorf("removeFolderFromLists: missing class %s for %s", className, memberEmail)
 			}
 			oldFolders := classData.Folders
 
@@ -586,9 +588,10 @@ func (s *server) removeFolderFromLists(ctx context.Context, collegeName, classNa
 				continue
 			}
 			logger("removeFolderFromLists: failed to update folders for %s: %v", memberEmail, err)
-			break
+			return err
 		}
 	}
+	return nil
 }
 
 func (s *server) DownloadS3File(ctx context.Context, s3Url string) (*s3.GetObjectOutput, error) {
