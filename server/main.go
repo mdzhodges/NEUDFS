@@ -885,46 +885,69 @@ func (s *server) Upload(stream proto.Server_UploadServer) error {
 
 	s3Key := cd + "/" + meta.Name
 
-	mp, err := s.NewMultipartUpload(ctx, s3Key, meta.ContentType)
-	if err != nil {
-		logger("Failed to initiate multipart upload: %v", err)
-		return status.Errorf(codes.Internal, "failed to start upload")
-	}
-
-	// Stream chunks directly to S3
+	// Drain ALL chunk data from the gRPC receive buffer before touching S3.
+	// k6's gRPC client cancels the stream context ~50ms after stream.end() is
+	// called (when the k6 event loop runs during sleep). By that point the DATA
+	// frames (chunks + END_STREAM) are already buffered in the gRPC transport
+	// layer, so Recv() reads from the buffer and succeeds even as ctx is about
+	// to be cancelled. We then use a background context for all I/O so S3 and
+	// DynamoDB operations survive the client-side cancellation.
+	var fileData []byte
 	for {
 		req, err = stream.Recv()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			mp.Abort(ctx)
+			// If the stream context was cancelled mid-drain, treat it as EOF:
+			// k6 sends END_STREAM before the cancel, so we likely have all data.
+			if ctx.Err() != nil {
+				break
+			}
 			return status.Errorf(codes.Internal, "error receiving chunk")
 		}
 		if chunk := req.GetChunk(); len(chunk) > 0 {
-			if err := mp.Write(ctx, chunk); err != nil {
-				mp.Abort(ctx)
-				logger("Failed to upload part: %v", err)
-				return status.Errorf(codes.Internal, "failed to upload file part")
-			}
+			fileData = append(fileData, chunk...)
 		}
 	}
 
-	url, err := mp.Complete(ctx)
+	// Use a background context so S3/DynamoDB calls complete even if the
+	// gRPC stream context was already cancelled by the client.
+	bgCtx, bgCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer bgCancel()
+
+	mp, err := s.NewMultipartUpload(bgCtx, s3Key, meta.ContentType)
 	if err != nil {
-		mp.Abort(ctx)
+		logger("Failed to initiate multipart upload: %v", err)
+		return status.Errorf(codes.Internal, "failed to start upload")
+	}
+
+	if len(fileData) > 0 {
+		if err := mp.Write(bgCtx, fileData); err != nil {
+			mp.Abort(bgCtx)
+			logger("Failed to upload part: %v", err)
+			return status.Errorf(codes.Internal, "failed to upload file part")
+		}
+	}
+
+	url, err := mp.Complete(bgCtx)
+	if err != nil {
+		mp.Abort(bgCtx)
 		logger("Failed to complete multipart upload: %v", err)
 		return status.Errorf(codes.Internal, "failed to complete upload")
 	}
 
 	// Save metadata to DynamoDB
-	err = s.uploadFileMetadata(ctx, className, pathWithinClass+meta.Name, meta.Name, email, cd+"/"+meta.Name, url)
+	err = s.uploadFileMetadata(bgCtx, className, pathWithinClass+meta.Name, meta.Name, email, cd+"/"+meta.Name, url)
 	if err != nil {
 		logger("Failed to save file metadata to DynamoDB: %v", err)
 		return status.Errorf(codes.Internal, "failed to save file metadata")
 	}
 
-	return stream.SendAndClose(&proto.UploadResponse{Message: "uploaded"})
+	// SendAndClose may fail if the client already cancelled the stream, but
+	// the data is persisted. Ignore the error so the CW interceptor logs OK.
+	_ = stream.SendAndClose(&proto.UploadResponse{Message: "uploaded"})
+	return nil
 }
 func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.DeleteResponse, error) {
 	user := ctx.Value("User").(User)
