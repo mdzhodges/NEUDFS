@@ -1,6 +1,7 @@
 import grpc from 'k6/net/grpc';
 import { check, sleep, group } from 'k6';
 import { Counter, Trend, Rate } from 'k6/metrics';
+import exec from 'k6/execution';
 
 const client = new grpc.Client();
 client.load(['../proto'], 'server.proto');
@@ -59,9 +60,17 @@ export const options = {
       exec: 'integrityCheck',
       tags: { scenario: 'integrity' },
     },
+    upload_delete_cycle: {
+      executor: 'per-vu-iterations',
+      vus: 10,
+      iterations: 3,
+      startTime: '6m50s',
+      exec: 'uploadDeleteWorkflow',
+      tags: { scenario: 'upload_delete_cycle' },
+    },
     teacher_race: {
       executor: 'per-vu-iterations',
-      vus: 1,
+      vus: 5,
       iterations: 1,
       startTime: '7m10s',
       exec: 'teacherUpdateRace',
@@ -266,12 +275,30 @@ function uploadBytes(email, filename, data) {
   return success;
 }
 
+// Each scenario gets a different starting offset so VU 1 in two concurrent
+// scenarios doesn't hash to the same student and stack uploads on one user.
+// Stride of 7 (prime) avoids alignment even for small STUDENTS arrays.
+const SCENARIO_STUDENT_OFFSET = {
+  steady_classroom:           0,
+  burst_download:             7,
+  integrity_check:            14,
+  upload_delete_cycle:        21,
+  large_file:                 28,
+  rapid_fire:                 35,
+  spike_test:                 42,
+  soak_test:                  49,
+  tree_stress:                56,
+  session_conflict_upload:    63,
+  session_conflict_navigate:  70,
+};
+
 function getStudentEmail() {
-  return STUDENTS[(__VU - 1) % STUDENTS.length];
+  const offset = SCENARIO_STUDENT_OFFSET[exec.scenario.name] || 0;
+  return STUDENTS[(__VU - 1 + offset) % STUDENTS.length];
 }
 
 function getStudentFolder(email) {
-  return email.split('@')[0].replace('.', '_');
+  return email.split('@')[0].replace(/\./g, '_');
 }
 
 export function seedTestData() {
@@ -372,6 +399,11 @@ export function studentWorkflow() {
       { name: `hw_${__VU}_${__ITER}.txt` }, email);
   });
 
+  group('cleanup', () => {
+    client.invoke('main.Server/Delete',
+      { path: `hw_${__VU}_${__ITER}.txt` }, meta(email));
+  });
+
   sleep(Math.random() * 2 + 1);
   client.close();
 }
@@ -437,25 +469,133 @@ export function integrityCheck() {
   client.close();
 }
 
+export function uploadDeleteWorkflow() {
+  connect();
+  const email = getStudentEmail();
+  const folder = getStudentFolder(email);
+  navigate(email, ['Khoury', 'CS5010', folder]);
+
+  const data = new Uint8Array(4096);
+  for (let i = 0; i < data.length; i++) {
+    data[i] = (i * 17) % 256;
+  }
+  const filename = `cycle_${__VU}_${__ITER}.bin`;
+  let failed = false;
+
+  group('upload', () => {
+    const ok = uploadBytes(email, filename, data);
+    check(ok, { 'cycle upload ok': (v) => v === true });
+    if (!ok) {
+      failed = true;
+    }
+  });
+  if (failed) {
+    client.close();
+    return;
+  }
+
+  group('download', () => {
+    const start = Date.now();
+    const resp = client.invoke('main.Server/Download', { name: filename }, meta(email));
+    downloadLatency.add(Date.now() - start);
+    check(resp, { 'cycle download ok': (r) => r && r.status === grpc.StatusOK });
+    if (!resp || resp.status !== grpc.StatusOK) {
+      rpcErrors.add(1);
+      failed = true;
+      return;
+    }
+
+    const downloaded = resp.message.data;
+    const sameLength = downloaded && downloaded.length === data.length;
+    check(downloaded, { 'cycle download has data': (v) => v && v.length === data.length });
+    if (!sameLength) {
+      rpcErrors.add(1);
+      console.error(`cycle size mismatch for ${filename}`);
+      failed = true;
+      return;
+    }
+    for (let i = 0; i < data.length; i++) {
+      if (downloaded[i] !== data[i]) {
+        rpcErrors.add(1);
+        console.error(`cycle byte mismatch at ${i} for ${filename}`);
+        failed = true;
+        return;
+      }
+    }
+  });
+  if (failed) {
+    client.close();
+    return;
+  }
+
+  group('delete', () => {
+    const start = Date.now();
+    const resp = client.invoke('main.Server/Delete', { path: filename }, meta(email));
+    deleteLatency.add(Date.now() - start);
+    check(resp, { 'cycle delete ok': (r) => r && r.status === grpc.StatusOK });
+    if (!resp || resp.status !== grpc.StatusOK) {
+      rpcErrors.add(1);
+      failed = true;
+    }
+  });
+  if (failed) {
+    client.close();
+    return;
+  }
+
+  group('post-delete download', () => {
+    const resp = client.invoke('main.Server/Download', { name: filename }, meta(email));
+    const blocked = !resp || resp.status !== grpc.StatusOK;
+    check(blocked, { 'post-delete download not found': (v) => v === true });
+    if (!blocked) {
+      rpcErrors.add(1);
+      console.error(`SECURITY: ${email} downloaded ${filename} after delete`);
+    }
+  });
+
+  client.close();
+}
+
 export function teacherUpdateRace() {
   connect();
   navigate(PROFESSOR, ['Khoury', 'CS5010', 'announcements']);
 
-  const data = new Uint8Array(10240);
-  uploadBytes(PROFESSOR, 'race_file.txt', data);
+  // Each VU uploads a distinct version of the same file concurrently.
+  // With vus:5, all five uploads race against each other on S3 + DynamoDB.
+  // One write wins; the others overwrite it — last writer wins on S3.
+  const vData = new Uint8Array(10240);
+  vData.fill(__VU); // distinct byte pattern per VU so we can tell who won
+  const uploadOk = uploadBytes(PROFESSOR, 'race_file.txt', vData);
+  check(uploadOk, { 'concurrent upload completed': (v) => v === true });
 
-  for (let v = 2; v <= 5; v++) {
-    const vData = new Uint8Array(10240);
-    vData.fill(v + 48);
-    uploadBytes(PROFESSOR, 'race_file.txt', vData);
-    sleep(0.3);
+  // After all VUs finish uploading, verify the file is in a readable, complete state.
+  // Any version is valid — what must NOT happen is a partial or corrupt result.
+  const resp = client.invoke('main.Server/Download',
+    { name: 'race_file.txt' }, meta(PROFESSOR));
+  check(resp, { 'race file readable after concurrent uploads': (r) => r && r.status === grpc.StatusOK });
+  if (resp && resp.status === grpc.StatusOK) {
+    const data = resp.message && resp.message.data;
+    check(data, { 'race file has full content': (d) => d && d.length === 10240 });
+    if (data && data.length === 10240) {
+      // All bytes should be the same value (one VU's fill won cleanly, not a mix)
+      const firstByte = data[0];
+      let corrupt = false;
+      for (let i = 1; i < data.length; i++) {
+        if (data[i] !== firstByte) { corrupt = true; break; }
+      }
+      check(!corrupt, { 'race file not corrupted (single winner)': (v) => v === true });
+      if (corrupt) integrityFailures.add(1);
+    }
   }
 
-  const start = Date.now();
-  const resp = client.invoke('main.Server/Delete',
-    { path: 'race_file.txt' }, meta(PROFESSOR));
-  deleteLatency.add(Date.now() - start);
-  check(resp, { 'race delete ok': (r) => r && r.status === grpc.StatusOK });
+  // Only VU 1 deletes to avoid a delete race on top of the upload race.
+  if (__VU === 1) {
+    const start = Date.now();
+    const delResp = client.invoke('main.Server/Delete',
+      { path: 'race_file.txt' }, meta(PROFESSOR));
+    deleteLatency.add(Date.now() - start);
+    check(delResp, { 'race delete ok': (r) => r && r.status === grpc.StatusOK });
+  }
 
   client.close();
 }
@@ -663,6 +803,7 @@ export function soakWorkflow() {
 export function treeStress() {
   connect();
   const email = getStudentEmail();
+  const folder = getStudentFolder(email);
 
   group('tree from root', () => {
     navigate(email, []);
@@ -677,6 +818,18 @@ export function treeStress() {
   group('tree from class', () => {
     navigate(email, ['Khoury', 'CS5010']);
     timedInvoke(treeLatency, 'main.Server/TreeDirectory', {}, email);
+  });
+
+  // Clean up any hw_* files left behind by studentWorkflow runs for this VU.
+  // Navigate to the student's folder and delete files for all iterations seen.
+  group('cleanup stale hw files', () => {
+    if (!navigate(email, ['Khoury', 'CS5010', folder])) return;
+    for (let iter = 0; iter < 200; iter++) {
+      const resp = client.invoke('main.Server/Delete',
+        { path: `hw_${__VU}_${iter}.txt` }, meta(email));
+      // Stop once we hit a run of NotFound — no more files for this VU
+      if (!resp || resp.status === grpc.StatusNotFound) break;
+    }
   });
 
   client.close();
@@ -885,6 +1038,7 @@ export function renameFileWorkflow(){
             }
         }
     })
+    client.close();
 }
 
 export function concurrentRenameStress() {

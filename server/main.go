@@ -885,60 +885,39 @@ func (s *server) Upload(stream proto.Server_UploadServer) error {
 
 	s3Key := cd + "/" + meta.Name
 
-	// Drain ALL chunk data from the gRPC receive buffer before touching S3.
-	// k6's gRPC client cancels the stream context ~50ms after stream.end() is
-	// called (when the k6 event loop runs during sleep). By that point the DATA
-	// frames (chunks + END_STREAM) are already buffered in the gRPC transport
-	// layer, so Recv() reads from the buffer and succeeds even as ctx is about
-	// to be cancelled. We then use a background context for all I/O so S3 and
-	// DynamoDB operations survive the client-side cancellation.
-	var fileData []byte
+	mp, err := s.NewMultipartUpload(ctx, s3Key, meta.ContentType)
+	if err != nil {
+		logger("Failed to initiate multipart upload: %v", err)
+		return status.Errorf(codes.Internal, "failed to start upload")
+	}
+
 	for {
 		req, err = stream.Recv()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			// If the stream context was cancelled mid-drain, treat it as EOF:
-			// k6 sends END_STREAM before the cancel, so we likely have all data.
-			if ctx.Err() != nil {
-				break
-			}
+			mp.Abort(ctx)
 			return status.Errorf(codes.Internal, "error receiving chunk")
 		}
 		if chunk := req.GetChunk(); len(chunk) > 0 {
-			fileData = append(fileData, chunk...)
+			if err := mp.Write(ctx, chunk); err != nil {
+				mp.Abort(ctx)
+				logger("Failed to upload part: %v", err)
+				return status.Errorf(codes.Internal, "failed to upload file part")
+			}
 		}
 	}
 
-	// Use a background context so S3/DynamoDB calls complete even if the
-	// gRPC stream context was already cancelled by the client.
-	bgCtx, bgCancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer bgCancel()
-
-	mp, err := s.NewMultipartUpload(bgCtx, s3Key, meta.ContentType)
+	url, err := mp.Complete(ctx)
 	if err != nil {
-		logger("Failed to initiate multipart upload: %v", err)
-		return status.Errorf(codes.Internal, "failed to start upload")
-	}
-
-	if len(fileData) > 0 {
-		if err := mp.Write(bgCtx, fileData); err != nil {
-			mp.Abort(bgCtx)
-			logger("Failed to upload part: %v", err)
-			return status.Errorf(codes.Internal, "failed to upload file part")
-		}
-	}
-
-	url, err := mp.Complete(bgCtx)
-	if err != nil {
-		mp.Abort(bgCtx)
+		mp.Abort(ctx)
 		logger("Failed to complete multipart upload: %v", err)
 		return status.Errorf(codes.Internal, "failed to complete upload")
 	}
 
 	// Save metadata to DynamoDB
-	err = s.uploadFileMetadata(bgCtx, className, pathWithinClass+meta.Name, meta.Name, email, cd+"/"+meta.Name, url)
+	err = s.uploadFileMetadata(ctx, className, pathWithinClass+meta.Name, meta.Name, email, cd+"/"+meta.Name, url)
 	if err != nil {
 		logger("Failed to save file metadata to DynamoDB: %v", err)
 		return status.Errorf(codes.Internal, "failed to save file metadata")
@@ -1045,6 +1024,7 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 		s3Key := collegeName + "/" + className + "/" + targetSK
 		if err := s.DeleteS3File(ctx, s3Key); err != nil {
 			logger("Failed to delete S3 file %s: %v", s3Key, err)
+			return nil, errDB
 		}
 		_, err = s.DB.DeleteItem(ctx, &dynamodb.DeleteItemInput{
 			TableName: aws.String(metadataTable),
@@ -1084,12 +1064,13 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 		var meta Metadata
 		if err := attributevalue.UnmarshalMap(item, &meta); err != nil {
 			logger("Failed to unmarshal item: %v", err)
-			continue
+			return nil, errDB
 		}
 		if meta.Type == "file" {
 			s3Key := collegeName + "/" + className + "/" + meta.SK
 			if err := s.DeleteS3File(ctx, s3Key); err != nil {
 				logger("Failed to delete S3 file %s: %v", s3Key, err)
+				return nil, errDB
 			}
 		}
 		_, err = s.DB.DeleteItem(ctx, &dynamodb.DeleteItemInput{
@@ -1101,11 +1082,15 @@ func (s *server) Delete(ctx context.Context, in *proto.DeleteRequest) (*proto.De
 		})
 		if err != nil {
 			logger("Failed to delete item %s: %v", meta.SK, err)
+			return nil, errDB
 		}
 	}
 
 	// Remove deleted folder and its subfolders from permission arrays
-	s.removeFolderFromLists(ctx, collegeName, className, targetSK)
+	if err := s.removeFolderFromLists(ctx, collegeName, className, targetSK); err != nil {
+		logger("Failed to update folder permissions after delete: %v", err)
+		return nil, errDB
+	}
 
 	return &proto.DeleteResponse{Message: fmt.Sprintf("Deleted folder %s", targetName)}, nil
 }

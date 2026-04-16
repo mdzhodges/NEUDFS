@@ -48,3 +48,5 @@ In test directory:
     K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=dashboard_report.html k6 run neudfs_test.js
     open dashboard_report.html
     open neudfs_report.html
+
+
