@@ -540,11 +540,11 @@ func (s *server) removeFolderFromLists(ctx context.Context, collegeName, classNa
 			}
 			college, ok := u.Colleges[collegeName]
 			if !ok {
-				return fmt.Errorf("removeFolderFromLists: missing college %s for %s", collegeName, memberEmail)
+				break
 			}
 			classData, ok := college.Classes[className]
 			if !ok {
-				return fmt.Errorf("removeFolderFromLists: missing class %s for %s", className, memberEmail)
+				break
 			}
 			oldFolders := classData.Folders
 
@@ -654,16 +654,10 @@ func (s *server) SetCurrentDirectory(ctx context.Context, email string, expected
 			":prev": &types.AttributeValueMemberS{Value: expectedPrev},
 		},
 	}
-	//Ensures that that the directory being read has not changed
-	if expectedPrev == "" {
-		input.ConditionExpression = aws.String(
-			"attribute_not_exists(currentDirectory) OR currentDirectory = :prev",
-		)
-	} else {
-		input.ConditionExpression = aws.String(
-			"attribute_not_exists(currentDirectory) OR currentDirectory = :prev",
-		)
-	}
+	// Ensures the directory hasn't been changed by another session since we last read it
+	input.ConditionExpression = aws.String(
+		"attribute_not_exists(currentDirectory) OR currentDirectory = :prev",
+	)
 	_, err := s.DB.UpdateItem(ctx, input)
 	if err != nil {
 		var condErr *types.ConditionalCheckFailedException

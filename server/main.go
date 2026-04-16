@@ -898,21 +898,32 @@ func (s *server) Upload(stream proto.Server_UploadServer) error {
 			break
 		}
 		if err != nil {
-			mp.Abort(ctx)
+			abortCtx, abortCancel := context.WithTimeout(context.Background(), 15*time.Second)
+			mp.Abort(abortCtx)
+			abortCancel()
 			return status.Errorf(codes.Internal, "error receiving chunk")
 		}
 		if chunk := req.GetChunk(); len(chunk) > 0 {
 			if err := mp.Write(ctx, chunk); err != nil {
-				mp.Abort(ctx)
+				abortCtx, abortCancel := context.WithTimeout(context.Background(), 15*time.Second)
+				mp.Abort(abortCtx)
+				abortCancel()
 				logger("Failed to upload part: %v", err)
 				return status.Errorf(codes.Internal, "failed to upload file part")
 			}
 		}
 	}
 
-	url, err := mp.Complete(ctx)
+	// Use a detached context for Complete/Abort so a client disconnect
+	// doesn't cancel the S3 finalization mid-flight and produce a spurious
+	// Internal error. 60s is generous; CompleteMultipartUpload is typically <5s.
+	completeCtx, completeCancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer completeCancel()
+	url, err := mp.Complete(completeCtx)
 	if err != nil {
-		mp.Abort(ctx)
+		abortCtx, abortCancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer abortCancel()
+		mp.Abort(abortCtx)
 		logger("Failed to complete multipart upload: %v", err)
 		return status.Errorf(codes.Internal, "failed to complete upload")
 	}

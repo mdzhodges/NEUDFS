@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	cwtypes "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -113,6 +114,15 @@ func logRPCMetric(method, email, code string, duration time.Duration) {
 	fmt.Println(string(data))
 }
 
+func emailFromContext(ctx context.Context) string {
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if emails := md["email"]; len(emails) > 0 {
+			return emails[0]
+		}
+	}
+	return ""
+}
+
 func cloudwatchUnaryInterceptor(cwm *CloudWatchMetrics, inner grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		start := time.Now()
@@ -124,10 +134,7 @@ func cloudwatchUnaryInterceptor(cwm *CloudWatchMetrics, inner grpc.UnaryServerIn
 				code = st.Code().String()
 			}
 		}
-		email := ""
-		if user, ok := ctx.Value("User").(User); ok {
-			email = user.Email
-		}
+		email := emailFromContext(ctx)
 		cwm.Record(info.FullMethod, email, code, duration)
 		logRPCMetric(info.FullMethod, email, code, duration)
 
@@ -146,11 +153,7 @@ func cloudwatchStreamInterceptor(cwm *CloudWatchMetrics, inner grpc.StreamServer
 				code = st.Code().String()
 			}
 		}
-		ctx := ss.Context()
-		email := ""
-		if user, ok := ctx.Value("User").(User); ok {
-			email = user.Email
-		}
+		email := emailFromContext(ss.Context())
 		cwm.Record(info.FullMethod, email, code, duration)
 		logRPCMetric(info.FullMethod, email, code, duration)
 

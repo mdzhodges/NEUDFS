@@ -425,6 +425,7 @@ func TestConcurrentUploadsAndDeletes(t *testing.T) {
 	deleteResults := make(chan error, len(uploaded))
 	wg = sync.WaitGroup{}
 	for _, r := range uploaded {
+		resetUserDirectory(t, r.email)
 		user := getUser(t, r.email)
 		folder := user.Colleges["Khoury"].Classes["CS5010"].Folders[0]
 		navigateTo(t, r.email, "Khoury")
