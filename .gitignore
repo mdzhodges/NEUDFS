@@ -19,3 +19,7 @@ Thumbs.db
 .env
 terraform.*.bin/
 .bin/
+
+test.txt
+server.test
+server/server
