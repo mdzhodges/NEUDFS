@@ -29,13 +29,47 @@ cd "$ROOT"
 SKIP_SEED=false
 SKIP_TEST=false
 SKIP_K6=false
+SKIP_GRAFANA=false
 for arg in "$@"; do
   case $arg in
-    --skip-seed) SKIP_SEED=true ;;
-    --skip-test) SKIP_TEST=true ;;
-    --skip-k6) SKIP_K6=true ;;
+    --skip-seed)    SKIP_SEED=true ;;
+    --skip-test)    SKIP_TEST=true ;;
+    --skip-k6)      SKIP_K6=true ;;
+    --skip-grafana) SKIP_GRAFANA=true ;;
   esac
 done
+
+# ─────────────────────────────────────────────────────
+# Grafana + InfluxDB
+# ─────────────────────────────────────────────────────
+if [ "$SKIP_GRAFANA" = true ]; then
+  echo "==> Skipping Grafana/InfluxDB (--skip-grafana flag)."
+  INFLUX_OUT=""
+else
+  echo "==> Starting InfluxDB and Grafana containers..."
+  if ! docker info > /dev/null 2>&1; then
+    echo "    WARNING: Docker not running — skipping Grafana setup."
+    INFLUX_OUT=""
+  else
+    docker rm -f influxdb grafana > /dev/null 2>&1 || true
+    docker run -d --name influxdb -p 8086:8086 influxdb:1.8 > /dev/null
+    docker run -d --name grafana -p 3000:3000 \
+      -e GF_AUTH_ANONYMOUS_ENABLED=true \
+      -e GF_AUTH_ANONYMOUS_ORG_ROLE=Admin \
+      grafana/grafana > /dev/null
+    echo "    InfluxDB: http://localhost:8086"
+    echo "    Grafana:  http://localhost:3000  (import dashboard ID 2587)"
+    echo "    Waiting for InfluxDB to be ready..."
+    for i in $(seq 1 20); do
+      if curl -s http://localhost:8086/ping > /dev/null 2>&1; then
+        echo "    InfluxDB ready."
+        break
+      fi
+      sleep 1
+    done
+    INFLUX_OUT="--out influxdb=http://localhost:8086/k6"
+  fi
+fi
 
 # ─────────────────────────────────────────────────────
 # Seed
@@ -116,7 +150,11 @@ else
   echo "==> Running K6 load test..."
   echo "    NLB:       $NLB_DNS"
   echo "    Professor: $PROFESSOR_EMAIL"
+  echo "    Dashboard: http://localhost:5665"
+  K6_WEB_DASHBOARD=true \
+  K6_WEB_DASHBOARD_EXPORT=k6_report.html \
   k6 run --out json=k6_results.json \
+    ${INFLUX_OUT} \
     -e NLB_ADDR="$NLB_DNS" \
     -e PROFESSOR_EMAIL="$PROFESSOR_EMAIL" \
     k6/load_test.js
@@ -125,3 +163,4 @@ fi
 echo ""
 echo "==> Done! Connect with:"
 echo "    ./grpc-client -addr \"$NLB_DNS\""
+echo "==> K6 report saved to: $ROOT/k6_report.html"

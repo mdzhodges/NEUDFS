@@ -222,14 +222,15 @@ function timedInvoke(metric, method, payload, email) {
 }
 
 function navigate(email, folders) {
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 5; attempt++) {
     client.invoke('main.Server/ChangeDirectory', { folder: '' }, meta(email));
     let success = true;
     for (const folder of folders) {
       const resp = client.invoke('main.Server/ChangeDirectory', { folder: folder }, meta(email));
       if (!resp || resp.status !== grpc.StatusOK) {
         success = false;
-        sleep(0.1 * (attempt + 1));
+        // Jittered backoff: spreads retries so competing VUs on the same account don't collide again
+        sleep(0.1 * (attempt + 1) + Math.random() * 0.1);
         break;
       }
     }
@@ -238,17 +239,17 @@ function navigate(email, folders) {
   return false;
 }
 
-function uploadBytes(email, filename, data) {
+function uploadBytes(email, filename, data, timeoutMs = 60000) {
   const start = Date.now();
   const stream = new grpc.Stream(client, 'main.Server/Upload', meta(email));
 
   let done = false;
   let success = false;
 
-  stream.on('data', (resp) => {
+  stream.on('data', (_resp) => {
     success = true;
   });
-  stream.on('error', (err) => {
+  stream.on('error', (_err) => {
     rpcErrors.add(1);
     done = true;
   });
@@ -266,7 +267,7 @@ function uploadBytes(email, filename, data) {
 
   stream.end();
 
-  const deadline = Date.now() + 30000;
+  const deadline = Date.now() + timeoutMs;
   while (!done && Date.now() < deadline) {
     sleep(0.05);
   }
@@ -719,7 +720,7 @@ export function largeFileTest() {
   group(`upload ${size.name}`, () => {
     const data = new Uint8Array(size.bytes);
     for (let i = 0; i < data.length; i++) data[i] = i % 256;
-    const ok = uploadBytes(email, filename, data);
+    const ok = uploadBytes(email, filename, data, Math.max(60000, size.bytes / 1024));
     check(ok, { [`${size.name} upload ok`]: (v) => v === true });
   });
 

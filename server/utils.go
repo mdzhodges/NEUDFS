@@ -170,8 +170,8 @@ func (s *server) getUser(ctx context.Context, email string) (User, error) {
 	}
 	return user, nil
 }
-func (s *server) updateSharedFolders(className, newFolderPath string) error {
-	_, err := s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+func (s *server) updateSharedFolders(ctx context.Context, className, newFolderPath string) error {
+	_, err := s.DB.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 		TableName: aws.String(metadataTable),
 		Key: map[string]types.AttributeValue{
 			"pk": &types.AttributeValueMemberS{Value: className},
@@ -187,13 +187,13 @@ func (s *server) updateSharedFolders(className, newFolderPath string) error {
 	})
 	return err
 }
-func (s *server) updateUserFolders(email, collegeName, className, newFolderPath string) error {
-	_, err := s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+func (s *server) updateUserFolders(ctx context.Context, email, collegeName, className, newFolderPath string) error {
+	_, err := s.DB.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 		TableName: aws.String(userTable),
 		Key: map[string]types.AttributeValue{
 			"email": &types.AttributeValueMemberS{Value: email},
 		},
-		UpdateExpression: aws.String("SET colleges.#col.classes.#cls.folders = list_append(colleges.#col.classes.#cls.folders, :folder)"),
+		UpdateExpression: aws.String("SET colleges.#col.classes.#cls.folders = list_append(if_not_exists(colleges.#col.classes.#cls.folders, :empty), :folder)"),
 		ExpressionAttributeNames: map[string]string{
 			"#col": collegeName,
 			"#cls": className,
@@ -202,11 +202,12 @@ func (s *server) updateUserFolders(email, collegeName, className, newFolderPath 
 			":folder": &types.AttributeValueMemberL{Value: []types.AttributeValue{
 				&types.AttributeValueMemberS{Value: newFolderPath},
 			}},
+			":empty": &types.AttributeValueMemberL{Value: []types.AttributeValue{}},
 		},
 	})
 	return err
 }
-func (s *server) createFolderMetadata(className, sk, name, owner, fullPath string) error {
+func (s *server) createFolderMetadata(ctx context.Context, className, sk, name, owner, fullPath string) error {
 	item, err := attributevalue.MarshalMap(Metadata{
 		PK:       className,
 		SK:       sk,
@@ -218,7 +219,7 @@ func (s *server) createFolderMetadata(className, sk, name, owner, fullPath strin
 	if err != nil {
 		return err
 	}
-	_, err = s.DB.PutItem(context.TODO(), &dynamodb.PutItemInput{
+	_, err = s.DB.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: aws.String(metadataTable),
 		Item:      item,
 	})
@@ -268,7 +269,7 @@ func (s *server) renameFileMetadata(ctx context.Context, className, oldSK, newSK
 	// Atomically delete the old item and put the new one.
 	// The condition on Delete ensures we fail (not silently succeed) if another
 	// concurrent operation (e.g. Delete) already removed the original file.
-	_, err = s.DB.TransactWriteItems(context.TODO(), &dynamodb.TransactWriteItemsInput{
+	_, err = s.DB.TransactWriteItems(ctx, &dynamodb.TransactWriteItemsInput{
 		TransactItems: []types.TransactWriteItem{
 			{
 				Delete: &types.Delete{
@@ -392,7 +393,7 @@ func (s *server) updateFolderLists(ctx context.Context, callerEmail, collegeName
 		for i, f := range classInfo.SharedFolders {
 			if f == oldTarget || strings.HasPrefix(f, oldPrefix) {
 				newVal := strings.Replace(f, oldTarget, newTarget, 1)
-				_, err := s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+				_, err := s.DB.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 					TableName: aws.String(metadataTable),
 					Key: map[string]types.AttributeValue{
 						"pk": &types.AttributeValueMemberS{Value: className},
@@ -437,7 +438,7 @@ func (s *server) updateFolderLists(ctx context.Context, callerEmail, collegeName
 		for i, f := range classData.Folders {
 			if f == oldTarget || strings.HasPrefix(f, oldPrefix) {
 				newVal := strings.Replace(f, oldTarget, newTarget, 1)
-				_, err := s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+				_, err := s.DB.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 					TableName: aws.String(userTable),
 					Key: map[string]types.AttributeValue{
 						"email": &types.AttributeValueMemberS{Value: emailToCheck},
@@ -497,7 +498,7 @@ func (s *server) removeFolderFromLists(ctx context.Context, collegeName, classNa
 			break
 		}
 
-		_, err = s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+		_, err = s.DB.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 			TableName: aws.String(metadataTable),
 			Key: map[string]types.AttributeValue{
 				"pk": &types.AttributeValueMemberS{Value: className},
@@ -561,7 +562,7 @@ func (s *server) removeFolderFromLists(ctx context.Context, collegeName, classNa
 				break
 			}
 
-			_, err = s.DB.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+			_, err = s.DB.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 				TableName: aws.String(userTable),
 				Key: map[string]types.AttributeValue{
 					"email": &types.AttributeValueMemberS{Value: memberEmail},

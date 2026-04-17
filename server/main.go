@@ -262,8 +262,8 @@ func (s *server) ListDirectory(ctx context.Context, in *proto.ListDirectoryReque
 				}
 			}
 
-			// Skip this entry if the user doesn't have permission and isn't a teacher
-			if !isAllowed && user.Role != "teacher" {
+			// Skip this entry if the user doesn't have permission and isn't a professor/TA
+			if !isAllowed && user.Role != "professor" && user.Role != "TA" {
 				continue
 			}
 			// --- END ACCESS CONTROL CHECK ---
@@ -447,11 +447,11 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 		if slices.Contains(classInfo.SharedFolders, newFolderPath) {
 			return nil, errAlreadyExists
 		}
-		if err := s.updateSharedFolders(className, newFolderPath); err != nil {
+		if err := s.updateSharedFolders(ctx, className, newFolderPath); err != nil {
 			logger("Unable to update shared folders: %v", err)
 			return nil, errDB
 		}
-		if err := s.createFolderMetadata(className, newFolderPath+"/", newFolder, email, cd+newFolder+"/"); err != nil {
+		if err := s.createFolderMetadata(ctx, className, newFolderPath+"/", newFolder, email, cd+newFolder+"/"); err != nil {
 			logger("Unable to create folder metadata: %v", err)
 			return nil, errDB
 		}
@@ -480,11 +480,11 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 		if slices.Contains(user.Colleges[collegeName].Classes[className].Folders, newFolderPath) {
 			return nil, errAlreadyExists
 		}
-		if err := s.updateUserFolders(email, collegeName, className, newFolderPath); err != nil {
+		if err := s.updateUserFolders(ctx, email, collegeName, className, newFolderPath); err != nil {
 			logger("Unable to update user folders: %v", err)
 			return nil, errDB
 		}
-		if err := s.createFolderMetadata(className, newFolderPath+"/", newFolder, email, cd+newFolder+"/"); err != nil {
+		if err := s.createFolderMetadata(ctx, className, newFolderPath+"/", newFolder, email, cd+newFolder+"/"); err != nil {
 			logger("Unable to create folder metadata: %v", err)
 			return nil, errDB
 		}
@@ -509,7 +509,7 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 			if slices.Contains(foundUser.Colleges[collegeName].Classes[className].Folders, newFolderPath) {
 				return nil, errAlreadyExists
 			}
-			if err := s.updateUserFolders(studentEmail, collegeName, className, newFolderPath); err != nil {
+			if err := s.updateUserFolders(ctx, studentEmail, collegeName, className, newFolderPath); err != nil {
 				logger("Unable to update user folders: %v", err)
 				return nil, errDB
 			}
@@ -520,13 +520,13 @@ func (s *server) MakeDirectory(ctx context.Context, in *proto.MakeDirectoryReque
 		if slices.Contains(classInfo.SharedFolders, newFolderPath) {
 			return nil, errAlreadyExists
 		}
-		if err := s.updateSharedFolders(className, newFolderPath); err != nil {
+		if err := s.updateSharedFolders(ctx, className, newFolderPath); err != nil {
 			logger("Unable to update shared folders: %v", err)
 			return nil, errDB
 		}
 	}
 
-	if err := s.createFolderMetadata(className, newFolderPath+"/", newFolder, email, cd+newFolder+"/"); err != nil {
+	if err := s.createFolderMetadata(ctx, className, newFolderPath+"/", newFolder, email, cd+newFolder+"/"); err != nil {
 		logger("Unable to create folder metadata: %v", err)
 		return nil, errDB
 	}
@@ -640,9 +640,9 @@ func (s *server) queryClassEntries(ctx context.Context, className, pathWithinCla
 }
 
 // allowedFoldersForClass returns the folders a student may see in a class
-// (their own folders + shared folders). Returns nil for teachers (no filter).
+// (their own folders + shared folders). Returns nil for professors/TAs (no filter).
 func (s *server) allowedFoldersForClass(ctx context.Context, user User, collegeName, className string) []string {
-	if user.Role == "teacher" {
+	if user.Role == "professor" || user.Role == "TA" {
 		return nil
 	}
 	classInfo, err := s.getClassInfo(ctx, className)
