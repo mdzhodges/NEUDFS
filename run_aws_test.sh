@@ -51,12 +51,19 @@ else
     echo "    WARNING: Docker not running — skipping Grafana setup."
     INFLUX_OUT=""
   else
-    docker rm -f influxdb grafana > /dev/null 2>&1 || true
-    docker run -d --name influxdb -p 8086:8086 influxdb:1.8 > /dev/null
-    docker run -d --name grafana -p 3000:3000 \
-      -e GF_AUTH_ANONYMOUS_ENABLED=true \
-      -e GF_AUTH_ANONYMOUS_ORG_ROLE=Admin \
-      grafana/grafana > /dev/null
+    if ! docker ps --format '{{.Names}}' | grep -q '^influxdb$'; then
+      docker rm -f influxdb > /dev/null 2>&1 || true
+      docker run -d --name influxdb -p 8086:8086 \
+        -v influxdb-k6-data:/var/lib/influxdb \
+        influxdb:1.8 > /dev/null
+    fi
+    if ! docker ps --format '{{.Names}}' | grep -q '^grafana$'; then
+      docker rm -f grafana > /dev/null 2>&1 || true
+      docker run -d --name grafana -p 3000:3000 \
+        -e GF_AUTH_ANONYMOUS_ENABLED=true \
+        -e GF_AUTH_ANONYMOUS_ORG_ROLE=Admin \
+        grafana/grafana > /dev/null
+    fi
     echo "    InfluxDB: http://localhost:8086"
     echo "    Grafana:  http://localhost:3000  (import dashboard ID 2587)"
     echo "    Waiting for InfluxDB to be ready..."

@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/keepalive"
@@ -800,6 +801,10 @@ func (s *server) Download(req *proto.DownloadRequest, stream proto.Server_Downlo
 	s3Key := collegeName + "/" + className + "/" + fileSK
 	s3Result, err := s.DownloadS3File(ctx, s3Key)
 	if err != nil {
+		var noSuchKey *s3types.NoSuchKey
+		if errors.As(err, &noSuchKey) {
+			return status.Errorf(codes.NotFound, "file %q not found", req.Name)
+		}
 		logger("Failed to download file from S3: %v", err)
 		return status.Errorf(codes.Internal, "failed to download file")
 	}
