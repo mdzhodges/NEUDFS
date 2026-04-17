@@ -930,6 +930,7 @@ func (s *server) Upload(stream proto.Server_UploadServer) error {
 
 	// SendAndClose may fail if the client already cancelled the stream, but
 	// the data is persisted. Ignore the error so the CW interceptor logs OK.
+	logger("upload complete: %s/%s", cd, meta.Name)
 	_ = stream.SendAndClose(&proto.UploadResponse{Message: "uploaded"})
 	return nil
 }

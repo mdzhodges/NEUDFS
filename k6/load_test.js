@@ -239,22 +239,19 @@ function navigate(email, folders) {
   return false;
 }
 
-function uploadBytes(email, filename, data, timeoutMs = 60000) {
+function uploadBytes(email, filename, data) {
   const start = Date.now();
   const stream = new grpc.Stream(client, 'main.Server/Upload', meta(email));
 
-  let done = false;
   let success = false;
+  let errored = false;
 
   stream.on('data', (_resp) => {
     success = true;
   });
   stream.on('error', (_err) => {
     rpcErrors.add(1);
-    done = true;
-  });
-  stream.on('end', () => {
-    done = true;
+    errored = true;
   });
 
   stream.write({ metadata: { name: filename, content_type: 'text/plain' } });
@@ -267,13 +264,13 @@ function uploadBytes(email, filename, data, timeoutMs = 60000) {
 
   stream.end();
 
-  const deadline = Date.now() + timeoutMs;
-  while (!done && Date.now() < deadline) {
-    sleep(0.05);
-  }
+  // Allow the server time to process and respond.
+  // Timeout scales with file size: 1ms per KB, minimum 5s.
+  const waitMs = Math.max(5000, data.length / 1024);
+  sleep(waitMs / 1000);
 
   uploadLatency.add(Date.now() - start);
-  return success;
+  return success && !errored;
 }
 
 // Each scenario gets a different starting offset so VU 1 in two concurrent
@@ -720,7 +717,7 @@ export function largeFileTest() {
   group(`upload ${size.name}`, () => {
     const data = new Uint8Array(size.bytes);
     for (let i = 0; i < data.length; i++) data[i] = i % 256;
-    const ok = uploadBytes(email, filename, data, Math.max(60000, size.bytes / 1024));
+    const ok = uploadBytes(email, filename, data);
     check(ok, { [`${size.name} upload ok`]: (v) => v === true });
   });
 

@@ -51,17 +51,22 @@ else
     echo "    WARNING: Docker not running — skipping Grafana setup."
     INFLUX_OUT=""
   else
+    docker network inspect k6-net > /dev/null 2>&1 || docker network create k6-net > /dev/null
     if ! docker ps --format '{{.Names}}' | grep -q '^influxdb$'; then
       docker rm -f influxdb > /dev/null 2>&1 || true
       docker run -d --name influxdb -p 8086:8086 \
+        --network k6-net \
         -v influxdb-k6-data:/var/lib/influxdb \
         influxdb:1.8 > /dev/null
     fi
     if ! docker ps --format '{{.Names}}' | grep -q '^grafana$'; then
       docker rm -f grafana > /dev/null 2>&1 || true
       docker run -d --name grafana -p 3000:3000 \
+        --network k6-net \
         -e GF_AUTH_ANONYMOUS_ENABLED=true \
         -e GF_AUTH_ANONYMOUS_ORG_ROLE=Admin \
+        -e GF_INSTALL_PLUGINS="" \
+        -v grafana-k6-data:/var/lib/grafana \
         grafana/grafana > /dev/null
     fi
     echo "    InfluxDB: http://localhost:8086"
