@@ -92,6 +92,10 @@ scenario_checks   = defaultdict(lambda: [0, 0])             # scenario -> [pass,
 scenario_latency  = defaultdict(lambda: defaultdict(list))  # scenario -> metric -> [ms]
 all_scenarios_seen = set()
 
+# per-scenario time-series: scenario -> metric/method -> bucket -> [ms]
+scenario_ts_lat  = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+scenario_ts_grpc = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+
 integrity_total   = 0
 perm_bypass_total = 0
 total_iterations  = 0
@@ -110,6 +114,7 @@ for p in points:
         latency_buckets[metric][b].append(value)
         if scenario:
             scenario_latency[scenario][metric].append(value)
+            scenario_ts_lat[scenario][metric][b].append(value)
 
     elif metric == "rpc_errors":
         error_buckets[b] += value
@@ -161,6 +166,7 @@ for p in points:
         method = tags.get("method", "")
         if scenario and method in GRPC_METHODS:
             scenario_grpc[scenario][method].append(value)
+            scenario_ts_grpc[scenario][method][b].append(value)
 
 # ── time axis ─────────────────────────────────────────────────────────────────
 all_buckets = sorted(set(
@@ -255,6 +261,134 @@ total_dropped = int(sum(dropped_series))
 total_checks_pass = sum(checks_buckets[b][0] for b in checks_buckets)
 total_checks_all  = sum(checks_buckets[b][1] for b in checks_buckets)
 check_overall_pct = round(total_checks_pass/total_checks_all*100,1) if total_checks_all else 0
+
+# ── per-scenario line chart data ──────────────────────────────────────────────
+METHOD_COLORS = {
+    "ChangeDirectory": "rgb(54,162,235)",
+    "ListDirectory":   "rgb(255,205,86)",
+    "Download":        "rgb(75,192,192)",
+    "Upload":          "rgb(255,99,132)",
+    "Delete":          "rgb(255,159,64)",
+    "MakeDirectory":   "rgb(153,102,255)",
+    "Rename":          "rgb(201,203,207)",
+    "RenameDirectory": "rgb(255,99,255)",
+    "TreeDirectory":   "rgb(99,255,132)",
+    "CurrentDirectory":"rgb(99,200,255)",
+}
+
+UPLOAD_METRICS = {"upload_latency", "Upload"}  # custom metric + grpc method name
+
+scenario_line_charts = {}       # scenario -> {labels, datasets}        (no upload)
+scenario_upload_charts = {}     # scenario -> {labels, datasets}        (upload only)
+
+for s in scenarios_present:
+    active_buckets = set()
+    for bmap in scenario_ts_lat[s].values():
+        active_buckets.update(bmap.keys())
+    for bmap in scenario_ts_grpc[s].values():
+        active_buckets.update(bmap.keys())
+    if not active_buckets:
+        continue
+
+    s_buckets = sorted(active_buckets)
+    s_t0 = s_buckets[0]
+    s_labels = [f"{(b-s_t0)//60}m{(b-s_t0)%60:02d}s" for b in s_buckets]
+
+    datasets_main   = []
+    datasets_upload = []
+
+    for metric in LATENCY_METRICS:
+        bmap = scenario_ts_lat[s].get(metric, {})
+        if not any(bmap.values()):
+            continue
+        color = LATENCY_COLORS[metric]
+        ds = {
+            "label": LATENCY_LABELS[metric] + " p95",
+            "data":  [pct(bmap.get(b, []), 95) for b in s_buckets],
+            "borderColor": color,
+            "backgroundColor": color.replace("rgb","rgba").replace(")",",0.08)"),
+            "tension": 0.3, "fill": False, "pointRadius": 2, "borderWidth": 2,
+        }
+        if metric in UPLOAD_METRICS:
+            datasets_upload.append(ds)
+        else:
+            datasets_main.append(ds)
+
+    for method in GRPC_METHODS:
+        bmap = scenario_ts_grpc[s].get(method, {})
+        if not any(bmap.values()):
+            continue
+        color = METHOD_COLORS.get(method, "rgb(200,200,200)")
+        ds = {
+            "label": method + " p95",
+            "data":  [pct(bmap.get(b, []), 95) for b in s_buckets],
+            "borderColor": color,
+            "backgroundColor": color.replace("rgb","rgba").replace(")",",0.08)"),
+            "tension": 0.3, "fill": False, "pointRadius": 2, "borderWidth": 2,
+            "borderDash": [4, 3],
+        }
+        if method in UPLOAD_METRICS:
+            datasets_upload.append(ds)
+        else:
+            datasets_main.append(ds)
+
+    if datasets_main:
+        scenario_line_charts[s]  = {"labels": s_labels, "datasets": datasets_main}
+    if datasets_upload:
+        scenario_upload_charts[s] = {"labels": s_labels, "datasets": datasets_upload}
+
+# build JS + HTML blocks
+scenario_line_js_blocks   = []
+scenario_line_html_blocks = []
+
+for s in scenarios_present:
+    safe_id = s.replace("_", "-")
+    has_main   = s in scenario_line_charts
+    has_upload = s in scenario_upload_charts
+
+    if not has_main and not has_upload:
+        continue
+
+    if has_main:
+        scenario_line_js_blocks.append(
+            f"new Chart(document.getElementById('scen-line-{safe_id}'), {{"
+            f"type:'line',data:{js(scenario_line_charts[s])},options:baseOpts('ms')}});"
+        )
+    if has_upload:
+        scenario_line_js_blocks.append(
+            f"new Chart(document.getElementById('scen-upload-{safe_id}'), {{"
+            f"type:'line',data:{js(scenario_upload_charts[s])},options:baseOpts('ms')}});"
+        )
+
+    # two side-by-side cards if both exist, otherwise one full-width card
+    if has_main and has_upload:
+        scenario_line_html_blocks.append(
+            f'<div class="card">'
+            f'<h2>{s} — Latency p95 (excl. upload)</h2>'
+            f'<canvas id="scen-line-{safe_id}"></canvas>'
+            f'</div>'
+            f'<div class="card">'
+            f'<h2>{s} — Upload Latency p95</h2>'
+            f'<canvas id="scen-upload-{safe_id}"></canvas>'
+            f'</div>'
+        )
+    elif has_main:
+        scenario_line_html_blocks.append(
+            f'<div class="card full">'
+            f'<h2>{s} — Latency p95</h2>'
+            f'<canvas id="scen-line-{safe_id}" height="70"></canvas>'
+            f'</div>'
+        )
+    else:
+        scenario_line_html_blocks.append(
+            f'<div class="card full">'
+            f'<h2>{s} — Upload Latency p95</h2>'
+            f'<canvas id="scen-upload-{safe_id}" height="70"></canvas>'
+            f'</div>'
+        )
+
+scenario_line_html = "\n  ".join(scenario_line_html_blocks)
+scenario_line_js   = "\n".join(scenario_line_js_blocks)
 
 # ── HTML ──────────────────────────────────────────────────────────────────────
 HTML = f"""<!DOCTYPE html>
@@ -419,6 +553,12 @@ HTML = f"""<!DOCTYPE html>
 
 </div>
 
+<!-- ══ PER-SCENARIO LINE CHARTS ════════════════════════════════════════════ -->
+<p class="section-title">Per-Scenario Latency Progression</p>
+<div class="grid">
+  {scenario_line_html}
+</div>
+
 <script>
 const labels = {js(time_labels)};
 const scenLabels = {scenario_labels_js};
@@ -533,6 +673,9 @@ scenBar('renScenChart',  {js(ren_p50)},  {js(ren_p95)});
 scenBar('rendScenChart', {js(rend_p50)}, {js(rend_p95)});
 scenBar('treeScenChart', {js(tree_p50)}, {js(tree_p95)});
 scenBar('curScenChart',  {js(cur_p50)},  {js(cur_p95)});
+
+// ── Per-scenario line charts ──────────────────────────────────────────────────
+{scenario_line_js}
 </script>
 </body>
 </html>
