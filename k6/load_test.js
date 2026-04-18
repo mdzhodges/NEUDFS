@@ -392,12 +392,17 @@ export function studentWorkflow() {
   const email = getStudentEmail();
   const folder = getStudentFolder(email);
 
+  let navigated = false;
   group('navigate', () => {
-    navigate(email, ['Khoury', 'CS5010', folder]);
+    navigated = navigate(email, ['Khoury', 'CS5010', folder]);
   });
-    group('current directory', () => {                                                                                                               
+  if (!navigated) {
+    client.close();
+    return;
+  }
+    group('current directory', () => {
         client.invoke('main.Server/CurrentDirectory', {}, meta(email));
-    });   
+    });
   group('list', () => {
     timedInvoke(lsLatency, 'main.Server/ListDirectory', {}, email);
   });
@@ -795,7 +800,10 @@ export function soakWorkflow() {
   const email = getStudentEmail();
   const folder = getStudentFolder(email);
 
-  navigate(email, ['Khoury', 'CS5010', folder]);
+  if (!navigate(email, ['Khoury', 'CS5010', folder])) {
+    client.close();
+    return;
+  }
   timedInvoke(lsLatency, 'main.Server/ListDirectory', {}, email);
 
   const data = new Uint8Array(2048);
@@ -810,7 +818,10 @@ export function soakWorkflow() {
   client.invoke('main.Server/Delete', { path: filename }, meta(email));
   deleteLatency.add(Date.now() - start);
 
-  navigate(email, ['Khoury', 'CS5010', 'announcements']);
+  if (!navigate(email, ['Khoury', 'CS5010', 'announcements'])) {
+    client.close();
+    return;
+  }
   timedInvoke(lsLatency, 'main.Server/ListDirectory', {}, email);
 
   sleep(Math.random() * 3 + 1);
