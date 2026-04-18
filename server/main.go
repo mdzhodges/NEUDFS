@@ -304,7 +304,8 @@ func streamInterceptor(db *dynamodb.Client) grpc.StreamServerInterceptor {
 			return status.Error(codes.Unauthenticated, "no email provided in metadata")
 		}
 		result, err := db.GetItem(ctx, &dynamodb.GetItemInput{
-			TableName: aws.String(userTable),
+			TableName:      aws.String(userTable),
+			ConsistentRead: aws.Bool(true),
 			Key: map[string]types.AttributeValue{
 				"email": &types.AttributeValueMemberS{Value: emails[0]},
 			},
@@ -365,7 +366,8 @@ func unaryInterceptor(db *dynamodb.Client) grpc.UnaryServerInterceptor {
 		}
 		email := emails[0]
 		result, err := db.GetItem(ctx, &dynamodb.GetItemInput{
-			TableName: aws.String(userTable),
+			TableName:      aws.String(userTable),
+			ConsistentRead: aws.Bool(true),
 			Key: map[string]types.AttributeValue{
 				"email": &types.AttributeValueMemberS{Value: email},
 			},
@@ -776,7 +778,8 @@ func (s *server) Download(req *proto.DownloadRequest, stream proto.Server_Downlo
 	collegeName, className, pathWithinClass := parsePath(cd + "/")
 	fileSK := pathWithinClass + req.Name
 	result, err := s.DB.GetItem(ctx, &dynamodb.GetItemInput{
-		TableName: aws.String(metadataTable),
+		TableName:      aws.String(metadataTable),
+		ConsistentRead: aws.Bool(true),
 		Key: map[string]types.AttributeValue{
 			"pk": &types.AttributeValueMemberS{Value: className},
 			"sk": &types.AttributeValueMemberS{Value: fileSK},

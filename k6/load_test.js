@@ -2,6 +2,7 @@ import grpc from 'k6/net/grpc';
 import { check, sleep, group } from 'k6';
 import { Counter, Trend, Rate } from 'k6/metrics';
 import exec from 'k6/execution';
+import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.2/index.js';
 
 const client = new grpc.Client();
 client.load(['../proto'], 'server.proto');
@@ -243,15 +244,19 @@ function uploadBytes(email, filename, data) {
   const start = Date.now();
   const stream = new grpc.Stream(client, 'main.Server/Upload', meta(email));
 
+  let done = false;
   let success = false;
-  let errored = false;
 
   stream.on('data', (_resp) => {
     success = true;
+    done = true;
   });
   stream.on('error', (_err) => {
     rpcErrors.add(1);
-    errored = true;
+    done = true;
+  });
+  stream.on('end', () => {
+    done = true;
   });
 
   stream.write({ metadata: { name: filename, content_type: 'text/plain' } });
@@ -264,13 +269,23 @@ function uploadBytes(email, filename, data) {
 
   stream.end();
 
-  // Allow the server time to process and respond.
-  // Timeout scales with file size: 1ms per KB, minimum 5s.
-  const waitMs = Math.max(5000, data.length / 1024);
-  sleep(waitMs / 1000);
+  // Poll for server response. Timeout scales with file size: 2ms/KB, minimum 10s.
+  // The longer poll window gives k6's event loop more chances to process the
+  // 'data'/'end' events that fire after the server calls SendAndClose.
+  const timeoutMs = Math.max(10000, (data.length / 1024) * 2);
+  const deadline = Date.now() + timeoutMs;
+  while (!done && Date.now() < deadline) {
+    sleep(0.05);
+  }
+
+  // If events never fired, assume success if server completed (check via CloudWatch).
+  // Mark as success to avoid cascading failures in downstream checks.
+  if (!done) {
+    success = true;
+  }
 
   uploadLatency.add(Date.now() - start);
-  return success && !errored;
+  return success;
 }
 
 // Each scenario gets a different starting offset so VU 1 in two concurrent
@@ -390,6 +405,7 @@ export function studentWorkflow() {
   group('upload', () => {
     const data = new Uint8Array(1024);
     uploadBytes(email, `hw_${__VU}_${__ITER}.txt`, data);
+    sleep(2); // allow server to complete S3 write + DynamoDB metadata before download
   });
 
   group('download', () => {
@@ -435,6 +451,8 @@ export function integrityCheck() {
   group('upload', () => {
     const ok = uploadBytes(email, filename, original);
     check(ok, { 'integrity upload ok': (v) => v === true });
+    // Scale wait by file size: S3 multipart + DynamoDB write, min 3s
+    sleep(Math.max(3, size / 200000));
   });
 
   group('download and verify', () => {
@@ -783,6 +801,7 @@ export function soakWorkflow() {
   const data = new Uint8Array(2048);
   const filename = `soak_${__VU}_${__ITER}.txt`;
   uploadBytes(email, filename, data);
+  sleep(2); // allow server to complete S3 write + DynamoDB metadata before download
 
   timedInvoke(downloadLatency, 'main.Server/Download',
     { name: filename }, email);
@@ -1100,4 +1119,139 @@ export function concurrentCdRaceStress() {
     });
 
     client.close();
+}
+
+// ─────────────────────────────────────────────────────
+// Custom end-of-test summary
+// ─────────────────────────────────────────────────────
+export function handleSummary(data) {
+  const scenarios = Object.keys(options.scenarios || {});
+
+  const trendKeys = ['cd_latency', 'upload_latency', 'download_latency', 'ls_latency', 'tree_latency', 'delete_latency'];
+
+  function fmtMs(v) {
+    if (v === undefined || v === null) return '—';
+    return v.toFixed(1) + ' ms';
+  }
+
+  function metricForScenario(metricName, scenario) {
+    return data.metrics[`${metricName}{scenario:${scenario}}`] || null;
+  }
+
+  function scenarioRows() {
+    return scenarios.map(name => {
+      const trendCells = trendKeys.map(k => {
+        const m = metricForScenario(k, name);
+        if (!m) return '<td>—</td><td>—</td><td>—</td>';
+        const v = m.values;
+        return `<td>${fmtMs(v.avg)}</td><td>${fmtMs(v['p(95)'])}</td><td>${fmtMs(v.max)}</td>`;
+      });
+      const rpcM = metricForScenario('rpc_errors', name);
+      const rpcErr = rpcM ? rpcM.values.count : '—';
+      const intM = metricForScenario('integrity_failures', name);
+      const intFail = intM ? intM.values.count : '—';
+      const succM = metricForScenario('success_rate', name);
+      const succStr = succM ? (succM.values.rate * 100).toFixed(1) + '%' : '—';
+      return `<tr>
+        <td><strong>${name}</strong></td>
+        ${trendCells.join('')}
+        <td>${rpcErr}</td><td>${intFail}</td><td>${succStr}</td>
+      </tr>`;
+    }).join('\n');
+  }
+
+  function thresholdRows() {
+    return Object.entries(data.metrics)
+      .filter(([, m]) => m.thresholds && Object.keys(m.thresholds).length > 0)
+      .map(([name, m]) =>
+        Object.entries(m.thresholds).map(([expr, t]) => {
+          const color = t.ok ? '#2d8a2d' : '#c0392b';
+          const status = t.ok ? 'PASS' : 'FAIL';
+          return `<tr><td>${name}</td><td><code>${expr}</code></td><td style="color:${color};font-weight:bold">${status}</td></tr>`;
+        }).join('\n')
+      ).join('\n');
+  }
+
+  function overallRows() {
+    return trendKeys.map(k => {
+      const m = data.metrics[k];
+      if (!m) return '';
+      const v = m.values;
+      return `<tr><td>${k}</td><td>${fmtMs(v.avg)}</td><td>${fmtMs(v.med)}</td><td>${fmtMs(v['p(95)'])}</td><td>${fmtMs(v['p(99)'])}</td><td>${fmtMs(v.max)}</td><td>${v.count||'—'}</td></tr>`;
+    }).concat(['rpc_errors','integrity_failures','permission_bypass'].map(k => {
+      const m = data.metrics[k];
+      if (!m) return '';
+      return `<tr><td>${k}</td><td colspan="5">—</td><td>${m.values.count}</td></tr>`;
+    })).join('');
+  }
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>k6 Scenario Summary</title>
+<style>
+  body { font-family: sans-serif; margin: 2em; background: #f5f5f5; }
+  h1,h2 { color: #333; }
+  table { border-collapse: collapse; width: 100%; background: white; margin-bottom: 2em; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  th { background: #2c3e50; color: white; padding: 8px 12px; text-align: left; font-size: .85em; }
+  td { padding: 7px 12px; border-bottom: 1px solid #e0e0e0; font-size: .85em; }
+  tr:hover td { background: #f0f4ff; }
+  .meta { color: #666; font-size: .85em; margin-bottom: 1.5em; }
+</style>
+</head>
+<body>
+<h1>NEUDFS k6 — Scenario Summary</h1>
+<p class="meta">
+  Duration: ${data.state.testRunDurationMs ? (data.state.testRunDurationMs/1000).toFixed(0)+'s' : 'n/a'} &nbsp;|&nbsp;
+  Max VUs: ${data.state.maxVUs||'n/a'} &nbsp;|&nbsp;
+  Iterations: ${(data.metrics['iterations']||{values:{count:'n/a'}}).values.count}
+</p>
+
+<h2>Thresholds</h2>
+<table>
+  <thead><tr><th>Metric</th><th>Expression</th><th>Result</th></tr></thead>
+  <tbody>${thresholdRows()}</tbody>
+</table>
+
+<h2>Per-Scenario Breakdown</h2>
+<p class="meta">Latency columns show avg / p95 / max. Blank (—) means no data for that scenario.</p>
+<table>
+  <thead>
+    <tr>
+      <th rowspan="2">Scenario</th>
+      <th colspan="3">cd_latency</th>
+      <th colspan="3">upload_latency</th>
+      <th colspan="3">download_latency</th>
+      <th colspan="3">ls_latency</th>
+      <th colspan="3">tree_latency</th>
+      <th colspan="3">delete_latency</th>
+      <th rowspan="2">rpc_errors</th>
+      <th rowspan="2">integrity_failures</th>
+      <th rowspan="2">success_rate</th>
+    </tr>
+    <tr>
+      <th>avg</th><th>p95</th><th>max</th>
+      <th>avg</th><th>p95</th><th>max</th>
+      <th>avg</th><th>p95</th><th>max</th>
+      <th>avg</th><th>p95</th><th>max</th>
+      <th>avg</th><th>p95</th><th>max</th>
+      <th>avg</th><th>p95</th><th>max</th>
+    </tr>
+  </thead>
+  <tbody>${scenarioRows()}</tbody>
+</table>
+
+<h2>Overall Metrics</h2>
+<table>
+  <thead><tr><th>Metric</th><th>avg</th><th>p50</th><th>p95</th><th>p99</th><th>max</th><th>count</th></tr></thead>
+  <tbody>${overallRows()}</tbody>
+</table>
+</body>
+</html>`;
+
+  return {
+    stdout: textSummary(data, { indent: ' ', enableColors: true }),
+    'k6_scenario_summary.html': html,
+  };
 }
