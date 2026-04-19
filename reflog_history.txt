@@ -1,0 +1,95 @@
+ad827a8 HEAD@{0}: pull origin dev: Fast-forward
+5ab6e71 HEAD@{1}: commit: adding further graphs
+8faed69 HEAD@{2}: pull origin dev: Fast-forward
+ef8e80e HEAD@{3}: commit: adding results and graph
+e0e56e8 HEAD@{4}: commit: adding screenshot from last test
+cc0a34a HEAD@{5}: commit: made consistency fixes and changed how we upload in k6, adding results
+77ab114 HEAD@{6}: commit: fixing handling for large file uploads and upload bytes, k6 has issues with gRPC
+3b5546e HEAD@{7}: commit: fix: race condition on Delete, and aws_test script adds grafana to workload
+9798e6a HEAD@{8}: commit: fix: reduce k6 load test failures and propagate request context
+ef4c8e1 HEAD@{9}: pull origin dev: Fast-forward
+5d51129 HEAD@{10}: checkout: moving from feature/test-debug to dev
+71a5f34 HEAD@{11}: pull origin feature/test-debug: Fast-forward
+8c1644a HEAD@{12}: commit: k6 changes and fixes, with main
+ee91be8 HEAD@{13}: checkout: moving from dev to feature/test-debug
+5d51129 HEAD@{14}: pull origin dev: Merge made by the 'ort' strategy.
+eae9138 HEAD@{15}: reset: moving to HEAD
+eae9138 HEAD@{16}: commit: stashing experimental changes
+9489b73 HEAD@{17}: pull origin dev: Merge made by the 'ort' strategy.
+41667b3 HEAD@{18}: commit: lots of debugging, hair loss type beat
+3175bfb HEAD@{19}: pull origin dev: Merge made by the 'ort' strategy.
+aac4218 HEAD@{20}: commit: setting up load tests and small security changes in rename/renameDir
+292759c HEAD@{21}: pull origin dev: Fast-forward
+a147da7 HEAD@{22}: checkout: moving from terraform/autoscale to dev
+49b1186 HEAD@{23}: commit: adding temp k6 test for future stuff
+c520ba1 HEAD@{24}: commit: adding cloudwatch synchronization and made tests connect to AWS
+01688c4 HEAD@{25}: commit: added auto scaling, aws terraform is correctly setup for port
+8003c3e HEAD@{26}: commit: fixing context issues
+92b5e3a HEAD@{27}: commit: refactoring tables, to set up for terraform
+c7ad55f HEAD@{28}: checkout: moving from refactor/memory to terraform/autoscale
+c7ad55f HEAD@{29}: commit: changing context to be standard
+585325d HEAD@{30}: commit: fixing query, adding pagination
+242ad8b HEAD@{31}: commit: adding multipart upload to reduce memory usage in fargate for large files
+a147da7 HEAD@{32}: checkout: moving from dev to refactor/memory
+a147da7 HEAD@{33}: pull origin dev: Fast-forward
+06f2a0b HEAD@{34}: pull origin dev: Fast-forward
+ccc9781 HEAD@{35}: checkout: moving from refactor/ttl to dev
+7511348 HEAD@{36}: commit: add fix for tree
+4bdaae2 HEAD@{37}: commit (merge): Merge branch 'dev' of https://github.com/mdzhodges/NEUDFS into refactor/ttl
+08139cb HEAD@{38}: commit: adding refactor, moving in mem map to dynamo
+14bee31 HEAD@{39}: commit: adding some ttl logic and user logic
+90cace4 HEAD@{40}: checkout: moving from feature/open to refactor/ttl
+90cace4 HEAD@{41}: commit: adding open command for all os versions, uses download as helper
+0833b18 HEAD@{42}: checkout: moving from feature/download to feature/open
+0833b18 HEAD@{43}: commit: adding some test to test mass users downloading a file a teacher is updating, and permissions
+eafd31f HEAD@{44}: commit: adding download
+d57a739 HEAD@{45}: checkout: moving from feature/upload to feature/download
+d57a739 HEAD@{46}: commit: upload working as intended
+ccc9781 HEAD@{47}: checkout: moving from dev to feature/upload
+ccc9781 HEAD@{48}: pull origin dev: Fast-forward
+893e380 HEAD@{49}: commit: removed redundancies
+f730f49 HEAD@{50}: pull origin dev: Fast-forward
+b100268 HEAD@{51}: checkout: moving from feature/clear to dev
+27af587 HEAD@{52}: commit: removing disclaimer slop
+845d9d3 HEAD@{53}: checkout: moving from feature/mkdir to feature/clear
+feae31a HEAD@{54}: checkout: moving from dev to feature/mkdir
+b100268 HEAD@{55}: checkout: moving from feature/mkdir to dev
+feae31a HEAD@{56}: commit: refactoring redundant code
+27b4cc4 HEAD@{57}: commit: adding mkdir working with refactor
+bd835c8 HEAD@{58}: commit: mkdir works, added client code to work with it
+4267a61 HEAD@{59}: commit: adding server logic, still testing mkdir
+f6c620b HEAD@{60}: checkout: moving from dev to feature/mkdir
+b100268 HEAD@{61}: commit: removing main.go redundant file
+5e0cd46 HEAD@{62}: pull origin dev: Fast-forward
+cf3d53b HEAD@{63}: checkout: moving from feature/mkdir to dev
+f6c620b HEAD@{64}: commit: committing changes before switching to dev
+3feff5a HEAD@{65}: commit: add ls, cd, pwd functionality
+5016ce6 HEAD@{66}: checkout: moving from feature/server to feature/mkdir
+5016ce6 HEAD@{67}: pull origin feature/server: Merge made by the 'ort' strategy.
+96ea58c HEAD@{68}: commit: staging for dev
+2e3bb96 HEAD@{69}: pull origin feature/server: Fast-forward
+b47db5e HEAD@{70}: commit: added pwd to proto schema
+ff4c549 HEAD@{71}: pull origin feature/server: Fast-forward
+ebee2b1 HEAD@{72}: commit: full sendy
+d2cbdb6 HEAD@{73}: commit: fixing script
+879d054 HEAD@{74}: commit: added change directory
+9662558 HEAD@{75}: commit: fixing change directory
+0943460 HEAD@{76}: pull origin feature/server: Fast-forward
+dc65627 HEAD@{77}: commit: WIP: for Server LS implementation, rewriting LS to properly handle listing only what a user can access
+076875f HEAD@{78}: commit: making local changes for tests
+7a07a3f HEAD@{79}: commit: adding list dir client logic
+b3facc7 HEAD@{80}: commit: changing structure and adding connection to server in client
+0118020 HEAD@{81}: commit: refining logic for ListDirectory
+9b87400 HEAD@{82}: commit: adding interceptor and updating List/Change Directory
+349f64a HEAD@{83}: commit: adding List and Change Directory
+fc4360d HEAD@{84}: commit: adding logic for Change directory
+f12279a HEAD@{85}: commit: pushing ChangeDirectory
+c996bb6 HEAD@{86}: commit: adding boilerplate
+521d592 HEAD@{87}: commit: added proto commands
+ffff522 HEAD@{88}: commit: beginning rpc code
+4979e92 HEAD@{89}: pull origin feature/server: Fast-forward
+843240c HEAD@{90}: checkout: moving from dev to feature/server
+cf3d53b HEAD@{91}: commit: adding folders for terraform
+a1b435f HEAD@{92}: commit: adding dynamo module
+66ce0e2 HEAD@{93}: checkout: moving from main to dev
+a89ca5a HEAD@{94}: clone: from https://github.com/mdzhodges/NEUDFS.git

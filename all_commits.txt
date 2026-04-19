@@ -1,0 +1,1074 @@
+=== dev ===
+ad827a8 Matt Hodges <matthodgess384@gmail.com> Sat Apr 18 13:46:07 2026 -0400 screenshots
+5ab6e71 Charles Carlson <carlson.charles20@gmail.com> Sat Apr 18 13:32:17 2026 -0400 adding further graphs
+8faed69 Matt Hodges <matthodgess384@gmail.com> Sat Apr 18 13:21:48 2026 -0400 added report
+ef8e80e Charles Carlson <carlson.charles20@gmail.com> Sat Apr 18 13:14:22 2026 -0400 adding results and graph
+e0e56e8 Charles Carlson <carlson.charles20@gmail.com> Sat Apr 18 12:51:46 2026 -0400 adding screenshot from last test
+cc0a34a Charles Carlson <carlson.charles20@gmail.com> Sat Apr 18 12:44:26 2026 -0400 made consistency fixes and changed how we upload in k6, adding results
+77ab114 Charles Carlson <carlson.charles20@gmail.com> Fri Apr 17 18:56:25 2026 -0400 fixing handling for large file uploads and upload bytes, k6 has issues with gRPC
+3b5546e Charles Carlson <carlson.charles20@gmail.com> Fri Apr 17 14:54:25 2026 -0400 fix: race condition on Delete, and aws_test script adds grafana to workload
+9798e6a Charles Carlson <carlson.charles20@gmail.com> Fri Apr 17 13:59:48 2026 -0400  fix: reduce k6 load test failures and propagate request context
+ef4c8e1 gyuszix <gyuszix@gmail.com> Thu Apr 16 17:01:16 2026 -0400 merging feature/test-debug to dev
+9b11468 gyuszix <gyuszix@gmail.com> Thu Apr 16 16:34:14 2026 -0400 update gitignore
+71a5f34 gyuszix <gyuszix@gmail.com> Thu Apr 16 16:24:46 2026 -0400 remove test binaries
+d52341e gyuszix <gyuszix@gmail.com> Thu Apr 16 16:21:32 2026 -0400 adding to gitignore
+8c1644a Charles Carlson <carlson.charles20@gmail.com> Thu Apr 16 15:23:42 2026 -0400 k6 changes and fixes, with main
+5d51129 Charles Carlson <carlson.charles20@gmail.com> Thu Apr 16 14:04:18 2026 -0400 Merge branch 'dev' of https://github.com/mdzhodges/NEUDFS into dev
+eae9138 Charles Carlson <carlson.charles20@gmail.com> Thu Apr 16 14:03:39 2026 -0400 stashing experimental changes
+ee91be8 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Apr 16 11:17:08 2026 -0400 stop silent delete failures in main.go and add k6 upload/delete cycle
+8c173df Matt Hodges <matthodgess384@gmail.com> Tue Apr 14 19:58:55 2026 -0400 forgot to add run.sh
+9489b73 Charles Carlson <carlson.charles20@gmail.com> Tue Apr 14 19:55:55 2026 -0400 Merge branch 'dev' of https://github.com/mdzhodges/NEUDFS into dev
+41667b3 Charles Carlson <carlson.charles20@gmail.com> Tue Apr 14 19:55:37 2026 -0400 lots of debugging, hair loss type beat
+f2c9682 Matt Hodges <matthodgess384@gmail.com> Tue Apr 14 19:42:19 2026 -0400 added script to run that is dynamic between local and deploy, adjusted some gui logic
+3175bfb Charles Carlson <carlson.charles20@gmail.com> Mon Apr 13 19:22:00 2026 -0400 Merge branch 'dev' of https://github.com/mdzhodges/NEUDFS into dev
+aac4218 Charles Carlson <carlson.charles20@gmail.com> Mon Apr 13 19:21:52 2026 -0400 setting up load tests and small security changes in rename/renameDir
+bae3690 Matt Hodges <matthodgess384@gmail.com> Mon Apr 13 13:36:48 2026 -0400 nasty merge completed
+0df5e8f Matt Hodges <matthodgess384@gmail.com> Mon Apr 13 13:10:44 2026 -0400 Merge branch 'dev' of github.com:mdzhodges/NEUDFS into dev
+292759c Charles Carlson <50120819+charles-carlson@users.noreply.github.com> Mon Apr 13 11:21:57 2026 -0400 Merge pull request #60 from mdzhodges/terraform/autoscale
+b8be84f Matt Hodges <matthodgess384@gmail.com> Sun Apr 12 16:24:24 2026 -0400 gui done??
+fa4e46b Matt Hodges <matthodgess384@gmail.com> Sun Apr 12 13:52:35 2026 -0400 GUI Done
+a01c830 Matt Hodges <matthodgess384@gmail.com> Sun Apr 12 13:52:28 2026 -0400 gui done
+49b1186 Charles Carlson <carlson.charles20@gmail.com> Sun Apr 12 12:29:41 2026 -0400 adding temp k6 test for future stuff
+c520ba1 Charles Carlson <carlson.charles20@gmail.com> Sun Apr 12 12:07:54 2026 -0400 adding cloudwatch synchronization and made tests connect to AWS
+01688c4 Charles Carlson <carlson.charles20@gmail.com> Sun Apr 12 10:40:16 2026 -0400 added auto scaling, aws terraform is correctly setup for port
+8003c3e Charles Carlson <carlson.charles20@gmail.com> Thu Apr 9 15:10:50 2026 -0400 fixing context issues
+92b5e3a Charles Carlson <carlson.charles20@gmail.com> Thu Apr 9 15:01:17 2026 -0400 refactoring tables, to set up for terraform
+c7ad55f Charles Carlson <carlson.charles20@gmail.com> Thu Apr 9 14:51:00 2026 -0400 changing context to be standard
+585325d Charles Carlson <carlson.charles20@gmail.com> Thu Apr 9 14:47:39 2026 -0400 fixing query, adding pagination
+242ad8b Charles Carlson <carlson.charles20@gmail.com> Thu Apr 9 14:12:41 2026 -0400 adding multipart upload to reduce memory usage in fargate for large files
+a147da7 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Tue Apr 7 16:34:17 2026 -0400 Merge feature/delete and remove tracked binaries
+3278b78 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Tue Apr 7 16:20:07 2026 -0400 removed race condition from delete logic, refactor mkdir permission validation, automate local s3 provisioning
+ada9b8e gyuszix <gyuszix@gmail.com> Mon Apr 6 18:25:49 2026 -0400 adding gitignore
+bfdd425 gyuszix <gyuszix@gmail.com> Mon Apr 6 18:25:15 2026 -0400 remove tracked binaries
+208e181 gyuszix <gyuszix@gmail.com> Mon Apr 6 15:29:08 2026 -0400 adding bug fix where ls can still see the deleted files
+bbb4462 gyuszix <gyuszix@gmail.com> Mon Apr 6 14:11:59 2026 -0400 adding aws to seed_db testing #55 closed
+3b8b2dd gyuszix <gyuszix@gmail.com> Mon Apr 6 14:11:59 2026 -0400 adding aws to seed_db testing
+7b7f44c gyuszix <gyuszix@gmail.com> Mon Apr 6 14:07:17 2026 -0400 adding run-local bash script that will start server, reseed users, give way to testing in a better format
+cf81bca gyuszix <gyuszix@gmail.com> Mon Apr 6 14:06:37 2026 -0400 minor fix
+0ec8739 gyuszix <gyuszix@gmail.com> Mon Apr 6 14:06:19 2026 -0400 fixing env issue in test
+bd3d82c gyuszix <gyuszix@gmail.com> Mon Apr 6 14:06:07 2026 -0400 fix minor testing bug
+06f2a0b Charles Carlson <50120819+charles-carlson@users.noreply.github.com> Mon Apr 6 13:05:52 2026 -0400 Merge pull request #53 from mdzhodges/refactor/ttl
+7511348 Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 13:05:04 2026 -0400 add fix for tree
+4bdaae2 Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 13:04:15 2026 -0400 Merge branch 'dev' of https://github.com/mdzhodges/NEUDFS into refactor/ttl
+08139cb Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 12:55:13 2026 -0400 adding refactor, moving in mem map to dynamo
+71b77a0 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 12:47:29 2026 -0400 merged and tested open, download and upload
+771cda1 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 11:37:20 2026 -0400 Finish merging feature/upload into dev
+0b4c8d0 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 11:34:27 2026 -0400 Merge remote-tracking branch 'origin/feature/download' into dev
+e5f28d0 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 11:34:14 2026 -0400 Merge branch 'feature/upload' into dev
+14bee31 Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 11:09:23 2026 -0400 adding some ttl logic and user logic
+90cace4 Charles Carlson <carlson.charles20@gmail.com> Sun Apr 5 12:17:26 2026 -0400 adding open command for all os versions, uses download as helper
+0833b18 Charles Carlson <carlson.charles20@gmail.com> Fri Apr 3 13:25:11 2026 -0400 adding some test to test mass users downloading a file a teacher is updating, and permissions
+e7c1f9a gyuszix <gyuszix@gmail.com> Thu Apr 2 12:55:13 2026 -0400 making sure no merge conflict with future business logic, tree is closed, #37 closed
+6d2de9e gyuszix <gyuszix@gmail.com> Thu Apr 2 12:39:19 2026 -0400 implement tree command, fully fucntional, students can only tree and see their own folders, #37
+8c4bb93 gyuszix <gyuszix@gmail.com> Thu Apr 2 12:26:04 2026 -0400 semi working tested tree implementation - limited to prof role only
+5e271ee gyuszix <gyuszix@gmail.com> Thu Apr 2 11:51:04 2026 -0400 adding a bash command to make local testing faster
+eafd31f Charles Carlson <carlson.charles20@gmail.com> Thu Apr 2 10:51:20 2026 -0400 adding download
+d57a739 Charles Carlson <carlson.charles20@gmail.com> Thu Apr 2 10:27:44 2026 -0400 upload working as intended
+ccc9781 Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Apr 1 18:14:41 2026 -0400 rename dir working...
+893e380 Charles Carlson <carlson.charles20@gmail.com> Wed Apr 1 13:44:07 2026 -0400 removed redundancies
+f730f49 gyuszix <gyuszix@gmail.com> Mon Mar 30 13:22:49 2026 -0400 adding clear
+1cfa581 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:40:08 2026 -0400 rename file working
+f98ec29 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:10:52 2026 -0400 added rename to utils
+a242d6e Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:01:00 2026 -0400 Merge branch 'dev' into feature/rename-file
+49b1cad Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 11:58:05 2026 -0400 merged dev with mkdir
+2d8aa08 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 11:48:43 2026 -0400 rename WIP
+feae31a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:51:08 2026 -0400 refactoring redundant code
+27b4cc4 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:45:20 2026 -0400 adding mkdir working with refactor
+bd835c8 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:37:25 2026 -0400 mkdir works, added client code to work with it
+4267a61 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:35:07 2026 -0400 adding server logic, still testing mkdir
+b100268 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 10:46:19 2026 -0400 removing main.go redundant file
+f6c620b Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 10:41:24 2026 -0400 committing changes before switching to dev
+5e0cd46 gyuszix <gyuszix@gmail.com> Thu Mar 26 16:32:17 2026 -0400 merging feature with nlb tf changes
+da544e3 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 16:06:34 2026 -0400 deleted garbage
+c4ad6ec Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 16:04:19 2026 -0400 Merge load test branch into dev and resolve README conflict
+27777c8 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:57:54 2026 -0400 initial test working
+2388888 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:56:49 2026 -0400 now the test includes graphs
+f3191e1 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:44:54 2026 -0400 added a test for ls, cd, and pwd commands
+53a9f3b Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 15:38:15 2026 -0400 instructions
+764b8b3 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 14:51:59 2026 -0400 added instructions to readme
+08bf581 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 14:04:14 2026 -0400 added readme
+f69227b Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:56:21 2026 -0400 added docker for server
+bc70b30 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:52:41 2026 -0400 modified read me and deleted useless stuff
+fbe5435 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:47:34 2026 -0400 read me
+f5b466a Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:45:19 2026 -0400 locust, adding patch
+3feff5a Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:40:20 2026 -0400 add ls, cd, pwd functionality
+5016ce6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:36:27 2026 -0400 Merge branch 'feature/server' of https://github.com/mdzhodges/NEUDFS into feature/server
+96ea58c Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:35:42 2026 -0400 staging for dev
+ae4754d Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:26:35 2026 -0400 add / to pwd
+2e3bb96 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:23:47 2026 -0400 pwd implemented
+cda2bcf Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:47 2026 -0400 Merge branch 'feature/server' of github.com:mdzhodges/NEUDFS into feature/server
+c4bf4c8 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:13 2026 -0400 working on pwd
+b47db5e Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:19:12 2026 -0400 added pwd to proto schema
+ff4c549 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:11:53 2026 -0400 ls and cd fixed
+ebee2b1 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:59:42 2026 -0400 full sendy
+d2cbdb6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:40:11 2026 -0400 fixing script
+879d054 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:34:27 2026 -0400 added change directory
+9662558 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:07:10 2026 -0400 fixing change directory
+0943460 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:40:24 2026 -0400 Merge branch 'dev' into feature/server
+b1ca996 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:28:12 2026 -0400 changed git ignore
+dc65627 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 17:33:19 2026 -0400 WIP: for Server LS implementation, rewriting LS to properly handle listing only what a user can access
+369ebda Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 16:20:26 2026 -0400 readme update
+076875f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 14:00:31 2026 -0400 making local changes for tests
+c881afd Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:38:18 2026 -0400 now you can destroy when s3 is not empty
+7e1a8e9 Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:15:13 2026 -0400 S3 bucket working
+7a07a3f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 12:20:47 2026 -0400 adding list dir client logic
+b3facc7 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 11:55:17 2026 -0400 changing structure and adding connection to server in client
+c291df7 gyuszix <gyuszix@gmail.com> Tue Mar 24 17:52:32 2026 -0400 making the lab role arn dynamic
+0118020 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:38:20 2026 -0400 refining logic for ListDirectory
+9b87400 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:15:20 2026 -0400 adding interceptor and updating List/Change Directory
+349f64a Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:42:00 2026 -0400 adding List and Change Directory
+fc4360d Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:23:19 2026 -0400 adding logic for Change directory
+938e079 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:52 2026 -0400 adding
+50919c4 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:25 2026 -0400 removing tfvars and shared i am role attempt
+c8ebc57 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:50:01 2026 -0400 adding tfvars labrole iam id
+0e57847 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:35:07 2026 -0400 adding locking table
+f12279a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 14:21:10 2026 -0400 pushing ChangeDirectory
+c0caa70 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:09:20 2026 -0400 Merge branch 's3-bucket' into dev ysea .
+63d5d52 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 23 14:05:36 2026 -0400 added s3 terraform and git ignore
+c996bb6 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:39:32 2026 -0400 adding boilerplate
+18a85c9 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:36:12 2026 -0400 adding root main and variables tf
+d9bf58f gyuszix <gyuszix@gmail.com> Mon Mar 23 13:35:52 2026 -0400 adding ecs
+521d592 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:28:30 2026 -0400 added proto commands
+fbb1065 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:08:23 2026 -0400 adding user and attribute
+ffff522 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:03:31 2026 -0400 beginning rpc code
+f815412 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:00:51 2026 -0400 ecr terraform
+4979e92 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:47:22 2026 -0400 no C :(
+843240c Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:40:50 2026 -0400 first commit
+cf3d53b Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:39:58 2026 -0400 adding folders for terraform
+a1b435f Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:00:10 2026 -0400 adding dynamo module
+66ce0e2 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:49:41 2026 -0400 adding really basic funtion parsing
+f0346fc Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:30:12 2026 -0400 fixed function def
+271f8f0 Matt Hodges <matthodgess384@gmail.com> Fri Mar 20 12:47:45 2026 -0400 Added some basic function signatures to the commands.go file
+a89ca5a Charles Carlson <carlson.charles20@gmail.com> Thu Feb 19 09:51:04 2026 -0500 adding whitepaper
+b064f7c Jordan Glass <jordanglass21@gmail.com> Mon Feb 16 13:43:08 2026 -0500 added inspiration repo to readme
+1725ccd Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:17:55 2026 -0500 cmd line simple scanner
+c61ca7e Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:06:54 2026 -0500 adding quickstart to docs and made simple command pattern structure
+eb9f03f Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 12:51:00 2026 -0500 updating readme
+b11050f Matthew Hodges <matthodgess384@gmail.com> Mon Feb 16 12:46:58 2026 -0500 Initial commit
+
+=== feature/clear ===
+27af587 Charles Carlson <carlson.charles20@gmail.com> Wed Apr 1 13:42:22 2026 -0400 removing disclaimer slop
+845d9d3 gyuszix <gyuszix@gmail.com> Mon Mar 30 13:22:49 2026 -0400 adding clear
+49b1cad Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 11:58:05 2026 -0400 merged dev with mkdir
+feae31a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:51:08 2026 -0400 refactoring redundant code
+27b4cc4 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:45:20 2026 -0400 adding mkdir working with refactor
+bd835c8 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:37:25 2026 -0400 mkdir works, added client code to work with it
+4267a61 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:35:07 2026 -0400 adding server logic, still testing mkdir
+b100268 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 10:46:19 2026 -0400 removing main.go redundant file
+f6c620b Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 10:41:24 2026 -0400 committing changes before switching to dev
+5e0cd46 gyuszix <gyuszix@gmail.com> Thu Mar 26 16:32:17 2026 -0400 merging feature with nlb tf changes
+da544e3 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 16:06:34 2026 -0400 deleted garbage
+c4ad6ec Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 16:04:19 2026 -0400 Merge load test branch into dev and resolve README conflict
+27777c8 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:57:54 2026 -0400 initial test working
+2388888 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:56:49 2026 -0400 now the test includes graphs
+f3191e1 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:44:54 2026 -0400 added a test for ls, cd, and pwd commands
+53a9f3b Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 15:38:15 2026 -0400 instructions
+764b8b3 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 14:51:59 2026 -0400 added instructions to readme
+08bf581 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 14:04:14 2026 -0400 added readme
+f69227b Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:56:21 2026 -0400 added docker for server
+bc70b30 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:52:41 2026 -0400 modified read me and deleted useless stuff
+fbe5435 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:47:34 2026 -0400 read me
+f5b466a Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:45:19 2026 -0400 locust, adding patch
+3feff5a Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:40:20 2026 -0400 add ls, cd, pwd functionality
+5016ce6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:36:27 2026 -0400 Merge branch 'feature/server' of https://github.com/mdzhodges/NEUDFS into feature/server
+96ea58c Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:35:42 2026 -0400 staging for dev
+ae4754d Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:26:35 2026 -0400 add / to pwd
+2e3bb96 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:23:47 2026 -0400 pwd implemented
+cda2bcf Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:47 2026 -0400 Merge branch 'feature/server' of github.com:mdzhodges/NEUDFS into feature/server
+c4bf4c8 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:13 2026 -0400 working on pwd
+b47db5e Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:19:12 2026 -0400 added pwd to proto schema
+ff4c549 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:11:53 2026 -0400 ls and cd fixed
+ebee2b1 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:59:42 2026 -0400 full sendy
+d2cbdb6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:40:11 2026 -0400 fixing script
+879d054 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:34:27 2026 -0400 added change directory
+9662558 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:07:10 2026 -0400 fixing change directory
+0943460 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:40:24 2026 -0400 Merge branch 'dev' into feature/server
+b1ca996 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:28:12 2026 -0400 changed git ignore
+dc65627 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 17:33:19 2026 -0400 WIP: for Server LS implementation, rewriting LS to properly handle listing only what a user can access
+369ebda Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 16:20:26 2026 -0400 readme update
+076875f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 14:00:31 2026 -0400 making local changes for tests
+c881afd Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:38:18 2026 -0400 now you can destroy when s3 is not empty
+7e1a8e9 Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:15:13 2026 -0400 S3 bucket working
+7a07a3f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 12:20:47 2026 -0400 adding list dir client logic
+b3facc7 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 11:55:17 2026 -0400 changing structure and adding connection to server in client
+c291df7 gyuszix <gyuszix@gmail.com> Tue Mar 24 17:52:32 2026 -0400 making the lab role arn dynamic
+0118020 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:38:20 2026 -0400 refining logic for ListDirectory
+9b87400 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:15:20 2026 -0400 adding interceptor and updating List/Change Directory
+349f64a Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:42:00 2026 -0400 adding List and Change Directory
+fc4360d Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:23:19 2026 -0400 adding logic for Change directory
+938e079 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:52 2026 -0400 adding
+50919c4 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:25 2026 -0400 removing tfvars and shared i am role attempt
+c8ebc57 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:50:01 2026 -0400 adding tfvars labrole iam id
+0e57847 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:35:07 2026 -0400 adding locking table
+f12279a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 14:21:10 2026 -0400 pushing ChangeDirectory
+c0caa70 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:09:20 2026 -0400 Merge branch 's3-bucket' into dev ysea .
+63d5d52 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 23 14:05:36 2026 -0400 added s3 terraform and git ignore
+c996bb6 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:39:32 2026 -0400 adding boilerplate
+18a85c9 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:36:12 2026 -0400 adding root main and variables tf
+d9bf58f gyuszix <gyuszix@gmail.com> Mon Mar 23 13:35:52 2026 -0400 adding ecs
+521d592 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:28:30 2026 -0400 added proto commands
+fbb1065 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:08:23 2026 -0400 adding user and attribute
+ffff522 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:03:31 2026 -0400 beginning rpc code
+f815412 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:00:51 2026 -0400 ecr terraform
+4979e92 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:47:22 2026 -0400 no C :(
+843240c Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:40:50 2026 -0400 first commit
+cf3d53b Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:39:58 2026 -0400 adding folders for terraform
+a1b435f Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:00:10 2026 -0400 adding dynamo module
+66ce0e2 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:49:41 2026 -0400 adding really basic funtion parsing
+f0346fc Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:30:12 2026 -0400 fixed function def
+271f8f0 Matt Hodges <matthodgess384@gmail.com> Fri Mar 20 12:47:45 2026 -0400 Added some basic function signatures to the commands.go file
+a89ca5a Charles Carlson <carlson.charles20@gmail.com> Thu Feb 19 09:51:04 2026 -0500 adding whitepaper
+b064f7c Jordan Glass <jordanglass21@gmail.com> Mon Feb 16 13:43:08 2026 -0500 added inspiration repo to readme
+1725ccd Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:17:55 2026 -0500 cmd line simple scanner
+c61ca7e Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:06:54 2026 -0500 adding quickstart to docs and made simple command pattern structure
+eb9f03f Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 12:51:00 2026 -0500 updating readme
+b11050f Matthew Hodges <matthodgess384@gmail.com> Mon Feb 16 12:46:58 2026 -0500 Initial commit
+
+=== feature/download ===
+0833b18 Charles Carlson <carlson.charles20@gmail.com> Fri Apr 3 13:25:11 2026 -0400 adding some test to test mass users downloading a file a teacher is updating, and permissions
+eafd31f Charles Carlson <carlson.charles20@gmail.com> Thu Apr 2 10:51:20 2026 -0400 adding download
+d57a739 Charles Carlson <carlson.charles20@gmail.com> Thu Apr 2 10:27:44 2026 -0400 upload working as intended
+ccc9781 Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Apr 1 18:14:41 2026 -0400 rename dir working...
+893e380 Charles Carlson <carlson.charles20@gmail.com> Wed Apr 1 13:44:07 2026 -0400 removed redundancies
+f730f49 gyuszix <gyuszix@gmail.com> Mon Mar 30 13:22:49 2026 -0400 adding clear
+1cfa581 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:40:08 2026 -0400 rename file working
+f98ec29 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:10:52 2026 -0400 added rename to utils
+a242d6e Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:01:00 2026 -0400 Merge branch 'dev' into feature/rename-file
+49b1cad Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 11:58:05 2026 -0400 merged dev with mkdir
+2d8aa08 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 11:48:43 2026 -0400 rename WIP
+feae31a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:51:08 2026 -0400 refactoring redundant code
+27b4cc4 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:45:20 2026 -0400 adding mkdir working with refactor
+bd835c8 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:37:25 2026 -0400 mkdir works, added client code to work with it
+4267a61 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:35:07 2026 -0400 adding server logic, still testing mkdir
+b100268 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 10:46:19 2026 -0400 removing main.go redundant file
+f6c620b Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 10:41:24 2026 -0400 committing changes before switching to dev
+5e0cd46 gyuszix <gyuszix@gmail.com> Thu Mar 26 16:32:17 2026 -0400 merging feature with nlb tf changes
+da544e3 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 16:06:34 2026 -0400 deleted garbage
+c4ad6ec Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 16:04:19 2026 -0400 Merge load test branch into dev and resolve README conflict
+27777c8 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:57:54 2026 -0400 initial test working
+2388888 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:56:49 2026 -0400 now the test includes graphs
+f3191e1 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:44:54 2026 -0400 added a test for ls, cd, and pwd commands
+53a9f3b Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 15:38:15 2026 -0400 instructions
+764b8b3 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 14:51:59 2026 -0400 added instructions to readme
+08bf581 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 14:04:14 2026 -0400 added readme
+f69227b Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:56:21 2026 -0400 added docker for server
+bc70b30 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:52:41 2026 -0400 modified read me and deleted useless stuff
+fbe5435 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:47:34 2026 -0400 read me
+f5b466a Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:45:19 2026 -0400 locust, adding patch
+3feff5a Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:40:20 2026 -0400 add ls, cd, pwd functionality
+5016ce6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:36:27 2026 -0400 Merge branch 'feature/server' of https://github.com/mdzhodges/NEUDFS into feature/server
+96ea58c Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:35:42 2026 -0400 staging for dev
+ae4754d Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:26:35 2026 -0400 add / to pwd
+2e3bb96 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:23:47 2026 -0400 pwd implemented
+cda2bcf Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:47 2026 -0400 Merge branch 'feature/server' of github.com:mdzhodges/NEUDFS into feature/server
+c4bf4c8 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:13 2026 -0400 working on pwd
+b47db5e Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:19:12 2026 -0400 added pwd to proto schema
+ff4c549 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:11:53 2026 -0400 ls and cd fixed
+ebee2b1 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:59:42 2026 -0400 full sendy
+d2cbdb6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:40:11 2026 -0400 fixing script
+879d054 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:34:27 2026 -0400 added change directory
+9662558 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:07:10 2026 -0400 fixing change directory
+0943460 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:40:24 2026 -0400 Merge branch 'dev' into feature/server
+b1ca996 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:28:12 2026 -0400 changed git ignore
+dc65627 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 17:33:19 2026 -0400 WIP: for Server LS implementation, rewriting LS to properly handle listing only what a user can access
+369ebda Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 16:20:26 2026 -0400 readme update
+076875f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 14:00:31 2026 -0400 making local changes for tests
+c881afd Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:38:18 2026 -0400 now you can destroy when s3 is not empty
+7e1a8e9 Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:15:13 2026 -0400 S3 bucket working
+7a07a3f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 12:20:47 2026 -0400 adding list dir client logic
+b3facc7 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 11:55:17 2026 -0400 changing structure and adding connection to server in client
+c291df7 gyuszix <gyuszix@gmail.com> Tue Mar 24 17:52:32 2026 -0400 making the lab role arn dynamic
+0118020 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:38:20 2026 -0400 refining logic for ListDirectory
+9b87400 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:15:20 2026 -0400 adding interceptor and updating List/Change Directory
+349f64a Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:42:00 2026 -0400 adding List and Change Directory
+fc4360d Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:23:19 2026 -0400 adding logic for Change directory
+938e079 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:52 2026 -0400 adding
+50919c4 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:25 2026 -0400 removing tfvars and shared i am role attempt
+c8ebc57 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:50:01 2026 -0400 adding tfvars labrole iam id
+0e57847 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:35:07 2026 -0400 adding locking table
+f12279a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 14:21:10 2026 -0400 pushing ChangeDirectory
+c0caa70 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:09:20 2026 -0400 Merge branch 's3-bucket' into dev ysea .
+63d5d52 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 23 14:05:36 2026 -0400 added s3 terraform and git ignore
+c996bb6 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:39:32 2026 -0400 adding boilerplate
+18a85c9 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:36:12 2026 -0400 adding root main and variables tf
+d9bf58f gyuszix <gyuszix@gmail.com> Mon Mar 23 13:35:52 2026 -0400 adding ecs
+521d592 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:28:30 2026 -0400 added proto commands
+fbb1065 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:08:23 2026 -0400 adding user and attribute
+ffff522 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:03:31 2026 -0400 beginning rpc code
+f815412 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:00:51 2026 -0400 ecr terraform
+4979e92 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:47:22 2026 -0400 no C :(
+843240c Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:40:50 2026 -0400 first commit
+cf3d53b Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:39:58 2026 -0400 adding folders for terraform
+a1b435f Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:00:10 2026 -0400 adding dynamo module
+66ce0e2 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:49:41 2026 -0400 adding really basic funtion parsing
+f0346fc Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:30:12 2026 -0400 fixed function def
+271f8f0 Matt Hodges <matthodgess384@gmail.com> Fri Mar 20 12:47:45 2026 -0400 Added some basic function signatures to the commands.go file
+a89ca5a Charles Carlson <carlson.charles20@gmail.com> Thu Feb 19 09:51:04 2026 -0500 adding whitepaper
+b064f7c Jordan Glass <jordanglass21@gmail.com> Mon Feb 16 13:43:08 2026 -0500 added inspiration repo to readme
+1725ccd Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:17:55 2026 -0500 cmd line simple scanner
+c61ca7e Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:06:54 2026 -0500 adding quickstart to docs and made simple command pattern structure
+eb9f03f Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 12:51:00 2026 -0500 updating readme
+b11050f Matthew Hodges <matthodgess384@gmail.com> Mon Feb 16 12:46:58 2026 -0500 Initial commit
+
+=== feature/mkdir ===
+feae31a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:51:08 2026 -0400 refactoring redundant code
+27b4cc4 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:45:20 2026 -0400 adding mkdir working with refactor
+bd835c8 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:37:25 2026 -0400 mkdir works, added client code to work with it
+4267a61 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:35:07 2026 -0400 adding server logic, still testing mkdir
+f6c620b Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 10:41:24 2026 -0400 committing changes before switching to dev
+3feff5a Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:40:20 2026 -0400 add ls, cd, pwd functionality
+5016ce6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:36:27 2026 -0400 Merge branch 'feature/server' of https://github.com/mdzhodges/NEUDFS into feature/server
+96ea58c Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:35:42 2026 -0400 staging for dev
+ae4754d Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:26:35 2026 -0400 add / to pwd
+2e3bb96 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:23:47 2026 -0400 pwd implemented
+cda2bcf Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:47 2026 -0400 Merge branch 'feature/server' of github.com:mdzhodges/NEUDFS into feature/server
+c4bf4c8 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:13 2026 -0400 working on pwd
+b47db5e Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:19:12 2026 -0400 added pwd to proto schema
+ff4c549 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:11:53 2026 -0400 ls and cd fixed
+ebee2b1 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:59:42 2026 -0400 full sendy
+d2cbdb6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:40:11 2026 -0400 fixing script
+879d054 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:34:27 2026 -0400 added change directory
+9662558 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:07:10 2026 -0400 fixing change directory
+0943460 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:40:24 2026 -0400 Merge branch 'dev' into feature/server
+b1ca996 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:28:12 2026 -0400 changed git ignore
+dc65627 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 17:33:19 2026 -0400 WIP: for Server LS implementation, rewriting LS to properly handle listing only what a user can access
+369ebda Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 16:20:26 2026 -0400 readme update
+076875f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 14:00:31 2026 -0400 making local changes for tests
+c881afd Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:38:18 2026 -0400 now you can destroy when s3 is not empty
+7e1a8e9 Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:15:13 2026 -0400 S3 bucket working
+7a07a3f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 12:20:47 2026 -0400 adding list dir client logic
+b3facc7 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 11:55:17 2026 -0400 changing structure and adding connection to server in client
+c291df7 gyuszix <gyuszix@gmail.com> Tue Mar 24 17:52:32 2026 -0400 making the lab role arn dynamic
+0118020 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:38:20 2026 -0400 refining logic for ListDirectory
+9b87400 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:15:20 2026 -0400 adding interceptor and updating List/Change Directory
+349f64a Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:42:00 2026 -0400 adding List and Change Directory
+fc4360d Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:23:19 2026 -0400 adding logic for Change directory
+938e079 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:52 2026 -0400 adding
+50919c4 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:25 2026 -0400 removing tfvars and shared i am role attempt
+c8ebc57 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:50:01 2026 -0400 adding tfvars labrole iam id
+0e57847 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:35:07 2026 -0400 adding locking table
+f12279a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 14:21:10 2026 -0400 pushing ChangeDirectory
+c0caa70 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:09:20 2026 -0400 Merge branch 's3-bucket' into dev ysea .
+63d5d52 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 23 14:05:36 2026 -0400 added s3 terraform and git ignore
+c996bb6 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:39:32 2026 -0400 adding boilerplate
+18a85c9 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:36:12 2026 -0400 adding root main and variables tf
+d9bf58f gyuszix <gyuszix@gmail.com> Mon Mar 23 13:35:52 2026 -0400 adding ecs
+521d592 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:28:30 2026 -0400 added proto commands
+fbb1065 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:08:23 2026 -0400 adding user and attribute
+ffff522 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:03:31 2026 -0400 beginning rpc code
+f815412 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:00:51 2026 -0400 ecr terraform
+4979e92 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:47:22 2026 -0400 no C :(
+843240c Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:40:50 2026 -0400 first commit
+cf3d53b Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:39:58 2026 -0400 adding folders for terraform
+a1b435f Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:00:10 2026 -0400 adding dynamo module
+66ce0e2 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:49:41 2026 -0400 adding really basic funtion parsing
+f0346fc Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:30:12 2026 -0400 fixed function def
+271f8f0 Matt Hodges <matthodgess384@gmail.com> Fri Mar 20 12:47:45 2026 -0400 Added some basic function signatures to the commands.go file
+a89ca5a Charles Carlson <carlson.charles20@gmail.com> Thu Feb 19 09:51:04 2026 -0500 adding whitepaper
+b064f7c Jordan Glass <jordanglass21@gmail.com> Mon Feb 16 13:43:08 2026 -0500 added inspiration repo to readme
+1725ccd Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:17:55 2026 -0500 cmd line simple scanner
+c61ca7e Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:06:54 2026 -0500 adding quickstart to docs and made simple command pattern structure
+eb9f03f Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 12:51:00 2026 -0500 updating readme
+b11050f Matthew Hodges <matthodgess384@gmail.com> Mon Feb 16 12:46:58 2026 -0500 Initial commit
+
+=== feature/open ===
+90cace4 Charles Carlson <carlson.charles20@gmail.com> Sun Apr 5 12:17:26 2026 -0400 adding open command for all os versions, uses download as helper
+0833b18 Charles Carlson <carlson.charles20@gmail.com> Fri Apr 3 13:25:11 2026 -0400 adding some test to test mass users downloading a file a teacher is updating, and permissions
+eafd31f Charles Carlson <carlson.charles20@gmail.com> Thu Apr 2 10:51:20 2026 -0400 adding download
+d57a739 Charles Carlson <carlson.charles20@gmail.com> Thu Apr 2 10:27:44 2026 -0400 upload working as intended
+ccc9781 Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Apr 1 18:14:41 2026 -0400 rename dir working...
+893e380 Charles Carlson <carlson.charles20@gmail.com> Wed Apr 1 13:44:07 2026 -0400 removed redundancies
+f730f49 gyuszix <gyuszix@gmail.com> Mon Mar 30 13:22:49 2026 -0400 adding clear
+1cfa581 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:40:08 2026 -0400 rename file working
+f98ec29 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:10:52 2026 -0400 added rename to utils
+a242d6e Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:01:00 2026 -0400 Merge branch 'dev' into feature/rename-file
+49b1cad Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 11:58:05 2026 -0400 merged dev with mkdir
+2d8aa08 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 11:48:43 2026 -0400 rename WIP
+feae31a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:51:08 2026 -0400 refactoring redundant code
+27b4cc4 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:45:20 2026 -0400 adding mkdir working with refactor
+bd835c8 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:37:25 2026 -0400 mkdir works, added client code to work with it
+4267a61 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:35:07 2026 -0400 adding server logic, still testing mkdir
+b100268 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 10:46:19 2026 -0400 removing main.go redundant file
+f6c620b Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 10:41:24 2026 -0400 committing changes before switching to dev
+5e0cd46 gyuszix <gyuszix@gmail.com> Thu Mar 26 16:32:17 2026 -0400 merging feature with nlb tf changes
+da544e3 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 16:06:34 2026 -0400 deleted garbage
+c4ad6ec Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 16:04:19 2026 -0400 Merge load test branch into dev and resolve README conflict
+27777c8 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:57:54 2026 -0400 initial test working
+2388888 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:56:49 2026 -0400 now the test includes graphs
+f3191e1 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:44:54 2026 -0400 added a test for ls, cd, and pwd commands
+53a9f3b Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 15:38:15 2026 -0400 instructions
+764b8b3 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 14:51:59 2026 -0400 added instructions to readme
+08bf581 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 14:04:14 2026 -0400 added readme
+f69227b Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:56:21 2026 -0400 added docker for server
+bc70b30 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:52:41 2026 -0400 modified read me and deleted useless stuff
+fbe5435 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:47:34 2026 -0400 read me
+f5b466a Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:45:19 2026 -0400 locust, adding patch
+3feff5a Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:40:20 2026 -0400 add ls, cd, pwd functionality
+5016ce6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:36:27 2026 -0400 Merge branch 'feature/server' of https://github.com/mdzhodges/NEUDFS into feature/server
+96ea58c Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:35:42 2026 -0400 staging for dev
+ae4754d Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:26:35 2026 -0400 add / to pwd
+2e3bb96 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:23:47 2026 -0400 pwd implemented
+cda2bcf Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:47 2026 -0400 Merge branch 'feature/server' of github.com:mdzhodges/NEUDFS into feature/server
+c4bf4c8 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:13 2026 -0400 working on pwd
+b47db5e Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:19:12 2026 -0400 added pwd to proto schema
+ff4c549 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:11:53 2026 -0400 ls and cd fixed
+ebee2b1 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:59:42 2026 -0400 full sendy
+d2cbdb6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:40:11 2026 -0400 fixing script
+879d054 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:34:27 2026 -0400 added change directory
+9662558 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:07:10 2026 -0400 fixing change directory
+0943460 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:40:24 2026 -0400 Merge branch 'dev' into feature/server
+b1ca996 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:28:12 2026 -0400 changed git ignore
+dc65627 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 17:33:19 2026 -0400 WIP: for Server LS implementation, rewriting LS to properly handle listing only what a user can access
+369ebda Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 16:20:26 2026 -0400 readme update
+076875f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 14:00:31 2026 -0400 making local changes for tests
+c881afd Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:38:18 2026 -0400 now you can destroy when s3 is not empty
+7e1a8e9 Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:15:13 2026 -0400 S3 bucket working
+7a07a3f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 12:20:47 2026 -0400 adding list dir client logic
+b3facc7 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 11:55:17 2026 -0400 changing structure and adding connection to server in client
+c291df7 gyuszix <gyuszix@gmail.com> Tue Mar 24 17:52:32 2026 -0400 making the lab role arn dynamic
+0118020 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:38:20 2026 -0400 refining logic for ListDirectory
+9b87400 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:15:20 2026 -0400 adding interceptor and updating List/Change Directory
+349f64a Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:42:00 2026 -0400 adding List and Change Directory
+fc4360d Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:23:19 2026 -0400 adding logic for Change directory
+938e079 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:52 2026 -0400 adding
+50919c4 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:25 2026 -0400 removing tfvars and shared i am role attempt
+c8ebc57 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:50:01 2026 -0400 adding tfvars labrole iam id
+0e57847 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:35:07 2026 -0400 adding locking table
+f12279a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 14:21:10 2026 -0400 pushing ChangeDirectory
+c0caa70 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:09:20 2026 -0400 Merge branch 's3-bucket' into dev ysea .
+63d5d52 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 23 14:05:36 2026 -0400 added s3 terraform and git ignore
+c996bb6 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:39:32 2026 -0400 adding boilerplate
+18a85c9 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:36:12 2026 -0400 adding root main and variables tf
+d9bf58f gyuszix <gyuszix@gmail.com> Mon Mar 23 13:35:52 2026 -0400 adding ecs
+521d592 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:28:30 2026 -0400 added proto commands
+fbb1065 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:08:23 2026 -0400 adding user and attribute
+ffff522 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:03:31 2026 -0400 beginning rpc code
+f815412 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:00:51 2026 -0400 ecr terraform
+4979e92 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:47:22 2026 -0400 no C :(
+843240c Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:40:50 2026 -0400 first commit
+cf3d53b Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:39:58 2026 -0400 adding folders for terraform
+a1b435f Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:00:10 2026 -0400 adding dynamo module
+66ce0e2 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:49:41 2026 -0400 adding really basic funtion parsing
+f0346fc Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:30:12 2026 -0400 fixed function def
+271f8f0 Matt Hodges <matthodgess384@gmail.com> Fri Mar 20 12:47:45 2026 -0400 Added some basic function signatures to the commands.go file
+a89ca5a Charles Carlson <carlson.charles20@gmail.com> Thu Feb 19 09:51:04 2026 -0500 adding whitepaper
+b064f7c Jordan Glass <jordanglass21@gmail.com> Mon Feb 16 13:43:08 2026 -0500 added inspiration repo to readme
+1725ccd Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:17:55 2026 -0500 cmd line simple scanner
+c61ca7e Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:06:54 2026 -0500 adding quickstart to docs and made simple command pattern structure
+eb9f03f Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 12:51:00 2026 -0500 updating readme
+b11050f Matthew Hodges <matthodgess384@gmail.com> Mon Feb 16 12:46:58 2026 -0500 Initial commit
+
+=== feature/server ===
+5016ce6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:36:27 2026 -0400 Merge branch 'feature/server' of https://github.com/mdzhodges/NEUDFS into feature/server
+96ea58c Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:35:42 2026 -0400 staging for dev
+ae4754d Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:26:35 2026 -0400 add / to pwd
+2e3bb96 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:23:47 2026 -0400 pwd implemented
+cda2bcf Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:47 2026 -0400 Merge branch 'feature/server' of github.com:mdzhodges/NEUDFS into feature/server
+c4bf4c8 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:13 2026 -0400 working on pwd
+b47db5e Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:19:12 2026 -0400 added pwd to proto schema
+ff4c549 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:11:53 2026 -0400 ls and cd fixed
+ebee2b1 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:59:42 2026 -0400 full sendy
+d2cbdb6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:40:11 2026 -0400 fixing script
+879d054 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:34:27 2026 -0400 added change directory
+9662558 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:07:10 2026 -0400 fixing change directory
+0943460 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:40:24 2026 -0400 Merge branch 'dev' into feature/server
+b1ca996 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:28:12 2026 -0400 changed git ignore
+dc65627 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 17:33:19 2026 -0400 WIP: for Server LS implementation, rewriting LS to properly handle listing only what a user can access
+369ebda Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 16:20:26 2026 -0400 readme update
+076875f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 14:00:31 2026 -0400 making local changes for tests
+c881afd Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:38:18 2026 -0400 now you can destroy when s3 is not empty
+7e1a8e9 Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:15:13 2026 -0400 S3 bucket working
+7a07a3f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 12:20:47 2026 -0400 adding list dir client logic
+b3facc7 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 11:55:17 2026 -0400 changing structure and adding connection to server in client
+c291df7 gyuszix <gyuszix@gmail.com> Tue Mar 24 17:52:32 2026 -0400 making the lab role arn dynamic
+0118020 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:38:20 2026 -0400 refining logic for ListDirectory
+9b87400 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:15:20 2026 -0400 adding interceptor and updating List/Change Directory
+349f64a Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:42:00 2026 -0400 adding List and Change Directory
+fc4360d Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:23:19 2026 -0400 adding logic for Change directory
+938e079 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:52 2026 -0400 adding
+50919c4 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:25 2026 -0400 removing tfvars and shared i am role attempt
+c8ebc57 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:50:01 2026 -0400 adding tfvars labrole iam id
+0e57847 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:35:07 2026 -0400 adding locking table
+f12279a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 14:21:10 2026 -0400 pushing ChangeDirectory
+c0caa70 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:09:20 2026 -0400 Merge branch 's3-bucket' into dev ysea .
+63d5d52 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 23 14:05:36 2026 -0400 added s3 terraform and git ignore
+c996bb6 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:39:32 2026 -0400 adding boilerplate
+18a85c9 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:36:12 2026 -0400 adding root main and variables tf
+d9bf58f gyuszix <gyuszix@gmail.com> Mon Mar 23 13:35:52 2026 -0400 adding ecs
+521d592 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:28:30 2026 -0400 added proto commands
+fbb1065 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:08:23 2026 -0400 adding user and attribute
+ffff522 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:03:31 2026 -0400 beginning rpc code
+f815412 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:00:51 2026 -0400 ecr terraform
+4979e92 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:47:22 2026 -0400 no C :(
+843240c Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:40:50 2026 -0400 first commit
+cf3d53b Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:39:58 2026 -0400 adding folders for terraform
+a1b435f Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:00:10 2026 -0400 adding dynamo module
+66ce0e2 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:49:41 2026 -0400 adding really basic funtion parsing
+f0346fc Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:30:12 2026 -0400 fixed function def
+271f8f0 Matt Hodges <matthodgess384@gmail.com> Fri Mar 20 12:47:45 2026 -0400 Added some basic function signatures to the commands.go file
+a89ca5a Charles Carlson <carlson.charles20@gmail.com> Thu Feb 19 09:51:04 2026 -0500 adding whitepaper
+b064f7c Jordan Glass <jordanglass21@gmail.com> Mon Feb 16 13:43:08 2026 -0500 added inspiration repo to readme
+1725ccd Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:17:55 2026 -0500 cmd line simple scanner
+c61ca7e Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:06:54 2026 -0500 adding quickstart to docs and made simple command pattern structure
+eb9f03f Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 12:51:00 2026 -0500 updating readme
+b11050f Matthew Hodges <matthodgess384@gmail.com> Mon Feb 16 12:46:58 2026 -0500 Initial commit
+
+=== feature/test-debug ===
+71a5f34 gyuszix <gyuszix@gmail.com> Thu Apr 16 16:24:46 2026 -0400 remove test binaries
+d52341e gyuszix <gyuszix@gmail.com> Thu Apr 16 16:21:32 2026 -0400 adding to gitignore
+8c1644a Charles Carlson <carlson.charles20@gmail.com> Thu Apr 16 15:23:42 2026 -0400 k6 changes and fixes, with main
+ee91be8 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Apr 16 11:17:08 2026 -0400 stop silent delete failures in main.go and add k6 upload/delete cycle
+8c173df Matt Hodges <matthodgess384@gmail.com> Tue Apr 14 19:58:55 2026 -0400 forgot to add run.sh
+9489b73 Charles Carlson <carlson.charles20@gmail.com> Tue Apr 14 19:55:55 2026 -0400 Merge branch 'dev' of https://github.com/mdzhodges/NEUDFS into dev
+41667b3 Charles Carlson <carlson.charles20@gmail.com> Tue Apr 14 19:55:37 2026 -0400 lots of debugging, hair loss type beat
+f2c9682 Matt Hodges <matthodgess384@gmail.com> Tue Apr 14 19:42:19 2026 -0400 added script to run that is dynamic between local and deploy, adjusted some gui logic
+3175bfb Charles Carlson <carlson.charles20@gmail.com> Mon Apr 13 19:22:00 2026 -0400 Merge branch 'dev' of https://github.com/mdzhodges/NEUDFS into dev
+aac4218 Charles Carlson <carlson.charles20@gmail.com> Mon Apr 13 19:21:52 2026 -0400 setting up load tests and small security changes in rename/renameDir
+bae3690 Matt Hodges <matthodgess384@gmail.com> Mon Apr 13 13:36:48 2026 -0400 nasty merge completed
+0df5e8f Matt Hodges <matthodgess384@gmail.com> Mon Apr 13 13:10:44 2026 -0400 Merge branch 'dev' of github.com:mdzhodges/NEUDFS into dev
+292759c Charles Carlson <50120819+charles-carlson@users.noreply.github.com> Mon Apr 13 11:21:57 2026 -0400 Merge pull request #60 from mdzhodges/terraform/autoscale
+b8be84f Matt Hodges <matthodgess384@gmail.com> Sun Apr 12 16:24:24 2026 -0400 gui done??
+fa4e46b Matt Hodges <matthodgess384@gmail.com> Sun Apr 12 13:52:35 2026 -0400 GUI Done
+a01c830 Matt Hodges <matthodgess384@gmail.com> Sun Apr 12 13:52:28 2026 -0400 gui done
+49b1186 Charles Carlson <carlson.charles20@gmail.com> Sun Apr 12 12:29:41 2026 -0400 adding temp k6 test for future stuff
+c520ba1 Charles Carlson <carlson.charles20@gmail.com> Sun Apr 12 12:07:54 2026 -0400 adding cloudwatch synchronization and made tests connect to AWS
+01688c4 Charles Carlson <carlson.charles20@gmail.com> Sun Apr 12 10:40:16 2026 -0400 added auto scaling, aws terraform is correctly setup for port
+8003c3e Charles Carlson <carlson.charles20@gmail.com> Thu Apr 9 15:10:50 2026 -0400 fixing context issues
+92b5e3a Charles Carlson <carlson.charles20@gmail.com> Thu Apr 9 15:01:17 2026 -0400 refactoring tables, to set up for terraform
+c7ad55f Charles Carlson <carlson.charles20@gmail.com> Thu Apr 9 14:51:00 2026 -0400 changing context to be standard
+585325d Charles Carlson <carlson.charles20@gmail.com> Thu Apr 9 14:47:39 2026 -0400 fixing query, adding pagination
+242ad8b Charles Carlson <carlson.charles20@gmail.com> Thu Apr 9 14:12:41 2026 -0400 adding multipart upload to reduce memory usage in fargate for large files
+a147da7 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Tue Apr 7 16:34:17 2026 -0400 Merge feature/delete and remove tracked binaries
+3278b78 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Tue Apr 7 16:20:07 2026 -0400 removed race condition from delete logic, refactor mkdir permission validation, automate local s3 provisioning
+ada9b8e gyuszix <gyuszix@gmail.com> Mon Apr 6 18:25:49 2026 -0400 adding gitignore
+bfdd425 gyuszix <gyuszix@gmail.com> Mon Apr 6 18:25:15 2026 -0400 remove tracked binaries
+208e181 gyuszix <gyuszix@gmail.com> Mon Apr 6 15:29:08 2026 -0400 adding bug fix where ls can still see the deleted files
+bbb4462 gyuszix <gyuszix@gmail.com> Mon Apr 6 14:11:59 2026 -0400 adding aws to seed_db testing #55 closed
+3b8b2dd gyuszix <gyuszix@gmail.com> Mon Apr 6 14:11:59 2026 -0400 adding aws to seed_db testing
+7b7f44c gyuszix <gyuszix@gmail.com> Mon Apr 6 14:07:17 2026 -0400 adding run-local bash script that will start server, reseed users, give way to testing in a better format
+cf81bca gyuszix <gyuszix@gmail.com> Mon Apr 6 14:06:37 2026 -0400 minor fix
+0ec8739 gyuszix <gyuszix@gmail.com> Mon Apr 6 14:06:19 2026 -0400 fixing env issue in test
+bd3d82c gyuszix <gyuszix@gmail.com> Mon Apr 6 14:06:07 2026 -0400 fix minor testing bug
+06f2a0b Charles Carlson <50120819+charles-carlson@users.noreply.github.com> Mon Apr 6 13:05:52 2026 -0400 Merge pull request #53 from mdzhodges/refactor/ttl
+7511348 Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 13:05:04 2026 -0400 add fix for tree
+4bdaae2 Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 13:04:15 2026 -0400 Merge branch 'dev' of https://github.com/mdzhodges/NEUDFS into refactor/ttl
+08139cb Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 12:55:13 2026 -0400 adding refactor, moving in mem map to dynamo
+71b77a0 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 12:47:29 2026 -0400 merged and tested open, download and upload
+771cda1 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 11:37:20 2026 -0400 Finish merging feature/upload into dev
+0b4c8d0 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 11:34:27 2026 -0400 Merge remote-tracking branch 'origin/feature/download' into dev
+e5f28d0 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 11:34:14 2026 -0400 Merge branch 'feature/upload' into dev
+14bee31 Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 11:09:23 2026 -0400 adding some ttl logic and user logic
+90cace4 Charles Carlson <carlson.charles20@gmail.com> Sun Apr 5 12:17:26 2026 -0400 adding open command for all os versions, uses download as helper
+0833b18 Charles Carlson <carlson.charles20@gmail.com> Fri Apr 3 13:25:11 2026 -0400 adding some test to test mass users downloading a file a teacher is updating, and permissions
+e7c1f9a gyuszix <gyuszix@gmail.com> Thu Apr 2 12:55:13 2026 -0400 making sure no merge conflict with future business logic, tree is closed, #37 closed
+6d2de9e gyuszix <gyuszix@gmail.com> Thu Apr 2 12:39:19 2026 -0400 implement tree command, fully fucntional, students can only tree and see their own folders, #37
+8c4bb93 gyuszix <gyuszix@gmail.com> Thu Apr 2 12:26:04 2026 -0400 semi working tested tree implementation - limited to prof role only
+5e271ee gyuszix <gyuszix@gmail.com> Thu Apr 2 11:51:04 2026 -0400 adding a bash command to make local testing faster
+eafd31f Charles Carlson <carlson.charles20@gmail.com> Thu Apr 2 10:51:20 2026 -0400 adding download
+d57a739 Charles Carlson <carlson.charles20@gmail.com> Thu Apr 2 10:27:44 2026 -0400 upload working as intended
+ccc9781 Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Apr 1 18:14:41 2026 -0400 rename dir working...
+893e380 Charles Carlson <carlson.charles20@gmail.com> Wed Apr 1 13:44:07 2026 -0400 removed redundancies
+f730f49 gyuszix <gyuszix@gmail.com> Mon Mar 30 13:22:49 2026 -0400 adding clear
+1cfa581 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:40:08 2026 -0400 rename file working
+f98ec29 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:10:52 2026 -0400 added rename to utils
+a242d6e Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:01:00 2026 -0400 Merge branch 'dev' into feature/rename-file
+49b1cad Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 11:58:05 2026 -0400 merged dev with mkdir
+2d8aa08 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 11:48:43 2026 -0400 rename WIP
+feae31a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:51:08 2026 -0400 refactoring redundant code
+27b4cc4 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:45:20 2026 -0400 adding mkdir working with refactor
+bd835c8 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:37:25 2026 -0400 mkdir works, added client code to work with it
+4267a61 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:35:07 2026 -0400 adding server logic, still testing mkdir
+b100268 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 10:46:19 2026 -0400 removing main.go redundant file
+f6c620b Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 10:41:24 2026 -0400 committing changes before switching to dev
+5e0cd46 gyuszix <gyuszix@gmail.com> Thu Mar 26 16:32:17 2026 -0400 merging feature with nlb tf changes
+da544e3 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 16:06:34 2026 -0400 deleted garbage
+c4ad6ec Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 16:04:19 2026 -0400 Merge load test branch into dev and resolve README conflict
+27777c8 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:57:54 2026 -0400 initial test working
+2388888 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:56:49 2026 -0400 now the test includes graphs
+f3191e1 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:44:54 2026 -0400 added a test for ls, cd, and pwd commands
+53a9f3b Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 15:38:15 2026 -0400 instructions
+764b8b3 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 14:51:59 2026 -0400 added instructions to readme
+08bf581 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 14:04:14 2026 -0400 added readme
+f69227b Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:56:21 2026 -0400 added docker for server
+bc70b30 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:52:41 2026 -0400 modified read me and deleted useless stuff
+fbe5435 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:47:34 2026 -0400 read me
+f5b466a Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:45:19 2026 -0400 locust, adding patch
+3feff5a Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:40:20 2026 -0400 add ls, cd, pwd functionality
+5016ce6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:36:27 2026 -0400 Merge branch 'feature/server' of https://github.com/mdzhodges/NEUDFS into feature/server
+96ea58c Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:35:42 2026 -0400 staging for dev
+ae4754d Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:26:35 2026 -0400 add / to pwd
+2e3bb96 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:23:47 2026 -0400 pwd implemented
+cda2bcf Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:47 2026 -0400 Merge branch 'feature/server' of github.com:mdzhodges/NEUDFS into feature/server
+c4bf4c8 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:13 2026 -0400 working on pwd
+b47db5e Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:19:12 2026 -0400 added pwd to proto schema
+ff4c549 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:11:53 2026 -0400 ls and cd fixed
+ebee2b1 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:59:42 2026 -0400 full sendy
+d2cbdb6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:40:11 2026 -0400 fixing script
+879d054 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:34:27 2026 -0400 added change directory
+9662558 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:07:10 2026 -0400 fixing change directory
+0943460 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:40:24 2026 -0400 Merge branch 'dev' into feature/server
+b1ca996 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:28:12 2026 -0400 changed git ignore
+dc65627 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 17:33:19 2026 -0400 WIP: for Server LS implementation, rewriting LS to properly handle listing only what a user can access
+369ebda Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 16:20:26 2026 -0400 readme update
+076875f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 14:00:31 2026 -0400 making local changes for tests
+c881afd Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:38:18 2026 -0400 now you can destroy when s3 is not empty
+7e1a8e9 Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:15:13 2026 -0400 S3 bucket working
+7a07a3f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 12:20:47 2026 -0400 adding list dir client logic
+b3facc7 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 11:55:17 2026 -0400 changing structure and adding connection to server in client
+c291df7 gyuszix <gyuszix@gmail.com> Tue Mar 24 17:52:32 2026 -0400 making the lab role arn dynamic
+0118020 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:38:20 2026 -0400 refining logic for ListDirectory
+9b87400 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:15:20 2026 -0400 adding interceptor and updating List/Change Directory
+349f64a Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:42:00 2026 -0400 adding List and Change Directory
+fc4360d Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:23:19 2026 -0400 adding logic for Change directory
+938e079 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:52 2026 -0400 adding
+50919c4 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:25 2026 -0400 removing tfvars and shared i am role attempt
+c8ebc57 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:50:01 2026 -0400 adding tfvars labrole iam id
+0e57847 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:35:07 2026 -0400 adding locking table
+f12279a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 14:21:10 2026 -0400 pushing ChangeDirectory
+c0caa70 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:09:20 2026 -0400 Merge branch 's3-bucket' into dev ysea .
+63d5d52 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 23 14:05:36 2026 -0400 added s3 terraform and git ignore
+c996bb6 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:39:32 2026 -0400 adding boilerplate
+18a85c9 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:36:12 2026 -0400 adding root main and variables tf
+d9bf58f gyuszix <gyuszix@gmail.com> Mon Mar 23 13:35:52 2026 -0400 adding ecs
+521d592 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:28:30 2026 -0400 added proto commands
+fbb1065 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:08:23 2026 -0400 adding user and attribute
+ffff522 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:03:31 2026 -0400 beginning rpc code
+f815412 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:00:51 2026 -0400 ecr terraform
+4979e92 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:47:22 2026 -0400 no C :(
+843240c Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:40:50 2026 -0400 first commit
+cf3d53b Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:39:58 2026 -0400 adding folders for terraform
+a1b435f Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:00:10 2026 -0400 adding dynamo module
+66ce0e2 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:49:41 2026 -0400 adding really basic funtion parsing
+f0346fc Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:30:12 2026 -0400 fixed function def
+271f8f0 Matt Hodges <matthodgess384@gmail.com> Fri Mar 20 12:47:45 2026 -0400 Added some basic function signatures to the commands.go file
+a89ca5a Charles Carlson <carlson.charles20@gmail.com> Thu Feb 19 09:51:04 2026 -0500 adding whitepaper
+b064f7c Jordan Glass <jordanglass21@gmail.com> Mon Feb 16 13:43:08 2026 -0500 added inspiration repo to readme
+1725ccd Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:17:55 2026 -0500 cmd line simple scanner
+c61ca7e Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:06:54 2026 -0500 adding quickstart to docs and made simple command pattern structure
+eb9f03f Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 12:51:00 2026 -0500 updating readme
+b11050f Matthew Hodges <matthodgess384@gmail.com> Mon Feb 16 12:46:58 2026 -0500 Initial commit
+
+=== feature/upload ===
+d57a739 Charles Carlson <carlson.charles20@gmail.com> Thu Apr 2 10:27:44 2026 -0400 upload working as intended
+ccc9781 Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Apr 1 18:14:41 2026 -0400 rename dir working...
+893e380 Charles Carlson <carlson.charles20@gmail.com> Wed Apr 1 13:44:07 2026 -0400 removed redundancies
+f730f49 gyuszix <gyuszix@gmail.com> Mon Mar 30 13:22:49 2026 -0400 adding clear
+1cfa581 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:40:08 2026 -0400 rename file working
+f98ec29 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:10:52 2026 -0400 added rename to utils
+a242d6e Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:01:00 2026 -0400 Merge branch 'dev' into feature/rename-file
+49b1cad Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 11:58:05 2026 -0400 merged dev with mkdir
+2d8aa08 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 11:48:43 2026 -0400 rename WIP
+feae31a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:51:08 2026 -0400 refactoring redundant code
+27b4cc4 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:45:20 2026 -0400 adding mkdir working with refactor
+bd835c8 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:37:25 2026 -0400 mkdir works, added client code to work with it
+4267a61 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:35:07 2026 -0400 adding server logic, still testing mkdir
+b100268 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 10:46:19 2026 -0400 removing main.go redundant file
+f6c620b Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 10:41:24 2026 -0400 committing changes before switching to dev
+5e0cd46 gyuszix <gyuszix@gmail.com> Thu Mar 26 16:32:17 2026 -0400 merging feature with nlb tf changes
+da544e3 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 16:06:34 2026 -0400 deleted garbage
+c4ad6ec Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 16:04:19 2026 -0400 Merge load test branch into dev and resolve README conflict
+27777c8 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:57:54 2026 -0400 initial test working
+2388888 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:56:49 2026 -0400 now the test includes graphs
+f3191e1 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:44:54 2026 -0400 added a test for ls, cd, and pwd commands
+53a9f3b Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 15:38:15 2026 -0400 instructions
+764b8b3 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 14:51:59 2026 -0400 added instructions to readme
+08bf581 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 14:04:14 2026 -0400 added readme
+f69227b Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:56:21 2026 -0400 added docker for server
+bc70b30 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:52:41 2026 -0400 modified read me and deleted useless stuff
+fbe5435 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:47:34 2026 -0400 read me
+f5b466a Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:45:19 2026 -0400 locust, adding patch
+3feff5a Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:40:20 2026 -0400 add ls, cd, pwd functionality
+5016ce6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:36:27 2026 -0400 Merge branch 'feature/server' of https://github.com/mdzhodges/NEUDFS into feature/server
+96ea58c Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:35:42 2026 -0400 staging for dev
+ae4754d Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:26:35 2026 -0400 add / to pwd
+2e3bb96 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:23:47 2026 -0400 pwd implemented
+cda2bcf Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:47 2026 -0400 Merge branch 'feature/server' of github.com:mdzhodges/NEUDFS into feature/server
+c4bf4c8 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:13 2026 -0400 working on pwd
+b47db5e Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:19:12 2026 -0400 added pwd to proto schema
+ff4c549 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:11:53 2026 -0400 ls and cd fixed
+ebee2b1 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:59:42 2026 -0400 full sendy
+d2cbdb6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:40:11 2026 -0400 fixing script
+879d054 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:34:27 2026 -0400 added change directory
+9662558 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:07:10 2026 -0400 fixing change directory
+0943460 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:40:24 2026 -0400 Merge branch 'dev' into feature/server
+b1ca996 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:28:12 2026 -0400 changed git ignore
+dc65627 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 17:33:19 2026 -0400 WIP: for Server LS implementation, rewriting LS to properly handle listing only what a user can access
+369ebda Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 16:20:26 2026 -0400 readme update
+076875f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 14:00:31 2026 -0400 making local changes for tests
+c881afd Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:38:18 2026 -0400 now you can destroy when s3 is not empty
+7e1a8e9 Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:15:13 2026 -0400 S3 bucket working
+7a07a3f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 12:20:47 2026 -0400 adding list dir client logic
+b3facc7 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 11:55:17 2026 -0400 changing structure and adding connection to server in client
+c291df7 gyuszix <gyuszix@gmail.com> Tue Mar 24 17:52:32 2026 -0400 making the lab role arn dynamic
+0118020 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:38:20 2026 -0400 refining logic for ListDirectory
+9b87400 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:15:20 2026 -0400 adding interceptor and updating List/Change Directory
+349f64a Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:42:00 2026 -0400 adding List and Change Directory
+fc4360d Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:23:19 2026 -0400 adding logic for Change directory
+938e079 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:52 2026 -0400 adding
+50919c4 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:25 2026 -0400 removing tfvars and shared i am role attempt
+c8ebc57 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:50:01 2026 -0400 adding tfvars labrole iam id
+0e57847 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:35:07 2026 -0400 adding locking table
+f12279a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 14:21:10 2026 -0400 pushing ChangeDirectory
+c0caa70 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:09:20 2026 -0400 Merge branch 's3-bucket' into dev ysea .
+63d5d52 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 23 14:05:36 2026 -0400 added s3 terraform and git ignore
+c996bb6 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:39:32 2026 -0400 adding boilerplate
+18a85c9 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:36:12 2026 -0400 adding root main and variables tf
+d9bf58f gyuszix <gyuszix@gmail.com> Mon Mar 23 13:35:52 2026 -0400 adding ecs
+521d592 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:28:30 2026 -0400 added proto commands
+fbb1065 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:08:23 2026 -0400 adding user and attribute
+ffff522 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:03:31 2026 -0400 beginning rpc code
+f815412 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:00:51 2026 -0400 ecr terraform
+4979e92 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:47:22 2026 -0400 no C :(
+843240c Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:40:50 2026 -0400 first commit
+cf3d53b Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:39:58 2026 -0400 adding folders for terraform
+a1b435f Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:00:10 2026 -0400 adding dynamo module
+66ce0e2 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:49:41 2026 -0400 adding really basic funtion parsing
+f0346fc Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:30:12 2026 -0400 fixed function def
+271f8f0 Matt Hodges <matthodgess384@gmail.com> Fri Mar 20 12:47:45 2026 -0400 Added some basic function signatures to the commands.go file
+a89ca5a Charles Carlson <carlson.charles20@gmail.com> Thu Feb 19 09:51:04 2026 -0500 adding whitepaper
+b064f7c Jordan Glass <jordanglass21@gmail.com> Mon Feb 16 13:43:08 2026 -0500 added inspiration repo to readme
+1725ccd Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:17:55 2026 -0500 cmd line simple scanner
+c61ca7e Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:06:54 2026 -0500 adding quickstart to docs and made simple command pattern structure
+eb9f03f Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 12:51:00 2026 -0500 updating readme
+b11050f Matthew Hodges <matthodgess384@gmail.com> Mon Feb 16 12:46:58 2026 -0500 Initial commit
+
+=== main ===
+a89ca5a Charles Carlson <carlson.charles20@gmail.com> Thu Feb 19 09:51:04 2026 -0500 adding whitepaper
+b064f7c Jordan Glass <jordanglass21@gmail.com> Mon Feb 16 13:43:08 2026 -0500 added inspiration repo to readme
+1725ccd Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:17:55 2026 -0500 cmd line simple scanner
+c61ca7e Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:06:54 2026 -0500 adding quickstart to docs and made simple command pattern structure
+eb9f03f Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 12:51:00 2026 -0500 updating readme
+b11050f Matthew Hodges <matthodgess384@gmail.com> Mon Feb 16 12:46:58 2026 -0500 Initial commit
+
+=== refactor/memory ===
+c7ad55f Charles Carlson <carlson.charles20@gmail.com> Thu Apr 9 14:51:00 2026 -0400 changing context to be standard
+585325d Charles Carlson <carlson.charles20@gmail.com> Thu Apr 9 14:47:39 2026 -0400 fixing query, adding pagination
+242ad8b Charles Carlson <carlson.charles20@gmail.com> Thu Apr 9 14:12:41 2026 -0400 adding multipart upload to reduce memory usage in fargate for large files
+a147da7 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Tue Apr 7 16:34:17 2026 -0400 Merge feature/delete and remove tracked binaries
+3278b78 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Tue Apr 7 16:20:07 2026 -0400 removed race condition from delete logic, refactor mkdir permission validation, automate local s3 provisioning
+ada9b8e gyuszix <gyuszix@gmail.com> Mon Apr 6 18:25:49 2026 -0400 adding gitignore
+bfdd425 gyuszix <gyuszix@gmail.com> Mon Apr 6 18:25:15 2026 -0400 remove tracked binaries
+208e181 gyuszix <gyuszix@gmail.com> Mon Apr 6 15:29:08 2026 -0400 adding bug fix where ls can still see the deleted files
+bbb4462 gyuszix <gyuszix@gmail.com> Mon Apr 6 14:11:59 2026 -0400 adding aws to seed_db testing #55 closed
+3b8b2dd gyuszix <gyuszix@gmail.com> Mon Apr 6 14:11:59 2026 -0400 adding aws to seed_db testing
+7b7f44c gyuszix <gyuszix@gmail.com> Mon Apr 6 14:07:17 2026 -0400 adding run-local bash script that will start server, reseed users, give way to testing in a better format
+cf81bca gyuszix <gyuszix@gmail.com> Mon Apr 6 14:06:37 2026 -0400 minor fix
+0ec8739 gyuszix <gyuszix@gmail.com> Mon Apr 6 14:06:19 2026 -0400 fixing env issue in test
+bd3d82c gyuszix <gyuszix@gmail.com> Mon Apr 6 14:06:07 2026 -0400 fix minor testing bug
+06f2a0b Charles Carlson <50120819+charles-carlson@users.noreply.github.com> Mon Apr 6 13:05:52 2026 -0400 Merge pull request #53 from mdzhodges/refactor/ttl
+7511348 Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 13:05:04 2026 -0400 add fix for tree
+4bdaae2 Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 13:04:15 2026 -0400 Merge branch 'dev' of https://github.com/mdzhodges/NEUDFS into refactor/ttl
+08139cb Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 12:55:13 2026 -0400 adding refactor, moving in mem map to dynamo
+71b77a0 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 12:47:29 2026 -0400 merged and tested open, download and upload
+771cda1 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 11:37:20 2026 -0400 Finish merging feature/upload into dev
+0b4c8d0 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 11:34:27 2026 -0400 Merge remote-tracking branch 'origin/feature/download' into dev
+e5f28d0 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 11:34:14 2026 -0400 Merge branch 'feature/upload' into dev
+14bee31 Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 11:09:23 2026 -0400 adding some ttl logic and user logic
+90cace4 Charles Carlson <carlson.charles20@gmail.com> Sun Apr 5 12:17:26 2026 -0400 adding open command for all os versions, uses download as helper
+0833b18 Charles Carlson <carlson.charles20@gmail.com> Fri Apr 3 13:25:11 2026 -0400 adding some test to test mass users downloading a file a teacher is updating, and permissions
+e7c1f9a gyuszix <gyuszix@gmail.com> Thu Apr 2 12:55:13 2026 -0400 making sure no merge conflict with future business logic, tree is closed, #37 closed
+6d2de9e gyuszix <gyuszix@gmail.com> Thu Apr 2 12:39:19 2026 -0400 implement tree command, fully fucntional, students can only tree and see their own folders, #37
+8c4bb93 gyuszix <gyuszix@gmail.com> Thu Apr 2 12:26:04 2026 -0400 semi working tested tree implementation - limited to prof role only
+5e271ee gyuszix <gyuszix@gmail.com> Thu Apr 2 11:51:04 2026 -0400 adding a bash command to make local testing faster
+eafd31f Charles Carlson <carlson.charles20@gmail.com> Thu Apr 2 10:51:20 2026 -0400 adding download
+d57a739 Charles Carlson <carlson.charles20@gmail.com> Thu Apr 2 10:27:44 2026 -0400 upload working as intended
+ccc9781 Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Apr 1 18:14:41 2026 -0400 rename dir working...
+893e380 Charles Carlson <carlson.charles20@gmail.com> Wed Apr 1 13:44:07 2026 -0400 removed redundancies
+f730f49 gyuszix <gyuszix@gmail.com> Mon Mar 30 13:22:49 2026 -0400 adding clear
+1cfa581 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:40:08 2026 -0400 rename file working
+f98ec29 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:10:52 2026 -0400 added rename to utils
+a242d6e Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:01:00 2026 -0400 Merge branch 'dev' into feature/rename-file
+49b1cad Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 11:58:05 2026 -0400 merged dev with mkdir
+2d8aa08 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 11:48:43 2026 -0400 rename WIP
+feae31a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:51:08 2026 -0400 refactoring redundant code
+27b4cc4 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:45:20 2026 -0400 adding mkdir working with refactor
+bd835c8 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:37:25 2026 -0400 mkdir works, added client code to work with it
+4267a61 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:35:07 2026 -0400 adding server logic, still testing mkdir
+b100268 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 10:46:19 2026 -0400 removing main.go redundant file
+f6c620b Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 10:41:24 2026 -0400 committing changes before switching to dev
+5e0cd46 gyuszix <gyuszix@gmail.com> Thu Mar 26 16:32:17 2026 -0400 merging feature with nlb tf changes
+da544e3 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 16:06:34 2026 -0400 deleted garbage
+c4ad6ec Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 16:04:19 2026 -0400 Merge load test branch into dev and resolve README conflict
+27777c8 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:57:54 2026 -0400 initial test working
+2388888 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:56:49 2026 -0400 now the test includes graphs
+f3191e1 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:44:54 2026 -0400 added a test for ls, cd, and pwd commands
+53a9f3b Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 15:38:15 2026 -0400 instructions
+764b8b3 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 14:51:59 2026 -0400 added instructions to readme
+08bf581 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 14:04:14 2026 -0400 added readme
+f69227b Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:56:21 2026 -0400 added docker for server
+bc70b30 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:52:41 2026 -0400 modified read me and deleted useless stuff
+fbe5435 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:47:34 2026 -0400 read me
+f5b466a Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:45:19 2026 -0400 locust, adding patch
+3feff5a Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:40:20 2026 -0400 add ls, cd, pwd functionality
+5016ce6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:36:27 2026 -0400 Merge branch 'feature/server' of https://github.com/mdzhodges/NEUDFS into feature/server
+96ea58c Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:35:42 2026 -0400 staging for dev
+ae4754d Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:26:35 2026 -0400 add / to pwd
+2e3bb96 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:23:47 2026 -0400 pwd implemented
+cda2bcf Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:47 2026 -0400 Merge branch 'feature/server' of github.com:mdzhodges/NEUDFS into feature/server
+c4bf4c8 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:13 2026 -0400 working on pwd
+b47db5e Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:19:12 2026 -0400 added pwd to proto schema
+ff4c549 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:11:53 2026 -0400 ls and cd fixed
+ebee2b1 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:59:42 2026 -0400 full sendy
+d2cbdb6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:40:11 2026 -0400 fixing script
+879d054 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:34:27 2026 -0400 added change directory
+9662558 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:07:10 2026 -0400 fixing change directory
+0943460 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:40:24 2026 -0400 Merge branch 'dev' into feature/server
+b1ca996 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:28:12 2026 -0400 changed git ignore
+dc65627 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 17:33:19 2026 -0400 WIP: for Server LS implementation, rewriting LS to properly handle listing only what a user can access
+369ebda Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 16:20:26 2026 -0400 readme update
+076875f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 14:00:31 2026 -0400 making local changes for tests
+c881afd Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:38:18 2026 -0400 now you can destroy when s3 is not empty
+7e1a8e9 Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:15:13 2026 -0400 S3 bucket working
+7a07a3f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 12:20:47 2026 -0400 adding list dir client logic
+b3facc7 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 11:55:17 2026 -0400 changing structure and adding connection to server in client
+c291df7 gyuszix <gyuszix@gmail.com> Tue Mar 24 17:52:32 2026 -0400 making the lab role arn dynamic
+0118020 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:38:20 2026 -0400 refining logic for ListDirectory
+9b87400 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:15:20 2026 -0400 adding interceptor and updating List/Change Directory
+349f64a Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:42:00 2026 -0400 adding List and Change Directory
+fc4360d Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:23:19 2026 -0400 adding logic for Change directory
+938e079 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:52 2026 -0400 adding
+50919c4 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:25 2026 -0400 removing tfvars and shared i am role attempt
+c8ebc57 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:50:01 2026 -0400 adding tfvars labrole iam id
+0e57847 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:35:07 2026 -0400 adding locking table
+f12279a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 14:21:10 2026 -0400 pushing ChangeDirectory
+c0caa70 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:09:20 2026 -0400 Merge branch 's3-bucket' into dev ysea .
+63d5d52 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 23 14:05:36 2026 -0400 added s3 terraform and git ignore
+c996bb6 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:39:32 2026 -0400 adding boilerplate
+18a85c9 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:36:12 2026 -0400 adding root main and variables tf
+d9bf58f gyuszix <gyuszix@gmail.com> Mon Mar 23 13:35:52 2026 -0400 adding ecs
+521d592 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:28:30 2026 -0400 added proto commands
+fbb1065 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:08:23 2026 -0400 adding user and attribute
+ffff522 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:03:31 2026 -0400 beginning rpc code
+f815412 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:00:51 2026 -0400 ecr terraform
+4979e92 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:47:22 2026 -0400 no C :(
+843240c Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:40:50 2026 -0400 first commit
+cf3d53b Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:39:58 2026 -0400 adding folders for terraform
+a1b435f Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:00:10 2026 -0400 adding dynamo module
+66ce0e2 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:49:41 2026 -0400 adding really basic funtion parsing
+f0346fc Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:30:12 2026 -0400 fixed function def
+271f8f0 Matt Hodges <matthodgess384@gmail.com> Fri Mar 20 12:47:45 2026 -0400 Added some basic function signatures to the commands.go file
+a89ca5a Charles Carlson <carlson.charles20@gmail.com> Thu Feb 19 09:51:04 2026 -0500 adding whitepaper
+b064f7c Jordan Glass <jordanglass21@gmail.com> Mon Feb 16 13:43:08 2026 -0500 added inspiration repo to readme
+1725ccd Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:17:55 2026 -0500 cmd line simple scanner
+c61ca7e Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:06:54 2026 -0500 adding quickstart to docs and made simple command pattern structure
+eb9f03f Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 12:51:00 2026 -0500 updating readme
+b11050f Matthew Hodges <matthodgess384@gmail.com> Mon Feb 16 12:46:58 2026 -0500 Initial commit
+
+=== refactor/ttl ===
+7511348 Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 13:05:04 2026 -0400 add fix for tree
+4bdaae2 Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 13:04:15 2026 -0400 Merge branch 'dev' of https://github.com/mdzhodges/NEUDFS into refactor/ttl
+08139cb Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 12:55:13 2026 -0400 adding refactor, moving in mem map to dynamo
+71b77a0 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 12:47:29 2026 -0400 merged and tested open, download and upload
+771cda1 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 11:37:20 2026 -0400 Finish merging feature/upload into dev
+0b4c8d0 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 11:34:27 2026 -0400 Merge remote-tracking branch 'origin/feature/download' into dev
+e5f28d0 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 11:34:14 2026 -0400 Merge branch 'feature/upload' into dev
+14bee31 Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 11:09:23 2026 -0400 adding some ttl logic and user logic
+90cace4 Charles Carlson <carlson.charles20@gmail.com> Sun Apr 5 12:17:26 2026 -0400 adding open command for all os versions, uses download as helper
+0833b18 Charles Carlson <carlson.charles20@gmail.com> Fri Apr 3 13:25:11 2026 -0400 adding some test to test mass users downloading a file a teacher is updating, and permissions
+e7c1f9a gyuszix <gyuszix@gmail.com> Thu Apr 2 12:55:13 2026 -0400 making sure no merge conflict with future business logic, tree is closed, #37 closed
+6d2de9e gyuszix <gyuszix@gmail.com> Thu Apr 2 12:39:19 2026 -0400 implement tree command, fully fucntional, students can only tree and see their own folders, #37
+8c4bb93 gyuszix <gyuszix@gmail.com> Thu Apr 2 12:26:04 2026 -0400 semi working tested tree implementation - limited to prof role only
+5e271ee gyuszix <gyuszix@gmail.com> Thu Apr 2 11:51:04 2026 -0400 adding a bash command to make local testing faster
+eafd31f Charles Carlson <carlson.charles20@gmail.com> Thu Apr 2 10:51:20 2026 -0400 adding download
+d57a739 Charles Carlson <carlson.charles20@gmail.com> Thu Apr 2 10:27:44 2026 -0400 upload working as intended
+ccc9781 Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Apr 1 18:14:41 2026 -0400 rename dir working...
+893e380 Charles Carlson <carlson.charles20@gmail.com> Wed Apr 1 13:44:07 2026 -0400 removed redundancies
+f730f49 gyuszix <gyuszix@gmail.com> Mon Mar 30 13:22:49 2026 -0400 adding clear
+1cfa581 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:40:08 2026 -0400 rename file working
+f98ec29 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:10:52 2026 -0400 added rename to utils
+a242d6e Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:01:00 2026 -0400 Merge branch 'dev' into feature/rename-file
+49b1cad Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 11:58:05 2026 -0400 merged dev with mkdir
+2d8aa08 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 11:48:43 2026 -0400 rename WIP
+feae31a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:51:08 2026 -0400 refactoring redundant code
+27b4cc4 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:45:20 2026 -0400 adding mkdir working with refactor
+bd835c8 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:37:25 2026 -0400 mkdir works, added client code to work with it
+4267a61 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:35:07 2026 -0400 adding server logic, still testing mkdir
+b100268 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 10:46:19 2026 -0400 removing main.go redundant file
+f6c620b Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 10:41:24 2026 -0400 committing changes before switching to dev
+5e0cd46 gyuszix <gyuszix@gmail.com> Thu Mar 26 16:32:17 2026 -0400 merging feature with nlb tf changes
+da544e3 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 16:06:34 2026 -0400 deleted garbage
+c4ad6ec Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 16:04:19 2026 -0400 Merge load test branch into dev and resolve README conflict
+27777c8 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:57:54 2026 -0400 initial test working
+2388888 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:56:49 2026 -0400 now the test includes graphs
+f3191e1 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:44:54 2026 -0400 added a test for ls, cd, and pwd commands
+53a9f3b Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 15:38:15 2026 -0400 instructions
+764b8b3 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 14:51:59 2026 -0400 added instructions to readme
+08bf581 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 14:04:14 2026 -0400 added readme
+f69227b Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:56:21 2026 -0400 added docker for server
+bc70b30 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:52:41 2026 -0400 modified read me and deleted useless stuff
+fbe5435 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:47:34 2026 -0400 read me
+f5b466a Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:45:19 2026 -0400 locust, adding patch
+3feff5a Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:40:20 2026 -0400 add ls, cd, pwd functionality
+5016ce6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:36:27 2026 -0400 Merge branch 'feature/server' of https://github.com/mdzhodges/NEUDFS into feature/server
+96ea58c Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:35:42 2026 -0400 staging for dev
+ae4754d Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:26:35 2026 -0400 add / to pwd
+2e3bb96 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:23:47 2026 -0400 pwd implemented
+cda2bcf Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:47 2026 -0400 Merge branch 'feature/server' of github.com:mdzhodges/NEUDFS into feature/server
+c4bf4c8 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:13 2026 -0400 working on pwd
+b47db5e Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:19:12 2026 -0400 added pwd to proto schema
+ff4c549 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:11:53 2026 -0400 ls and cd fixed
+ebee2b1 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:59:42 2026 -0400 full sendy
+d2cbdb6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:40:11 2026 -0400 fixing script
+879d054 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:34:27 2026 -0400 added change directory
+9662558 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:07:10 2026 -0400 fixing change directory
+0943460 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:40:24 2026 -0400 Merge branch 'dev' into feature/server
+b1ca996 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:28:12 2026 -0400 changed git ignore
+dc65627 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 17:33:19 2026 -0400 WIP: for Server LS implementation, rewriting LS to properly handle listing only what a user can access
+369ebda Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 16:20:26 2026 -0400 readme update
+076875f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 14:00:31 2026 -0400 making local changes for tests
+c881afd Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:38:18 2026 -0400 now you can destroy when s3 is not empty
+7e1a8e9 Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:15:13 2026 -0400 S3 bucket working
+7a07a3f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 12:20:47 2026 -0400 adding list dir client logic
+b3facc7 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 11:55:17 2026 -0400 changing structure and adding connection to server in client
+c291df7 gyuszix <gyuszix@gmail.com> Tue Mar 24 17:52:32 2026 -0400 making the lab role arn dynamic
+0118020 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:38:20 2026 -0400 refining logic for ListDirectory
+9b87400 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:15:20 2026 -0400 adding interceptor and updating List/Change Directory
+349f64a Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:42:00 2026 -0400 adding List and Change Directory
+fc4360d Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:23:19 2026 -0400 adding logic for Change directory
+938e079 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:52 2026 -0400 adding
+50919c4 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:25 2026 -0400 removing tfvars and shared i am role attempt
+c8ebc57 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:50:01 2026 -0400 adding tfvars labrole iam id
+0e57847 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:35:07 2026 -0400 adding locking table
+f12279a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 14:21:10 2026 -0400 pushing ChangeDirectory
+c0caa70 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:09:20 2026 -0400 Merge branch 's3-bucket' into dev ysea .
+63d5d52 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 23 14:05:36 2026 -0400 added s3 terraform and git ignore
+c996bb6 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:39:32 2026 -0400 adding boilerplate
+18a85c9 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:36:12 2026 -0400 adding root main and variables tf
+d9bf58f gyuszix <gyuszix@gmail.com> Mon Mar 23 13:35:52 2026 -0400 adding ecs
+521d592 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:28:30 2026 -0400 added proto commands
+fbb1065 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:08:23 2026 -0400 adding user and attribute
+ffff522 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:03:31 2026 -0400 beginning rpc code
+f815412 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:00:51 2026 -0400 ecr terraform
+4979e92 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:47:22 2026 -0400 no C :(
+843240c Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:40:50 2026 -0400 first commit
+cf3d53b Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:39:58 2026 -0400 adding folders for terraform
+a1b435f Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:00:10 2026 -0400 adding dynamo module
+66ce0e2 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:49:41 2026 -0400 adding really basic funtion parsing
+f0346fc Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:30:12 2026 -0400 fixed function def
+271f8f0 Matt Hodges <matthodgess384@gmail.com> Fri Mar 20 12:47:45 2026 -0400 Added some basic function signatures to the commands.go file
+a89ca5a Charles Carlson <carlson.charles20@gmail.com> Thu Feb 19 09:51:04 2026 -0500 adding whitepaper
+b064f7c Jordan Glass <jordanglass21@gmail.com> Mon Feb 16 13:43:08 2026 -0500 added inspiration repo to readme
+1725ccd Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:17:55 2026 -0500 cmd line simple scanner
+c61ca7e Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:06:54 2026 -0500 adding quickstart to docs and made simple command pattern structure
+eb9f03f Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 12:51:00 2026 -0500 updating readme
+b11050f Matthew Hodges <matthodgess384@gmail.com> Mon Feb 16 12:46:58 2026 -0500 Initial commit
+
+=== terraform/autoscale ===
+49b1186 Charles Carlson <carlson.charles20@gmail.com> Sun Apr 12 12:29:41 2026 -0400 adding temp k6 test for future stuff
+c520ba1 Charles Carlson <carlson.charles20@gmail.com> Sun Apr 12 12:07:54 2026 -0400 adding cloudwatch synchronization and made tests connect to AWS
+01688c4 Charles Carlson <carlson.charles20@gmail.com> Sun Apr 12 10:40:16 2026 -0400 added auto scaling, aws terraform is correctly setup for port
+8003c3e Charles Carlson <carlson.charles20@gmail.com> Thu Apr 9 15:10:50 2026 -0400 fixing context issues
+92b5e3a Charles Carlson <carlson.charles20@gmail.com> Thu Apr 9 15:01:17 2026 -0400 refactoring tables, to set up for terraform
+c7ad55f Charles Carlson <carlson.charles20@gmail.com> Thu Apr 9 14:51:00 2026 -0400 changing context to be standard
+585325d Charles Carlson <carlson.charles20@gmail.com> Thu Apr 9 14:47:39 2026 -0400 fixing query, adding pagination
+242ad8b Charles Carlson <carlson.charles20@gmail.com> Thu Apr 9 14:12:41 2026 -0400 adding multipart upload to reduce memory usage in fargate for large files
+a147da7 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Tue Apr 7 16:34:17 2026 -0400 Merge feature/delete and remove tracked binaries
+3278b78 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Tue Apr 7 16:20:07 2026 -0400 removed race condition from delete logic, refactor mkdir permission validation, automate local s3 provisioning
+ada9b8e gyuszix <gyuszix@gmail.com> Mon Apr 6 18:25:49 2026 -0400 adding gitignore
+bfdd425 gyuszix <gyuszix@gmail.com> Mon Apr 6 18:25:15 2026 -0400 remove tracked binaries
+208e181 gyuszix <gyuszix@gmail.com> Mon Apr 6 15:29:08 2026 -0400 adding bug fix where ls can still see the deleted files
+bbb4462 gyuszix <gyuszix@gmail.com> Mon Apr 6 14:11:59 2026 -0400 adding aws to seed_db testing #55 closed
+3b8b2dd gyuszix <gyuszix@gmail.com> Mon Apr 6 14:11:59 2026 -0400 adding aws to seed_db testing
+7b7f44c gyuszix <gyuszix@gmail.com> Mon Apr 6 14:07:17 2026 -0400 adding run-local bash script that will start server, reseed users, give way to testing in a better format
+cf81bca gyuszix <gyuszix@gmail.com> Mon Apr 6 14:06:37 2026 -0400 minor fix
+0ec8739 gyuszix <gyuszix@gmail.com> Mon Apr 6 14:06:19 2026 -0400 fixing env issue in test
+bd3d82c gyuszix <gyuszix@gmail.com> Mon Apr 6 14:06:07 2026 -0400 fix minor testing bug
+06f2a0b Charles Carlson <50120819+charles-carlson@users.noreply.github.com> Mon Apr 6 13:05:52 2026 -0400 Merge pull request #53 from mdzhodges/refactor/ttl
+7511348 Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 13:05:04 2026 -0400 add fix for tree
+4bdaae2 Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 13:04:15 2026 -0400 Merge branch 'dev' of https://github.com/mdzhodges/NEUDFS into refactor/ttl
+08139cb Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 12:55:13 2026 -0400 adding refactor, moving in mem map to dynamo
+71b77a0 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 12:47:29 2026 -0400 merged and tested open, download and upload
+771cda1 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 11:37:20 2026 -0400 Finish merging feature/upload into dev
+0b4c8d0 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 11:34:27 2026 -0400 Merge remote-tracking branch 'origin/feature/download' into dev
+e5f28d0 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Apr 6 11:34:14 2026 -0400 Merge branch 'feature/upload' into dev
+14bee31 Charles Carlson <carlson.charles20@gmail.com> Mon Apr 6 11:09:23 2026 -0400 adding some ttl logic and user logic
+90cace4 Charles Carlson <carlson.charles20@gmail.com> Sun Apr 5 12:17:26 2026 -0400 adding open command for all os versions, uses download as helper
+0833b18 Charles Carlson <carlson.charles20@gmail.com> Fri Apr 3 13:25:11 2026 -0400 adding some test to test mass users downloading a file a teacher is updating, and permissions
+e7c1f9a gyuszix <gyuszix@gmail.com> Thu Apr 2 12:55:13 2026 -0400 making sure no merge conflict with future business logic, tree is closed, #37 closed
+6d2de9e gyuszix <gyuszix@gmail.com> Thu Apr 2 12:39:19 2026 -0400 implement tree command, fully fucntional, students can only tree and see their own folders, #37
+8c4bb93 gyuszix <gyuszix@gmail.com> Thu Apr 2 12:26:04 2026 -0400 semi working tested tree implementation - limited to prof role only
+5e271ee gyuszix <gyuszix@gmail.com> Thu Apr 2 11:51:04 2026 -0400 adding a bash command to make local testing faster
+eafd31f Charles Carlson <carlson.charles20@gmail.com> Thu Apr 2 10:51:20 2026 -0400 adding download
+d57a739 Charles Carlson <carlson.charles20@gmail.com> Thu Apr 2 10:27:44 2026 -0400 upload working as intended
+ccc9781 Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Apr 1 18:14:41 2026 -0400 rename dir working...
+893e380 Charles Carlson <carlson.charles20@gmail.com> Wed Apr 1 13:44:07 2026 -0400 removed redundancies
+f730f49 gyuszix <gyuszix@gmail.com> Mon Mar 30 13:22:49 2026 -0400 adding clear
+1cfa581 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:40:08 2026 -0400 rename file working
+f98ec29 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:10:52 2026 -0400 added rename to utils
+a242d6e Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 12:01:00 2026 -0400 Merge branch 'dev' into feature/rename-file
+49b1cad Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 11:58:05 2026 -0400 merged dev with mkdir
+2d8aa08 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 30 11:48:43 2026 -0400 rename WIP
+feae31a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:51:08 2026 -0400 refactoring redundant code
+27b4cc4 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 30 10:45:20 2026 -0400 adding mkdir working with refactor
+bd835c8 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:37:25 2026 -0400 mkdir works, added client code to work with it
+4267a61 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 12:35:07 2026 -0400 adding server logic, still testing mkdir
+b100268 Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 10:46:19 2026 -0400 removing main.go redundant file
+f6c620b Charles Carlson <carlson.charles20@gmail.com> Sun Mar 29 10:41:24 2026 -0400 committing changes before switching to dev
+5e0cd46 gyuszix <gyuszix@gmail.com> Thu Mar 26 16:32:17 2026 -0400 merging feature with nlb tf changes
+da544e3 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 16:06:34 2026 -0400 deleted garbage
+c4ad6ec Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 16:04:19 2026 -0400 Merge load test branch into dev and resolve README conflict
+27777c8 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:57:54 2026 -0400 initial test working
+2388888 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:56:49 2026 -0400 now the test includes graphs
+f3191e1 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Thu Mar 26 15:44:54 2026 -0400 added a test for ls, cd, and pwd commands
+53a9f3b Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 15:38:15 2026 -0400 instructions
+764b8b3 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 14:51:59 2026 -0400 added instructions to readme
+08bf581 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 14:04:14 2026 -0400 added readme
+f69227b Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:56:21 2026 -0400 added docker for server
+bc70b30 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:52:41 2026 -0400 modified read me and deleted useless stuff
+fbe5435 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:47:34 2026 -0400 read me
+f5b466a Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:45:19 2026 -0400 locust, adding patch
+3feff5a Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:40:20 2026 -0400 add ls, cd, pwd functionality
+5016ce6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:36:27 2026 -0400 Merge branch 'feature/server' of https://github.com/mdzhodges/NEUDFS into feature/server
+96ea58c Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:35:42 2026 -0400 staging for dev
+ae4754d Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:26:35 2026 -0400 add / to pwd
+2e3bb96 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:23:47 2026 -0400 pwd implemented
+cda2bcf Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:47 2026 -0400 Merge branch 'feature/server' of github.com:mdzhodges/NEUDFS into feature/server
+c4bf4c8 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:20:13 2026 -0400 working on pwd
+b47db5e Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 13:19:12 2026 -0400 added pwd to proto schema
+ff4c549 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 13:11:53 2026 -0400 ls and cd fixed
+ebee2b1 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:59:42 2026 -0400 full sendy
+d2cbdb6 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:40:11 2026 -0400 fixing script
+879d054 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:34:27 2026 -0400 added change directory
+9662558 Charles Carlson <carlson.charles20@gmail.com> Thu Mar 26 12:07:10 2026 -0400 fixing change directory
+0943460 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:40:24 2026 -0400 Merge branch 'dev' into feature/server
+b1ca996 Matt Hodges <matthodgess384@gmail.com> Thu Mar 26 11:28:12 2026 -0400 changed git ignore
+dc65627 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 17:33:19 2026 -0400 WIP: for Server LS implementation, rewriting LS to properly handle listing only what a user can access
+369ebda Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 16:20:26 2026 -0400 readme update
+076875f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 14:00:31 2026 -0400 making local changes for tests
+c881afd Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:38:18 2026 -0400 now you can destroy when s3 is not empty
+7e1a8e9 Jordan Glass <jordanglass@mac.mynetworksettings.com> Wed Mar 25 13:15:13 2026 -0400 S3 bucket working
+7a07a3f Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 12:20:47 2026 -0400 adding list dir client logic
+b3facc7 Charles Carlson <carlson.charles20@gmail.com> Wed Mar 25 11:55:17 2026 -0400 changing structure and adding connection to server in client
+c291df7 gyuszix <gyuszix@gmail.com> Tue Mar 24 17:52:32 2026 -0400 making the lab role arn dynamic
+0118020 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:38:20 2026 -0400 refining logic for ListDirectory
+9b87400 Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 11:15:20 2026 -0400 adding interceptor and updating List/Change Directory
+349f64a Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:42:00 2026 -0400 adding List and Change Directory
+fc4360d Charles Carlson <carlson.charles20@gmail.com> Tue Mar 24 10:23:19 2026 -0400 adding logic for Change directory
+938e079 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:52 2026 -0400 adding
+50919c4 gyuszix <gyuszix@gmail.com> Mon Mar 23 15:33:25 2026 -0400 removing tfvars and shared i am role attempt
+c8ebc57 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:50:01 2026 -0400 adding tfvars labrole iam id
+0e57847 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:35:07 2026 -0400 adding locking table
+f12279a Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 14:21:10 2026 -0400 pushing ChangeDirectory
+c0caa70 gyuszix <gyuszix@gmail.com> Mon Mar 23 14:09:20 2026 -0400 Merge branch 's3-bucket' into dev ysea .
+63d5d52 Jordan Glass <jordanglass@Jordans-MacBook-Pro.local> Mon Mar 23 14:05:36 2026 -0400 added s3 terraform and git ignore
+c996bb6 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:39:32 2026 -0400 adding boilerplate
+18a85c9 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:36:12 2026 -0400 adding root main and variables tf
+d9bf58f gyuszix <gyuszix@gmail.com> Mon Mar 23 13:35:52 2026 -0400 adding ecs
+521d592 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:28:30 2026 -0400 added proto commands
+fbb1065 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:08:23 2026 -0400 adding user and attribute
+ffff522 Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 13:03:31 2026 -0400 beginning rpc code
+f815412 gyuszix <gyuszix@gmail.com> Mon Mar 23 13:00:51 2026 -0400 ecr terraform
+4979e92 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:47:22 2026 -0400 no C :(
+843240c Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 12:40:50 2026 -0400 first commit
+cf3d53b Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:39:58 2026 -0400 adding folders for terraform
+a1b435f Charles Carlson <carlson.charles20@gmail.com> Mon Mar 23 12:00:10 2026 -0400 adding dynamo module
+66ce0e2 Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:49:41 2026 -0400 adding really basic funtion parsing
+f0346fc Matt Hodges <matthodgess384@gmail.com> Mon Mar 23 10:30:12 2026 -0400 fixed function def
+271f8f0 Matt Hodges <matthodgess384@gmail.com> Fri Mar 20 12:47:45 2026 -0400 Added some basic function signatures to the commands.go file
+a89ca5a Charles Carlson <carlson.charles20@gmail.com> Thu Feb 19 09:51:04 2026 -0500 adding whitepaper
+b064f7c Jordan Glass <jordanglass21@gmail.com> Mon Feb 16 13:43:08 2026 -0500 added inspiration repo to readme
+1725ccd Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:17:55 2026 -0500 cmd line simple scanner
+c61ca7e Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 13:06:54 2026 -0500 adding quickstart to docs and made simple command pattern structure
+eb9f03f Charles Carlson <carlson.charles20@gmail.com> Mon Feb 16 12:51:00 2026 -0500 updating readme
+b11050f Matthew Hodges <matthodgess384@gmail.com> Mon Feb 16 12:46:58 2026 -0500 Initial commit
+
