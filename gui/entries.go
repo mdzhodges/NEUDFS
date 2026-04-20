@@ -61,7 +61,6 @@ func (s *state) selectEntry(i int) {
 
 	s.cdEntry.SetText(entry)
 	s.renameEntry.SetText(entry)
-	s.moveNameEntry.SetText(entry)
 	s.deleteEntry.SetText(entry)
 	s.downloadEntry.SetText(entry)
 }
@@ -76,8 +75,6 @@ func (s *state) clearSelectionAndFields() {
 	s.mkdirEntry.SetText("")
 	s.renameEntry.SetText("")
 	s.renameNameEntry.SetText("")
-	s.moveNameEntry.SetText("")
-	s.moveLocEntry.SetText("")
 	s.deleteEntry.SetText("")
 	s.downloadEntry.SetText("")
 	s.uploadNameEntry.SetText("")

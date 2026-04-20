@@ -52,8 +52,6 @@ type state struct {
 	mkdirEntry      *widget.Entry
 	renameEntry     *widget.Entry
 	renameNameEntry *widget.Entry
-	moveNameEntry   *widget.Entry
-	moveLocEntry    *widget.Entry
 	deleteEntry     *widget.Entry
 	downloadEntry   *widget.Entry
 	uploadNameEntry *widget.Entry

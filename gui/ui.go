@@ -44,10 +44,6 @@ func (s *state) buildUI() {
 	s.renameEntry.SetPlaceHolder("entry (file or folder name)")
 	s.renameNameEntry = widget.NewEntry()
 	s.renameNameEntry.SetPlaceHolder("new name")
-	s.moveNameEntry = widget.NewEntry()
-	s.moveNameEntry.SetPlaceHolder("name (file or folder)")
-	s.moveLocEntry = widget.NewEntry()
-	s.moveLocEntry.SetPlaceHolder("location (relative folder)")
 	s.deleteEntry = widget.NewEntry()
 	s.deleteEntry.SetPlaceHolder("path (file or folder)")
 	s.downloadEntry = widget.NewEntry()
@@ -160,27 +156,6 @@ func (s *state) buildMainView() fyne.CanvasObject {
 		newName := strings.TrimSpace(s.renameNameEntry.Text)
 		s.runAction("renamedir", func() error { return s.rename(true, entry, newName) })
 	})
-
-	moveBtn := widget.NewButton("move", func() {
-		name := strings.TrimSpace(s.moveNameEntry.Text)
-		loc := strings.TrimSpace(s.moveLocEntry.Text)
-		s.runAction("move", func() error {
-			_, err := s.clientOrErr()
-			if err != nil {
-				return err
-			}
-			ctx, cancel := s.rpcCtx(20 * time.Second)
-			defer cancel()
-			res, err := s.client.Move(ctx, &proto.MoveRequest{Name: name, Location: loc})
-			if err != nil {
-				return err
-			}
-			s.logf("%s", strings.TrimSpace(res.GetMessage()))
-			_ = s.refreshAll()
-			return nil
-		})
-	})
-
 	deleteBtn := widget.NewButton("delete", func() {
 		path := strings.TrimSpace(s.deleteEntry.Text)
 		s.runAction("delete", func() error {
@@ -252,9 +227,6 @@ func (s *state) buildMainView() fyne.CanvasObject {
 			widget.NewLabelWithStyle("Rename", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			container.NewGridWithColumns(2, s.renameEntry, s.renameNameEntry),
 			container.NewHBox(renameFileBtn, renameDirBtn),
-			widget.NewSeparator(),
-			widget.NewLabelWithStyle("Move", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			container.NewBorder(nil, nil, nil, moveBtn, container.NewGridWithColumns(2, s.moveNameEntry, s.moveLocEntry)),
 			widget.NewSeparator(),
 			widget.NewLabelWithStyle("Delete", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			container.NewBorder(nil, nil, nil, deleteBtn, s.deleteEntry),

@@ -10,7 +10,7 @@ cc0a34a Charles Carlson <carlson.charles20@gmail.com> Sat Apr 18 12:44:26 2026 -
 9798e6a Charles Carlson <carlson.charles20@gmail.com> Fri Apr 17 13:59:48 2026 -0400  fix: reduce k6 load test failures and propagate request context
 ef4c8e1 gyuszix <gyuszix@gmail.com> Thu Apr 16 17:01:16 2026 -0400 merging feature/test-debug to dev
 9b11468 gyuszix <gyuszix@gmail.com> Thu Apr 16 16:34:14 2026 -0400 update gitignore
-71a5f34 gyuszix <gyuszix@gmail.com> Thu Apr 16 16:24:46 2026 -0400 remove test binaries
+71a5f34 gyuszix <gyuszix@gmail.com> Thu Apr 16 16:24:46 2026 -0400 re test binaries
 d52341e gyuszix <gyuszix@gmail.com> Thu Apr 16 16:21:32 2026 -0400 adding to gitignore
 8c1644a Charles Carlson <carlson.charles20@gmail.com> Thu Apr 16 15:23:42 2026 -0400 k6 changes and fixes, with main
 5d51129 Charles Carlson <carlson.charles20@gmail.com> Thu Apr 16 14:04:18 2026 -0400 Merge branch 'dev' of https://github.com/mdzhodges/NEUDFS into dev
