@@ -1,0 +1,56 @@
+Title	URL	Assignees	Status	Linked pull requests	Sub-issues progress
+clean git interface and branches	https://github.com/mdzhodges/NEUDFS/issues/62	gyuszix	Done		
+Begin Load Testings	https://github.com/mdzhodges/NEUDFS/issues/48	charles-carlson	Done		
+TUI	https://github.com/mdzhodges/NEUDFS/issues/49	mdzhodges	Done		
+Server Provisioning Sync	https://github.com/mdzhodges/NEUDFS/issues/33	charles-carlson	Done		
+Automate Local S3 Provisioning	https://github.com/mdzhodges/NEUDFS/issues/57	jordanglass21	Done		
+Refactor mkdir Permission Validation	https://github.com/mdzhodges/NEUDFS/issues/58	jordanglass21	Done		
+Resolve Concurrent Delete Race Condition	https://github.com/mdzhodges/NEUDFS/issues/59	jordanglass21	Done		
+Resolve Merge conflict of feature branches to dev	https://github.com/mdzhodges/NEUDFS/issues/52	jordanglass21	Done		
+Create local test script	https://github.com/mdzhodges/NEUDFS/issues/54	gyuszix	Done		
+Create deploy script for remote testing	https://github.com/mdzhodges/NEUDFS/issues/55	gyuszix	Done		
+Implmenet remove file command	https://github.com/mdzhodges/NEUDFS/issues/50	gyuszix	Done		
+Implement remove directory command	https://github.com/mdzhodges/NEUDFS/issues/51	gyuszix	Done		
+Implement upload	https://github.com/mdzhodges/NEUDFS/issues/28	charles-carlson	Done		
+Create open command	https://github.com/mdzhodges/NEUDFS/issues/47	charles-carlson	Done		
+Implement download	https://github.com/mdzhodges/NEUDFS/issues/29	charles-carlson	Done		
+Implement S3 Provider Wrapper	https://github.com/mdzhodges/NEUDFS/issues/24	charles-carlson	Done		
+Dockerfile	https://github.com/mdzhodges/NEUDFS/issues/26	charles-carlson, gyuszix, mdzhodges	Done		
+Implement rename file	https://github.com/mdzhodges/NEUDFS/issues/30	jordanglass21	Done		2 / 2 (100%)
+Client MKDIR	https://github.com/mdzhodges/NEUDFS/issues/41	charles-carlson	Done		
+Server MKDIR	https://github.com/mdzhodges/NEUDFS/issues/42	charles-carlson	Done		
+Implement Metadata CRUD logic for DynamoDB	https://github.com/mdzhodges/NEUDFS/issues/27	charles-carlson	Done		
+Implement rename directory	https://github.com/mdzhodges/NEUDFS/issues/45	jordanglass21	Done		
+create run-local.sh for fast local testing	https://github.com/mdzhodges/NEUDFS/issues/46	gyuszix	Done		
+implement tree command	https://github.com/mdzhodges/NEUDFS/issues/37	gyuszix	Done		
+Initial Testing	https://github.com/mdzhodges/NEUDFS/issues/15	jordanglass21	Done		
+Basic Benchmarking Script	https://github.com/mdzhodges/NEUDFS/issues/25	jordanglass21	Done		
+Table Provisioning	https://github.com/mdzhodges/NEUDFS/issues/3	charles-carlson, gyuszix	Done		
+AWS Infrastructure	https://github.com/mdzhodges/NEUDFS/issues/13	gyuszix	Done		
+Bucket Setup	https://github.com/mdzhodges/NEUDFS/issues/4	jordanglass21	Done		
+Define neudfs.proto	https://github.com/mdzhodges/NEUDFS/issues/2	charles-carlson	Done		
+grpc server	https://github.com/mdzhodges/NEUDFS/issues/12	charles-carlson, mdzhodges	Done		
+Implement cd and pwd logic	https://github.com/mdzhodges/NEUDFS/issues/5	charles-carlson	Done		3 / 3 (100%)
+Implement Client Service Layer	https://github.com/mdzhodges/NEUDFS/issues/22	jordanglass21	Done		
+Implement ls (List Directory)	https://github.com/mdzhodges/NEUDFS/issues/6	charles-carlson	Done		2 / 2 (100%)
+Server Handling	https://github.com/mdzhodges/NEUDFS/issues/16	charles-carlson	Done		
+PWD CLI Integration	https://github.com/mdzhodges/NEUDFS/issues/20	mdzhodges	Done		
+PWD CLI Integration	https://github.com/mdzhodges/NEUDFS/issues/21	mdzhodges	Done		
+Server pwd helper	https://github.com/mdzhodges/NEUDFS/issues/19	charles-carlson	Done		
+Client Handling of LS	https://github.com/mdzhodges/NEUDFS/issues/14	charles-carlson	Done		
+CD command	https://github.com/mdzhodges/NEUDFS/issues/17	charles-carlson	Done		
+Implement upload	https://github.com/mdzhodges/NEUDFS/issues/7	charles-carlson	Done		
+Implement download	https://github.com/mdzhodges/NEUDFS/issues/8	charles-carlson	Done		
+Implement mkdir (Create Directory)	https://github.com/mdzhodges/NEUDFS/issues/9	charles-carlson	Done		2 / 2 (100%)
+Implement move and rename	https://github.com/mdzhodges/NEUDFS/issues/10	jordanglass21	Done		
+Implement delete	https://github.com/mdzhodges/NEUDFS/issues/11	jordanglass21	Done		
+Final Command Polish and Testing	https://github.com/mdzhodges/NEUDFS/issues/40	charles-carlson	Done		
+Rename file for server	https://github.com/mdzhodges/NEUDFS/issues/43	jordanglass21	Done		
+Rename file for client	https://github.com/mdzhodges/NEUDFS/issues/44	jordanglass21	Done		
+Finish load testing	https://github.com/mdzhodges/NEUDFS/issues/61	charles-carlson	Done		
+Refactor removeFolderFromLists to Handle Partial Permission Updates (Async/Retry)	https://github.com/mdzhodges/NEUDFS/issues/66	jordanglass21	Done		
+Refactor Deletion Error Handling & Implement Upload/Delete Stress Test	https://github.com/mdzhodges/NEUDFS/issues/65	jordanglass21	Done		
+Refactored S3 Upload to Multipart Upload	https://github.com/mdzhodges/NEUDFS/issues/67	charles-carlson	Done		
+Adding Pagination to queries in server logic	https://github.com/mdzhodges/NEUDFS/issues/68	charles-carlson	Done		
+Adding CloudWatch Metric Synchronization	https://github.com/mdzhodges/NEUDFS/issues/69	charles-carlson	Done		
+Finalizing load and unit tests for K6 and Go Testing	https://github.com/mdzhodges/NEUDFS/issues/70	charles-carlson	Done		
